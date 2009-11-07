@@ -37,6 +37,5 @@ typedef struct _model_t
 
 model_t* mdl_load(const char* geofile, const char* texfile);
 void mdl_free(model_t* mdl);
-void mdl_render(model_t* mdl);
 
 #endif

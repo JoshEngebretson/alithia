@@ -26,10 +26,13 @@
 cell_t* cell;
 cluster_t* cluster;
 list_t* ents;
+list_t* lights;
 int map_width;
 int map_height;
 int cluster_width;
 int cluster_height;
+lmap_texel_t* lightmap;
+GLuint lmaptex;
 
 model_t* mdl_vytio;
 model_t* mdl_armor;
@@ -49,6 +52,9 @@ void map_init(int width, int height)
 
     ents = list_new();
     ents->item_free = (void*)ent_free;
+
+    lights = list_new();
+    lights->item_free = (void*)light_free;
 
     i = 0;
     for (y=0; y<cluster_height; y++) {
@@ -78,6 +84,15 @@ void map_init(int width, int height)
         cell[i*width].floorz = cell[i*width + height - 1].floorz = 0;
     }
 
+    lightmap = malloc0(sizeof(lmap_texel_t)*map_width*map_height);
+    glActiveTexture(GL_TEXTURE1);
+    glEnable(GL_TEXTURE_2D);
+    glGenTextures(1, &lmaptex);
+    glBindTexture(GL_TEXTURE_2D, lmaptex);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, map_width, map_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+
     mdl_vytio = mdl_load("data/models/vytio.alm", "data/models/vytio.bmp");
     mdl_armor = mdl_load("data/models/armor.alm", "data/models/armor.bmp");
 
@@ -88,16 +103,138 @@ void map_init(int width, int height)
     ent = ent_new();
     ent_set_model(ent, mdl_armor);
     ent_move(ent, 18*CELLSIZE*32.0, -128*32.0, 10*CELLSIZE*32.0);
+
+    light_new(14*CELLSIZE, 0, 10*CELLSIZE, 0.7, 0.2, 0.1, 150);
+    light_new(14*CELLSIZE, 0, 10*CELLSIZE, 0.2, 0.3, 0.4, 1000);
 }
 
 void map_free(void)
 {
     int i;
+    glBindTexture(GL_TEXTURE_2D, lmaptex);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 0, 0, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    glDeleteTextures(1, &lmaptex);
     for (i=0; i<cluster_width*cluster_height; i++)
         list_free(cluster[i].ents);
+    list_free(lights);
     list_free(ents);
     free(cluster);
     free(cell);
+}
+
+static void calc_lightmap_for_cell_at(float* or, float* og, float* ob, int mx, int my)
+{
+    cell_t* c = cell + my*map_width + mx;
+    float r = 0.05, g = 0.05, b = 0.05;
+    float cx = mx*CELLSIZE + (CELLSIZE/2.0);
+    float cz = my*CELLSIZE + (CELLSIZE/2.0);
+    int x, y, x1, y1, x2, y2;
+    listitem_t* le;
+
+    for (le=lights->first; le; le=le->next) {
+        light_t* l = le->ptr;
+        float dist = sqrt(SQR(cx - l->x) + SQR(cz - l->z));
+        if (dist < l->rad) {
+            if (dist < l->rad*0.65f) {
+                r += l->r;
+                g += l->g;
+                b += l->b;
+            } else {
+                float v = 1.0 - (dist - l->rad*0.65f)/(l->rad*0.35f);
+                r += l->r*v;
+                g += l->g*v;
+                b += l->b*v;
+            }
+        }
+    }
+
+    x1 = mx - 1; if (x1 < 0) x1 = 0;
+    y1 = my - 1; if (y1 < 0) y1 = 0;
+    x2 = mx + 1; if (x2 >= map_width) x2 = map_width - 1;
+    y2 = my + 1; if (y2 >= map_height) y2 = map_height + 1;
+    for (y=y1; y<=y2; y++) {
+        for (x=x1; x<=x2; x++) {
+            cell_t* nc = cell + y*map_width + x;
+            if (nc->floorz > c->floorz + CELLSIZE || nc->ceilz < c->ceilz - CELLSIZE || (nc->flags & CF_OCCLUDER)) {
+                r -= 0.08;
+                g -= 0.08;
+                b -= 0.08;
+            }
+        }
+    }
+
+    if (r < 0.0) r = 0.0; else if (r > 1.0) r = 1.0;
+    if (g < 0.0) g = 0.0; else if (g > 1.0) g = 1.0;
+    if (b < 0.0) b = 0.0; else if (b > 1.0) b = 1.0;
+
+    *or = r;
+    *og = g;
+    *ob = b;
+}
+
+static void calc_lightmap_for_cell(lmap_texel_t* lm, int mx, int my)
+{
+    int x, y, x1, y1, x2, y2, n = 0;
+    float r, g, b, nr, ng, nb;
+    x1 = mx - 1; if (x1 < 0) x1 = 0;
+    y1 = my - 1; if (y1 < 0) y1 = 0;
+    x2 = mx + 1; if (x2 >= map_width) x2 = map_width - 1;
+    y2 = my + 1; if (y2 >= map_height) y2 = map_height + 1;
+
+    r = g = b = 0.0f;
+
+    for (y=y1; y<=y2; y++) {
+        for (x=x1; x<=x2; x++) {
+            calc_lightmap_for_cell_at(&nr, &ng, &nb, x, y);
+            r += nr;
+            g += ng;
+            b += nb;
+            n++;
+        }
+    }
+
+    r /= (float)n;
+    g /= (float)n;
+    b /= (float)n;
+
+    lm->r = (int)(255.0*r);
+    lm->g = (int)(255.0*g);
+    lm->b = (int)(255.0*b);
+    lm->x = 255;
+}
+
+void lmap_update(void)
+{
+    int mx, my;
+    for (my=0; my<map_height; my++) {
+        for (mx=0; mx<map_width; mx++) {
+            calc_lightmap_for_cell(lightmap + my*map_width + mx, mx, my);
+        }
+    }
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, lmaptex);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, map_width, map_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, lightmap);
+    printf("%s\n", gluErrorString(glGetError()));
+}
+
+light_t* light_new(float x, float y, float z, float r, float g, float b, float rad)
+{
+    light_t* light = new(light_t);
+    light->x = x;
+    light->y = y;
+    light->z = z;
+    light->r = r;
+    light->g = g;
+    light->b = b;
+    light->rad = rad;
+    list_add(lights, light);
+    return light;
+}
+
+void light_free(light_t* light)
+{
+    list_remove(lights, light, 0);
+    free(light);
 }
 
 entity_t* ent_new(void)

@@ -23,6 +23,33 @@
 
 #include "atest.h"
 
+PFNGLACTIVETEXTUREPROC glActiveTexture;
+PFNGLMULTITEXCOORD2FARBPROC glMultiTexCoord2f;
+
+#define EXT_LOAD(n) { \
+    n = SDL_GL_GetProcAddress(#n); \
+    if (!n) return 0; \
+}
+#define EXT_LOAD2(n,n2) { \
+    n = SDL_GL_GetProcAddress(#n); \
+    if (!n) n = SDL_GL_GetProcAddress(#n2); \
+    if (!n) return 0; \
+}
+#define EXT_LOAD3(n,n2,n3) { \
+    n = SDL_GL_GetProcAddress(#n); \
+    if (!n) n = SDL_GL_GetProcAddress(#n2); \
+    if (!n) n = SDL_GL_GetProcAddress(#n3); \
+    if (!n) return 0; \
+}
+
+static int load_extensions(void)
+{
+    EXT_LOAD2(glActiveTexture, glActiveTextureARB);
+    EXT_LOAD2(glMultiTexCoord2f, glMultiTexCoord2fARB);
+
+    return 1;
+}
+
 int vid_init(void)
 {
     int r = SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO|SDL_INIT_NOPARACHUTE);
@@ -53,6 +80,9 @@ int vid_init(void)
     if (!SDL_SetVideoMode(width, height, bpp, flags))
         if (!SDL_SetVideoMode(width, height, bpp, flags&(~SDL_FULLSCREEN)))
             return FALSE;
+
+    if (!load_extensions())
+        return FALSE;
 
     SDL_WM_SetCaption("ATest", "ATest");
 

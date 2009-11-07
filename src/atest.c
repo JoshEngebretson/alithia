@@ -636,8 +636,9 @@ static void update(void)
     float vmtx[16];
     float mtx[16];
     float px, py, pz;
-    static float pos[] = {0, 1, 0, 0};
-    static float amb[] = {0.9, 0.9, 0.9, 1.0};
+    float pos[] = {0, 1, 0, 0};
+    float amb[] = {0.9, 0.9, 0.9, 1.0};
+    float col[] = {0.9, 0.9, 0.9, 1.0};
 
     /* prepare scene for rendering */
     glClearColor(0.1, 0.12, 0.2, 1.0);
@@ -663,8 +664,11 @@ static void update(void)
         ray_march(camx, camy, camx + pntx[x], camy + pnty[x]);
 
     /* enable texturing and depth tests */
-    //glEnable(GL_CULL_FACE);
+    glEnable(GL_CULL_FACE);
     glEnable(GL_DEPTH_TEST);
+    glActiveTexture(GL_TEXTURE0);
+    glEnable(GL_TEXTURE_2D);
+    glActiveTexture(GL_TEXTURE1);
     glEnable(GL_TEXTURE_2D);
 
     calls += 10;
@@ -709,13 +713,17 @@ static void update(void)
                             glNewList(cls->part[i].dl, GL_COMPILE);
                             glBegin(GL_QUADS);
                             for (j=0; j<pb[i].qc; j++) {
-                                glTexCoord2f(pb[i].uv[j*8], pb[i].uv[j*8 + 1]);
+                                glMultiTexCoord2f(GL_TEXTURE0, pb[i].uv[j*8], pb[i].uv[j*8 + 1]);
+                                glMultiTexCoord2f(GL_TEXTURE1, (pb[i].vtx[j*12])/(float)map_width/CELLSIZE, (pb[i].vtx[j*12 + 2])/(float)map_height/CELLSIZE);
                                 glVertex3f(pb[i].vtx[j*12], pb[i].vtx[j*12 + 1], pb[i].vtx[j*12 + 2]);
-                                glTexCoord2f(pb[i].uv[j*8 + 2], pb[i].uv[j*8 + 3]);
+                                glMultiTexCoord2f(GL_TEXTURE0, pb[i].uv[j*8 + 2], pb[i].uv[j*8 + 3]);
+                                glMultiTexCoord2f(GL_TEXTURE1, (pb[i].vtx[j*12 + 3])/(float)map_width/CELLSIZE, (pb[i].vtx[j*12 + 5])/(float)map_height/CELLSIZE);
                                 glVertex3f(pb[i].vtx[j*12 + 3], pb[i].vtx[j*12 + 4], pb[i].vtx[j*12 + 5]);
-                                glTexCoord2f(pb[i].uv[j*8 + 4], pb[i].uv[j*8 + 5]);
+                                glMultiTexCoord2f(GL_TEXTURE0, pb[i].uv[j*8 + 4], pb[i].uv[j*8 + 5]);
+                                glMultiTexCoord2f(GL_TEXTURE1, (pb[i].vtx[j*12 + 6])/(float)map_width/CELLSIZE, (pb[i].vtx[j*12 + 8])/(float)map_height/CELLSIZE);
                                 glVertex3f(pb[i].vtx[j*12 + 6], pb[i].vtx[j*12 + 7], pb[i].vtx[j*12 + 8]);
-                                glTexCoord2f(pb[i].uv[j*8 + 6], pb[i].uv[j*8 + 7]);
+                                glMultiTexCoord2f(GL_TEXTURE0, pb[i].uv[j*8 + 6], pb[i].uv[j*8 + 7]);
+                                glMultiTexCoord2f(GL_TEXTURE1, (pb[i].vtx[j*12 + 9])/(float)map_width/CELLSIZE, (pb[i].vtx[j*12 + 11])/(float)map_height/CELLSIZE);
                                 glVertex3f(pb[i].vtx[j*12 + 9], pb[i].vtx[j*12 + 10], pb[i].vtx[j*12 + 11]);
                                 calls += 8;
                             }
@@ -755,15 +763,18 @@ static void update(void)
             glBegin(GL_TRIANGLES);
             for (i=0; i<ent->mdl->fc; i++) {
                 float* v = ent->mdl->v + (ent->mdl->f[i*3]*8);
-                glTexCoord2f(v[6], v[7]);
+                glMultiTexCoord2f(GL_TEXTURE0, v[6], v[7]);
+                glMultiTexCoord2f(GL_TEXTURE1, v[0]/(float)map_width/CELLSIZE, v[2]/(float)map_height/CELLSIZE);
                 glNormal3f(v[3], v[4], v[5]);
                 glVertex3f(v[0], v[1], v[2]);
                 v = ent->mdl->v + (ent->mdl->f[i*3 + 1]*8);
-                glTexCoord2f(v[6], v[7]);
+                glMultiTexCoord2f(GL_TEXTURE0, v[6], v[7]);
+                glMultiTexCoord2f(GL_TEXTURE1, v[0]/(float)map_width/CELLSIZE, v[2]/(float)map_height/CELLSIZE);
                 glNormal3f(v[3], v[4], v[5]);
                 glVertex3f(v[0], v[1], v[2]);
                 v = ent->mdl->v + (ent->mdl->f[i*3 + 2]*8);
-                glTexCoord2f(v[6], v[7]);
+                glMultiTexCoord2f(GL_TEXTURE0, v[6], v[7]);
+                glMultiTexCoord2f(GL_TEXTURE1, v[0]/(float)map_width/CELLSIZE, v[2]/(float)map_height/CELLSIZE);
                 glNormal3f(v[3], v[4], v[5]);
                 glVertex3f(v[0], v[1], v[2]);
             }
@@ -787,24 +798,44 @@ static void update(void)
         add_list_to_bucket(ent->mdl->tex, ent->mdl->dl, ent->mtx);
     }
 
-    glEnable(GL_LIGHT0);
-    glLightfv(GL_LIGHT0, GL_POSITION, pos);
-    glLightfv(GL_LIGHT0, GL_AMBIENT, amb);
+    glEnable(GL_LIGHT0); calls++;
+    glLightfv(GL_LIGHT0, GL_POSITION, pos); calls++;
 
     /* render buckets */
+    glActiveTexture(GL_TEXTURE1);
+    glEnable(GL_TEXTURE_2D); calls++;
+    glBindTexture(GL_TEXTURE_2D, lmaptex); calls++;
+    glActiveTexture(GL_TEXTURE0); calls++;
     for (i=0; i<buckets; i++) if (bucket[i].dlc) {
         int j;
         calls++;
         glBindTexture(GL_TEXTURE_2D, bucket[i].tex->name);
         for (j=0; j<bucket[i].dlc; j++) {
             if (bucket[i].dlmtx[j]) {
+                int bx = bucket[i].dlmtx[j][12]/CELLSIZE;
+                int by = bucket[i].dlmtx[j][14]/CELLSIZE;
+                lmap_texel_t* tex = lightmap + by*map_width + bx;
+                col[0] = (float)tex->r/255.0f;
+                col[1] = (float)tex->g/255.0f;
+                col[2] = (float)tex->b/255.0f;
+                amb[0] = (float)tex->r/767.0f;
+                amb[1] = (float)tex->g/767.0f;
+                amb[2] = (float)tex->b/767.0f;
+                glActiveTexture(GL_TEXTURE1);
+                glDisable(GL_TEXTURE_2D);
+                glActiveTexture(GL_TEXTURE0);
                 glEnable(GL_LIGHTING);
+                glLightfv(GL_LIGHT0, GL_AMBIENT, amb);
+                glLightfv(GL_LIGHT0, GL_DIFFUSE, col);
                 glPushMatrix();
                 glMultMatrixf(bucket[i].dlmtx[j]);
                 glCallList(bucket[i].dl[j]);
                 glPopMatrix();
                 glDisable(GL_LIGHTING);
-                calls += 4;
+                glActiveTexture(GL_TEXTURE1);
+                glEnable(GL_TEXTURE_2D);
+                glActiveTexture(GL_TEXTURE0);
+                calls += 14;
             } else {
                 glCallList(bucket[i].dl[j]);
                 calls++;
@@ -812,6 +843,7 @@ static void update(void)
         }
         bucket[i].dlc = 0;
     }
+    glActiveTexture(GL_TEXTURE0); calls++;
 
     /* render shadows in the stencil buffer */
     glDisable(GL_LIGHTING);
@@ -823,6 +855,7 @@ static void update(void)
     glEnable(GL_STENCIL_TEST);
     glStencilFunc(GL_ALWAYS, 1, 1);
     glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+    calls += 9;
 
     for (i=0; i<ec; i++) {
         entity_t* ent = e[i];
@@ -831,6 +864,7 @@ static void update(void)
         glTranslatef((float)ent->x/32.0, shadow_y, (float)ent->z/32.0);
         glCallList(ent->mdl->dlshadow);
         glPopMatrix();
+        calls += 4;
     }
 
     /* draw fullscreen quad using the stencil buffer to affect only shadows */
@@ -859,6 +893,8 @@ static void update(void)
     glDepthMask(1);
     glDisable(GL_STENCIL_TEST);
     glDisable(GL_POLYGON_OFFSET_FILL);
+
+    calls += 20;
 
     /* overlay map */
     glDisable(GL_TEXTURE_2D);
@@ -929,9 +965,12 @@ static void run(void)
 
     map_init(256, 256);
     calc_campoints(512);
+    lmap_update();
 
     mark = SDL_GetTicks();
     while (running) {
+        int error = glGetError();
+        if (error != GL_NONE) printf("GL error: %s\n", gluErrorString(error));
         process_events();
         update();
     }

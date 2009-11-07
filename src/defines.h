@@ -29,4 +29,6 @@
 
 #define PI 3.141592654
 
+#define SQR(x) ((x)*(x))
+
 #endif

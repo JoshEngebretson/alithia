@@ -24,6 +24,9 @@
 #ifndef __VIDMODE_H_INCLUDED__
 #define __VIDMODE_H_INCLUDED__
 
+extern PFNGLACTIVETEXTUREPROC glActiveTexture;
+extern PFNGLMULTITEXCOORD2FPROC glMultiTexCoord2f;
+
 int vid_init(void);
 void vid_shutdown(void);
 

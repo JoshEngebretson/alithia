@@ -32,6 +32,7 @@
 #include <math.h>
 #include <GL/gl.h>
 #include <GL/glu.h>
+#include <GL/glext.h>
 #include <SDL/SDL.h>
 #ifdef main
 #undef main
