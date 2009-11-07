@@ -2,3 +2,7 @@ data/
 .scons*
 *.o
 atest
+dist/
+*.exe
+*.dll
+

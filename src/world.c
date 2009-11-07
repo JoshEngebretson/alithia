@@ -122,6 +122,34 @@ void map_free(void)
     free(cell);
 }
 
+static void invalidate_cluster(int cx, int cy)
+{
+    cluster_t* clus = cluster + cy*cluster_width + cx;
+    int i;
+    if (clus->part) {
+        for (i=0; i<clus->parts; i++)
+            glDeleteLists(clus->part[i].dl, 1);
+        free(clus->part);
+        clus->part = NULL;
+        clus->parts = 0;
+    }
+}
+
+void map_update_cell(int x, int y)
+{
+    int cx = x/CLUSTERSIZE;
+    int cy = y/CLUSTERSIZE;
+
+    invalidate_cluster(cx, cy);
+
+    /* check for edges */
+    if (x > 0 && (x - 1)/CLUSTERSIZE != cx) invalidate_cluster(cx - 1, cy);
+    if (y > 0 && (y - 1)/CLUSTERSIZE != cy) invalidate_cluster(cx, cy - 1);
+    if (x < map_width - 1 && (x + 1)/CLUSTERSIZE != cx) invalidate_cluster(cx + 1, cy);
+    if (y < map_height - 1 && (y + 1)/CLUSTERSIZE != cy) invalidate_cluster(cx, cy + 1);
+}
+
+
 static void calc_lightmap_for_cell_at(float* or, float* og, float* ob, int mx, int my)
 {
     cell_t* c = cell + my*map_width + mx;
@@ -151,7 +179,7 @@ static void calc_lightmap_for_cell_at(float* or, float* og, float* ob, int mx, i
     x1 = mx - 1; if (x1 < 0) x1 = 0;
     y1 = my - 1; if (y1 < 0) y1 = 0;
     x2 = mx + 1; if (x2 >= map_width) x2 = map_width - 1;
-    y2 = my + 1; if (y2 >= map_height) y2 = map_height + 1;
+    y2 = my + 1; if (y2 >= map_height) y2 = map_height - 1;
     for (y=y1; y<=y2; y++) {
         for (x=x1; x<=x2; x++) {
             cell_t* nc = cell + y*map_width + x;
@@ -179,7 +207,7 @@ static void calc_lightmap_for_cell(lmap_texel_t* lm, int mx, int my)
     x1 = mx - 1; if (x1 < 0) x1 = 0;
     y1 = my - 1; if (y1 < 0) y1 = 0;
     x2 = mx + 1; if (x2 >= map_width) x2 = map_width - 1;
-    y2 = my + 1; if (y2 >= map_height) y2 = map_height + 1;
+    y2 = my + 1; if (y2 >= map_height) y2 = map_height - 1;
 
     r = g = b = 0.0f;
 

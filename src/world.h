@@ -93,6 +93,7 @@ extern GLuint lmaptex;
 
 void map_init(int width, int height);
 void map_free(void);
+void map_update_cell(int x, int y);
 
 void lmap_update(void);
 

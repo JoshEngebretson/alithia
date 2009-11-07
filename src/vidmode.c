@@ -25,6 +25,8 @@
 
 PFNGLACTIVETEXTUREPROC glActiveTexture;
 PFNGLMULTITEXCOORD2FARBPROC glMultiTexCoord2f;
+int vid_width;
+int vid_height;
 
 #define EXT_LOAD(n) { \
     n = SDL_GL_GetProcAddress(#n); \
@@ -60,6 +62,9 @@ int vid_init(void)
     int flags = SDL_OPENGL|(fullscreen?SDL_FULLSCREEN:0);
 
     if (r < 0) return FALSE;
+
+    vid_width = width;
+    vid_height = height;
 
     if (bpp == 32 || bpp == 24) {
         SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);

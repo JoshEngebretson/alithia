@@ -26,6 +26,8 @@
 
 extern PFNGLACTIVETEXTUREPROC glActiveTexture;
 extern PFNGLMULTITEXCOORD2FPROC glMultiTexCoord2f;
+extern int vid_width;
+extern int vid_height;
 
 int vid_init(void);
 void vid_shutdown(void);
