@@ -47,6 +47,7 @@ extern char** argv;
 #include "argparse.h"
 #include "vidmode.h"
 #include "textures.h"
+#include "fonts.h"
 #include "models.h"
 #include "world.h"
 

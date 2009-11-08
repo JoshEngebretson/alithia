@@ -59,6 +59,8 @@ static int pbc;
 int running = 1;
 int argc;
 char** argv;
+char status[256];
+int statlen = 0;
 uint32_t mark;
 uint32_t frames = 0;
 uint32_t calls = 0;
@@ -77,6 +79,8 @@ float frustum[6][4];
 float proj[16];
 float modl[16];
 float clip[16];
+font_t* normal;
+
 
 static void process_events(void)
 {
@@ -1020,13 +1024,18 @@ static void update(void)
 
     calls += 20;
 
-    /* overlay map */
+    /* hud */
     glActiveTexture(GL_TEXTURE1);
     glDisable(GL_TEXTURE_2D);
     glActiveTexture(GL_TEXTURE0);
-    glDisable(GL_TEXTURE_2D);
     glDisable(GL_CULL_FACE);
     glDisable(GL_DEPTH_TEST);
+
+    glColor4f(1, 1, 1, 1);
+    font_render(normal, -1, 1 - 0.06, status, statlen, 0.06);
+
+    /* overlay map */
+    glDisable(GL_TEXTURE_2D);
 
     calls += 3;
 
@@ -1074,12 +1083,12 @@ static void update(void)
     calls++;
 
     /* FPS calculation */
-    if (++frames == 100) {
+    if (++frames == 10) {
         uint32_t ticks = SDL_GetTicks();
-        double diff = ((double) (ticks - mark)) / 100.0;
-        sprintf(buff, "%0.2f FPS (%0.2f ms/frame) %i calls %i vertices", (float) (1000.0
-            / diff), diff, calls / 100, vertices / 100);
-        SDL_WM_SetCaption(buff, buff);
+        double diff = ((double) (ticks - mark)) / 10.0;
+        sprintf(status, "%0.2f FPS (%0.2f ms/frame)\n%i calls %i vertices", (float) (1000.0
+            / diff), diff, calls / 10, vertices / 10);
+        statlen = strlen(status);
         mark = SDL_GetTicks();
         frames = 0;
         calls = 0;
@@ -1095,6 +1104,8 @@ static void run(void)
     tex_floor = tex_load("data/textures/floor.bmp");
     tex_stuff = tex_load("data/textures/stuff.bmp");
     tex_wtf = tex_load("data/textures/wtf.bmp");
+    normal = font_load("data/fonts/normal.bifo");
+    if (!normal) printf("normal failed\n");
 
     map_init(256, 256);
     calc_campoints(512);
