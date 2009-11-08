@@ -39,11 +39,17 @@ typedef struct _bucket_t
 static bucket_t bucket[4096];
 static int buckets = 0;
 
+typedef struct _geoquad_t
+{
+    float u[4], v[4];
+    float x[4], y[4], z[4];
+    int ignore;
+} geoquad_t;
+
 typedef struct _partbuild_t
 {
     texture_t* tex;
-    float* uv;
-    float* vtx;
+    geoquad_t* q;
     int qc;
 } partbuild_t;
 
@@ -62,7 +68,7 @@ int pntc = 0;
 int camx = 0, camy = 0;
 int down = 0;
 int draw_map = 0;
-int draw_wire = 1;
+int draw_wire = 0;
 texture_t* tex_bricks;
 texture_t* tex_floor;
 texture_t* tex_stuff;
@@ -296,38 +302,37 @@ static void do_quad(texture_t* tex, float x1, float y1, float z1, float x2,
         }
     if (!part) {
         pb = realloc(pb, sizeof(partbuild_t) * (pbc + 1));
+        pb[pbc].q = NULL;
         pb[pbc].qc = 0;
         pb[pbc].tex = tex;
-        pb[pbc].uv = NULL;
-        pb[pbc].vtx = NULL;
         part = pb + pbc;
         pbc++;
     }
 
-    part->uv = realloc(part->uv, sizeof(float) * (part->qc + 1) * 8);
-    part->vtx = realloc(part->vtx, sizeof(float) * (part->qc + 1) * 12);
+    part->q = realloc(part->q, sizeof(geoquad_t)*(part->qc + 1));
+    part->q[part->qc].u[0] = (x1 * ux + y1 * uy + z1 * uz) / 256.0f;
+    part->q[part->qc].v[0] = (x1 * vx + y1 * vy + z1 * vz) / 256.0f;
+    part->q[part->qc].u[1] = (x2 * ux + y2 * uy + z2 * uz) / 256.0f;
+    part->q[part->qc].v[1] = (x2 * vx + y2 * vy + z2 * vz) / 256.0f;
+    part->q[part->qc].u[2] = (x3 * ux + y3 * uy + z3 * uz) / 256.0f;
+    part->q[part->qc].v[2] = (x3 * vx + y3 * vy + z3 * vz) / 256.0f;
+    part->q[part->qc].u[3] = (x4 * ux + y4 * uy + z4 * uz) / 256.0f;
+    part->q[part->qc].v[3] = (x4 * vx + y4 * vy + z4 * vz) / 256.0f;
 
-    part->uv[part->qc * 8] = (x1 * ux + y1 * uy + z1 * uz) / 256.0f;
-    part->uv[part->qc * 8 + 1] = (x1 * vx + y1 * vy + z1 * vz) / 256.0f;
-    part->uv[part->qc * 8 + 2] = (x2 * ux + y2 * uy + z2 * uz) / 256.0f;
-    part->uv[part->qc * 8 + 3] = (x2 * vx + y2 * vy + z2 * vz) / 256.0f;
-    part->uv[part->qc * 8 + 4] = (x3 * ux + y3 * uy + z3 * uz) / 256.0f;
-    part->uv[part->qc * 8 + 5] = (x3 * vx + y3 * vy + z3 * vz) / 256.0f;
-    part->uv[part->qc * 8 + 6] = (x4 * ux + y4 * uy + z4 * uz) / 256.0f;
-    part->uv[part->qc * 8 + 7] = (x4 * vx + y4 * vy + z4 * vz) / 256.0f;
+    part->q[part->qc].x[0] = x1;
+    part->q[part->qc].y[0] = y1;
+    part->q[part->qc].z[0] = z1;
+    part->q[part->qc].x[1] = x2;
+    part->q[part->qc].y[1] = y2;
+    part->q[part->qc].z[1] = z2;
+    part->q[part->qc].x[2] = x3;
+    part->q[part->qc].y[2] = y3;
+    part->q[part->qc].z[2] = z3;
+    part->q[part->qc].x[3] = x4;
+    part->q[part->qc].y[3] = y4;
+    part->q[part->qc].z[3] = z4;
 
-    part->vtx[part->qc * 12] = x1;
-    part->vtx[part->qc * 12 + 1] = y1;
-    part->vtx[part->qc * 12 + 2] = z1;
-    part->vtx[part->qc * 12 + 3] = x2;
-    part->vtx[part->qc * 12 + 4] = y2;
-    part->vtx[part->qc * 12 + 5] = z2;
-    part->vtx[part->qc * 12 + 6] = x3;
-    part->vtx[part->qc * 12 + 7] = y3;
-    part->vtx[part->qc * 12 + 8] = z3;
-    part->vtx[part->qc * 12 + 9] = x4;
-    part->vtx[part->qc * 12 + 10] = y4;
-    part->vtx[part->qc * 12 + 11] = z4;
+    part->q[part->qc].ignore = 0;
 
     part->qc++;
 }
@@ -407,6 +412,125 @@ static void draw_cell(cell_t* c, int cx, int cy)
         do_quad(tex_stuff, avx[1], avy[1], avz[1], vx[2], vy[2], vz[2], vx[3],
             vy[3], vz[3], avx[0], avy[0], avz[0], 0, 0, -1, 0, -1, 0);
     }
+}
+
+static void plane_from_three_points(float x1, float y1, float z1, float x2,
+    float y2, float z2, float x3, float y3, float z3, float* nx, float* ny,
+    float* nz, float* d)
+{
+    float abx = x2 - x1;
+    float aby = y2 - y1;
+    float abz = z2 - z1;
+    float acx = x3 - x1;
+    float acy = y3 - y1;
+    float acz = z3 - z1;
+    float len;
+    *nx = aby*acz - acy*abz;
+    *ny = abz*acx - acz*abx;
+    *nz = abx*acy - acx*aby;
+    len = sqrt(SQR(*nx) + SQR(*ny) + SQR(*nz));
+    if (len > 0.0f) {
+        *nx /= len;
+        *ny /= len;
+        *nz /= len;
+    }
+    *d = x1*(*nx) + y1*(*ny) + z1*(*nz);
+}
+
+static int same_plane(geoquad_t* a, geoquad_t* b)
+{
+    float nx1, ny1, nz1, d1;
+    float nx2, ny2, nz2, d2;
+    plane_from_three_points(a->x[0], a->y[0], a->z[0], a->x[1], a->y[1], a->z[1], a->x[2], a->y[2], a->z[2], &nx1, &ny1, &nz1, &d1);
+    plane_from_three_points(b->x[0], b->y[0], b->z[0], b->x[1], b->y[1], b->z[1], b->x[2], b->y[2], b->z[2], &nx2, &ny2, &nz2, &d2);
+    return (nx1 == nx2) && (ny1 == ny2) && (nz1 == nz2) && (d1 == d2);
+}
+
+static int optimize_part(partbuild_t* pb)
+{
+    int i, j, k, l, m, cmn_vtx;
+    int optimizations = 0;
+    for (i=0; i<pb->qc; i++) {
+        geoquad_t* a = pb->q + i;
+        if (a->ignore) continue;
+        for (j=0; j<pb->qc; j++) {
+            geoquad_t* b = pb->q + j;
+            float x[4], y[4], z[4], u[4], v[4];
+            int coma[4], comb[4];
+            if (i == j) continue;
+            if (b->ignore) continue;
+            if (!same_plane(a, b)) continue;
+
+            memset(coma, 0, sizeof(coma));
+            memset(comb, 0, sizeof(comb));
+            cmn_vtx = 0;
+            for (k=0; k<4; k++) {
+                for (l=0; l<4; l++) {
+                    if (a->x[k] == b->x[l] && a->y[k] == b->y[l] && a->z[k] == b->z[l]) {
+                        cmn_vtx++;
+                        coma[k] = 1;
+                        comb[l] = 1;
+                    }
+                }
+            }
+
+            if (cmn_vtx != 2) continue;
+
+            m = 0;
+            k = 0;
+            l = 0;
+            while (m < 4) {
+                while (1) {
+                    if (coma[k]) {
+                        k=(k + 1)&3;
+                        break;
+                    }
+                    x[m] = a->x[k];
+                    y[m] = a->y[k];
+                    z[m] = a->z[k];
+                    u[m] = a->u[k];
+                    v[m] = a->v[k];
+                    coma[k] = 1;
+                    m++;
+                    k=(k + 1)&3;
+                }
+                while (1) {
+                    if (comb[l]) {
+                        l=(l + 1)&3;
+                        break;
+                    }
+                    x[m] = b->x[l];
+                    y[m] = b->y[l];
+                    z[m] = b->z[l];
+                    u[m] = b->u[l];
+                    v[m] = b->v[l];
+                    comb[l] = 1;
+                    m++;
+                    l=(l + 1)&3;
+                }
+            }
+
+            for (k=0; k<4; k++) {
+                a->x[k] = x[k];
+                a->y[k] = y[k];
+                a->z[k] = z[k];
+                a->u[k] = u[k];
+                a->v[k] = v[k];
+                b->ignore = 1;
+            }
+
+            optimizations++;
+        }
+    }
+
+    return optimizations;
+}
+
+static void optimize_parts(void)
+{
+    int i;
+    for (i=0; i<pbc; i++)
+        while (optimize_part(pb + i));
 }
 
 static void add_list_to_bucket(texture_t* tex, GLuint dl, GLfloat* mtx)
@@ -620,7 +744,10 @@ static void update(void)
     /* prepare scene for rendering */
     glClearColor(0.1, 0.12, 0.2, 1.0);
     glClearStencil(0);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+    if (draw_wire)
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+    else
+        glClear(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
     /* prepare for rendering the perspective from camera */
     glMatrixMode(GL_PROJECTION);
@@ -683,6 +810,7 @@ static void update(void)
                             draw_cell(c, cx, cy);
                         }
                     }
+                    optimize_parts();
                     if (pb) {
                         cls->part = malloc0(sizeof(clusterpart_t) * pbc);
                         cls->parts = pbc;
@@ -694,46 +822,23 @@ static void update(void)
                             glNewList(cls->part[i].dl, GL_COMPILE);
                             glBegin(GL_QUADS);
                             for (j = 0; j < pb[i].qc; j++) {
+                                geoquad_t* q = pb[i].q + j;
+                                int v;
+                                if (q->ignore) continue;
+
                                 cls->vertices += 4;
-                                glMultiTexCoord2f(GL_TEXTURE0, pb[i].uv[j * 8],
-                                    pb[i].uv[j * 8 + 1]);
-                                glMultiTexCoord2f(GL_TEXTURE1, (pb[i].vtx[j
-                                    * 12]) / (float) map_width / CELLSIZE,
-                                    (pb[i].vtx[j * 12 + 2])
-                                        / (float) map_height / CELLSIZE);
-                                glVertex3f(pb[i].vtx[j * 12], pb[i].vtx[j * 12
-                                    + 1], pb[i].vtx[j * 12 + 2]);
-                                glMultiTexCoord2f(GL_TEXTURE0, pb[i].uv[j * 8
-                                    + 2], pb[i].uv[j * 8 + 3]);
-                                glMultiTexCoord2f(GL_TEXTURE1, (pb[i].vtx[j
-                                    * 12 + 3]) / (float) map_width / CELLSIZE,
-                                    (pb[i].vtx[j * 12 + 5])
-                                        / (float) map_height / CELLSIZE);
-                                glVertex3f(pb[i].vtx[j * 12 + 3], pb[i].vtx[j
-                                    * 12 + 4], pb[i].vtx[j * 12 + 5]);
-                                glMultiTexCoord2f(GL_TEXTURE0, pb[i].uv[j * 8
-                                    + 4], pb[i].uv[j * 8 + 5]);
-                                glMultiTexCoord2f(GL_TEXTURE1, (pb[i].vtx[j
-                                    * 12 + 6]) / (float) map_width / CELLSIZE,
-                                    (pb[i].vtx[j * 12 + 8])
-                                        / (float) map_height / CELLSIZE);
-                                glVertex3f(pb[i].vtx[j * 12 + 6], pb[i].vtx[j
-                                    * 12 + 7], pb[i].vtx[j * 12 + 8]);
-                                glMultiTexCoord2f(GL_TEXTURE0, pb[i].uv[j * 8
-                                    + 6], pb[i].uv[j * 8 + 7]);
-                                glMultiTexCoord2f(GL_TEXTURE1, (pb[i].vtx[j
-                                    * 12 + 9]) / (float) map_width / CELLSIZE,
-                                    (pb[i].vtx[j * 12 + 11])
-                                        / (float) map_height / CELLSIZE);
-                                glVertex3f(pb[i].vtx[j * 12 + 9], pb[i].vtx[j
-                                    * 12 + 10], pb[i].vtx[j * 12 + 11]);
-                                calls += 8;
+
+                                for (v=0; v<4; v++) {
+                                    glMultiTexCoord2f(GL_TEXTURE0, q->u[v], q->v[v]);
+                                    glMultiTexCoord2f(GL_TEXTURE1, q->x[v]/(float)map_width/CELLSIZE, q->z[v]/(float)map_height/CELLSIZE);
+                                    glVertex3f(q->x[v], q->y[v], q->z[v]);
+                                    calls += 3;
+                                }
                             }
                             glEnd();
                             glEndList();
                             calls += 4;
-                            free(pb[i].vtx);
-                            free(pb[i].uv);
+                            free(pb[i].q);
                         }
                         free(pb);
                     }
