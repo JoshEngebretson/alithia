@@ -56,11 +56,13 @@ char** argv;
 uint32_t mark;
 uint32_t frames = 0;
 uint32_t calls = 0;
+uint32_t vertices = 0;
 int pntx[MAX_POINTS], pnty[MAX_POINTS];
 int pntc = 0;
 int camx = 0, camy = 0;
 int down = 0;
 int draw_map = 0;
+int draw_wire = 1;
 texture_t* tex_bricks;
 texture_t* tex_floor;
 texture_t* tex_stuff;
@@ -116,6 +118,7 @@ static void process_events(void)
         case SDL_KEYDOWN:
             if (ev.key.keysym.sym == SDLK_F10) running = 0;
             if (ev.key.keysym.sym == SDLK_m) draw_map = !draw_map;
+            if (ev.key.keysym.sym == SDLK_q) draw_wire = !draw_wire;
             break;
         case SDL_KEYUP:
             break;
@@ -645,6 +648,9 @@ static void update(void)
     glActiveTexture(GL_TEXTURE1);
     glEnable(GL_TEXTURE_2D);
 
+    if (draw_wire)
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
     calls += 10;
 
     /* fill the buckets with the world geometry */
@@ -680,6 +686,7 @@ static void update(void)
                     if (pb) {
                         cls->part = malloc0(sizeof(clusterpart_t) * pbc);
                         cls->parts = pbc;
+                        cls->vertices = 0;
                         for (i = 0; i < pbc; i++) {
                             int j;
                             cls->part[i].dl = glGenLists(1);
@@ -687,6 +694,7 @@ static void update(void)
                             glNewList(cls->part[i].dl, GL_COMPILE);
                             glBegin(GL_QUADS);
                             for (j = 0; j < pb[i].qc; j++) {
+                                cls->vertices += 4;
                                 glMultiTexCoord2f(GL_TEXTURE0, pb[i].uv[j * 8],
                                     pb[i].uv[j * 8 + 1]);
                                 glMultiTexCoord2f(GL_TEXTURE1, (pb[i].vtx[j
@@ -732,6 +740,7 @@ static void update(void)
                 }
                 for (i = 0; i < cls->parts; i++)
                     add_list_to_bucket(cls->part[i].tex, cls->part[i].dl, NULL);
+                vertices += cls->vertices;
 
                 if (cls->ents->first) {
                     listitem_t* item;
@@ -739,6 +748,7 @@ static void update(void)
                         entity_t* en = item->ptr;
                         if (en->mdl) { /* TODO: use a separate list for models only */
                             e[ec++] = en;
+                            vertices += en->mdl->fc*3*2;
                         }
                     }
                 }
@@ -849,6 +859,9 @@ static void update(void)
     glActiveTexture(GL_TEXTURE0);
     calls++;
 
+    if (draw_wire)
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
     /* render shadows in the stencil buffer */
     glDisable(GL_LIGHTING);
     glDisable(GL_TEXTURE_2D);
@@ -893,6 +906,7 @@ static void update(void)
     glVertex2d(1, 1);
     glVertex2d(-1, 1);
     glEnd();
+    vertices += 4;
 
     glDisable(GL_BLEND);
     glDepthMask(1);
@@ -958,12 +972,13 @@ static void update(void)
     if (++frames == 100) {
         uint32_t ticks = SDL_GetTicks();
         double diff = ((double) (ticks - mark)) / 100.0;
-        sprintf(buff, "%0.2f FPS (%0.2f ms/frame) %i calls", (float) (1000.0
-            / diff), diff, calls / 100);
+        sprintf(buff, "%0.2f FPS (%0.2f ms/frame) %i calls %i vertices", (float) (1000.0
+            / diff), diff, calls / 100, vertices / 100);
         SDL_WM_SetCaption(buff, buff);
         mark = SDL_GetTicks();
         frames = 0;
         calls = 0;
+        vertices = 0;
     }
 
     ((entity_t*) ents->last->ptr)->yrot = SDL_GetTicks() * 15;

@@ -5,4 +5,6 @@ atest
 dist/
 *.exe
 *.dll
+*.pyc
+acer-alithia.bat
 

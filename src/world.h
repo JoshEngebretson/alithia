@@ -71,6 +71,7 @@ typedef struct _cluster_t
     int visible;
     clusterpart_t* part;
     int parts;
+    int vertices;
     list_t* ents;
     float x1, y1, z1, x2, y2, z2;
 } cluster_t;
