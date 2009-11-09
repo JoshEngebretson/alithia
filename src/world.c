@@ -105,7 +105,7 @@ void map_init(int width, int height)
     ent_move(ent, 18*CELLSIZE*32.0, -128*32.0, 10*CELLSIZE*32.0);
 
     light_new(14*CELLSIZE, 0, 10*CELLSIZE, 0.7, 0.2, 0.1, 150);
-    light_new(14*CELLSIZE, 0, 10*CELLSIZE, 0.2, 0.3, 0.4, 1000);
+    light_new(14*CELLSIZE, 0, 10*CELLSIZE, 0.2, 0.3, 0.4, 10000);
 }
 
 void map_free(void)

@@ -90,6 +90,8 @@ int vid_init(void)
         return FALSE;
 
     SDL_WM_SetCaption("ATest", "ATest");
+    SDL_WM_GrabInput(SDL_GRAB_ON);
+    SDL_ShowCursor(0);
 
     return TRUE;
 }

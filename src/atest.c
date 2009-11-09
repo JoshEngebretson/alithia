@@ -61,16 +61,19 @@ int argc;
 char** argv;
 char status[256];
 int statlen = 0;
+int millis = 0;
 uint32_t mark;
 uint32_t frames = 0;
 uint32_t calls = 0;
 uint32_t vertices = 0;
+int key[1024];
 int pntx[MAX_POINTS], pnty[MAX_POINTS];
 int pntc = 0;
 int camx = 0, camy = 0;
 int down = 0;
 int draw_map = 0;
 int draw_wire = 0;
+float plx, ply, plz, pla, pll;
 texture_t* tex_bricks;
 texture_t* tex_floor;
 texture_t* tex_stuff;
@@ -88,36 +91,10 @@ static void process_events(void)
     while (SDL_PollEvent(&ev)) {
         switch (ev.type) {
         case SDL_MOUSEMOTION:
-            camx = (ev.motion.x - 10) / CELLVSIZE;
-            camy = (ev.motion.y - 10) / CELLVSIZE;
-            if (camx < 0) camx = 0;
-            if (camy < 0) camy = 0;
-            if (camx > map_width - 1) camx = map_width - 1;
-            if (camy > map_height - 1) camy = map_height - 1;
-            if (down) {
-                camy -= 32;
-                //                cell[camy*map_width + camx].flags = CF_OCCLUDER;
-                //                cell[(camy-1)*map_width + camx].flags = CF_OCCLUDER;
-                //                cell[(camy+1)*map_width + camx].flags = CF_OCCLUDER;
-                //                cell[camy*map_width + camx - 1].flags = CF_OCCLUDER;
-                //                cell[camy*map_width + camx + 1].flags = CF_OCCLUDER;
-                cell[camy * map_width + camx].floorz = cell[(camy - 1)
-                    * map_width + camx].floorz = cell[(camy + 1) * map_width
-                    + camx].floorz = cell[camy * map_width + camx - 1].floorz
-                    = cell[camy * map_width + camx + 1].floorz = -144;
-                cell[camy * map_width + camx].ceilz = cell[(camy - 1)
-                    * map_width + camx].ceilz = cell[(camy + 1) * map_width
-                    + camx].ceilz = cell[camy * map_width + camx - 1].ceilz
-                    = cell[camy * map_width + camx + 1].ceilz = 0;
-
-                map_update_cell(camx, camy);
-                map_update_cell(camx - 1, camy);
-                map_update_cell(camx + 1, camy);
-                map_update_cell(camx, camy - 1);
-                map_update_cell(camx, camy + 1);
-
-                camy += 32;
-            }
+            pla -= ev.motion.xrel/10.0;
+            pll -= ev.motion.yrel/10.0;
+            if (pll > 60) pll = 60;
+            if (pll < -60) pll = -60;
             break;
         case SDL_MOUSEBUTTONDOWN:
             down = 1;
@@ -129,8 +106,10 @@ static void process_events(void)
             if (ev.key.keysym.sym == SDLK_F10) running = 0;
             if (ev.key.keysym.sym == SDLK_m) draw_map = !draw_map;
             if (ev.key.keysym.sym == SDLK_q) draw_wire = !draw_wire;
+            key[ev.key.keysym.sym] = 1;
             break;
         case SDL_KEYUP:
+            key[ev.key.keysym.sym] = 0;
             break;
         case SDL_QUIT:
             running = 0;
@@ -733,6 +712,7 @@ static int box_in_frustum(float x1, float y1, float z1, float x2, float y2,
 
 static void update(void)
 {
+    static int init_frames = 10;
     int x, y, i;
     char buff[64];
     entity_t* e[1024];
@@ -753,16 +733,24 @@ static void update(void)
     else
         glClear(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
+    if (init_frames)
+        init_frames--;
+
     /* prepare for rendering the perspective from camera */
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    gluPerspective(60.0, (double)vid_width/(double)vid_height, 1.0, 4096.0);
+    gluPerspective(60.0, (double)vid_width/(double)vid_height, 1.0, 16384.0);
     glGetFloatv(GL_PROJECTION_MATRIX, pmtx);
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
-    glTranslatef(-camx * CELLSIZE, 128 - 48, -camy * CELLSIZE);
+    glRotatef(-pll, 1, 0, 0);
+    glRotatef(-pla, 0, 1, 0);
+    glTranslatef(-plx, -ply, -plz);
     glGetFloatv(GL_MODELVIEW_MATRIX, vmtx);
     glColor3f(1, 1, 1);
+
+    camx = plx/CELLSIZE;
+    camy = plz/CELLSIZE;
 
     /* calculate frustum planes */
     calc_frustum_planes();
@@ -794,7 +782,7 @@ static void update(void)
                     cls->x2, cls->y2, cls->z2);
             }
             /* inside */
-            if (cls->visible) {
+            if (cls->visible || init_frames > 0) {
                 int i;
                 if (!cls->part) {
                     int x1 = x * CLUSTERSIZE;
@@ -1098,6 +1086,48 @@ static void update(void)
     ((entity_t*) ents->last->ptr)->yrot = SDL_GetTicks() * 15;
 }
 
+static int collides(void)
+{
+    int x, y, x1, y1, x2, y2;
+    x1 = plx/CELLSIZE - 2;
+    y1 = plz/CELLSIZE - 2;
+    x2 = plx/CELLSIZE + 2;
+    y2 = plz/CELLSIZE + 2;
+    if (x1 < 0) x1 = 0;
+    if (y1 < 0) y1 = 0;
+    if (x2 >= map_width) x2 = map_width - 1;
+    if (y2 >= map_height) y2 = map_height - 1;
+    for (y=y1; y<=y2; y++) for (x=x1; x<=x2; x++)
+        if (cell[y*map_width + x].flags & CF_OCCLUDER) return 1;
+    return 0;
+}
+
+static void move_towards(float ix, float iy, float iz)
+{
+    plx += ix;
+    if (collides()) plx -= ix;
+    ply += iy;
+    if (collides()) ply -= iy;
+    plz += iz;
+    if (collides()) plz -= iz;
+}
+
+static void update_game(float ms)
+{
+    if (key[SDLK_w]) {
+        move_towards(-sin(pla*PI/180.0)*ms*0.55, 0, -cos(pla*PI/180.0)*ms*0.55);
+    }
+    if (key[SDLK_s]) {
+        move_towards(sin(pla*PI/180.0)*ms*0.55, 0, cos(pla*PI/180.0)*ms*0.55);
+    }
+    if (key[SDLK_a]) {
+        move_towards(sin((pla-90)*PI/180.0)*ms*0.55, 0, cos((pla-90)*PI/180.0)*ms*0.55);
+    }
+    if (key[SDLK_d]) {
+        move_towards(sin((pla+90)*PI/180.0)*ms*0.55, 0, cos((pla+90)*PI/180.0)*ms*0.55);
+    }
+}
+
 static void run(void)
 {
     tex_bricks = tex_load("data/textures/bricks.bmp");
@@ -1110,10 +1140,24 @@ static void run(void)
     map_init(256, 256);
     calc_campoints(512);
     lmap_update();
+    plx = (map_width*CELLSIZE)*0.5;
+    ply = -128+48;
+    plz = (map_width*CELLSIZE)*0.5;
 
     mark = SDL_GetTicks();
+    millis = mark;
     while (running) {
         int error = glGetError();
+        int nowmillis = SDL_GetTicks();
+        if (nowmillis - millis > 15) {
+            while (nowmillis - millis > 15) {
+                update_game(15);
+                millis += 15;
+            }
+            if (nowmillis - millis > 0)
+                update_game(nowmillis - millis);
+            millis = nowmillis;
+        }
         if (error != GL_NONE) printf("GL error: %s\n", gluErrorString(error));
         process_events();
         update();

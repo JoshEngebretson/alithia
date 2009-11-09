@@ -67,7 +67,7 @@ font_t* font_load(const char* filename)
         font->ci[i].v1 = (float)y/(float)bmp_height;
         font->ci[i].u2 = (float)(x + width)/(float)bmp_width;
         font->ci[i].v2 = (float)(y + height)/(float)bmp_height;
-        font->ci[i].w = (float)width/(float)height;
+        font->ci[i].w = (float)width/(float)height*((float)vid_height/(float)vid_width);
     }
 
     fclose(f);
@@ -75,7 +75,7 @@ font_t* font_load(const char* filename)
 
     glGenTextures(1, &gltex);
     glBindTexture(GL_TEXTURE_2D, gltex);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
