@@ -24,6 +24,7 @@
 #include "atest.h"
 
 cell_t* cell;
+char* ocmap;
 cluster_t* cluster;
 list_t* ents;
 list_t* lights;
@@ -48,6 +49,7 @@ void map_init(int width, int height)
     cluster_height = height/CLUSTERSIZE;
 
     cell = malloc0(width*height*sizeof(cell_t));
+    ocmap = malloc0(width*height);
     cluster = malloc0(cluster_width*cluster_height*sizeof(cluster_t));
 
     ents = list_new();
@@ -105,7 +107,19 @@ void map_init(int width, int height)
     ent_move(ent, 18*CELLSIZE*32.0, -128*32.0, 10*CELLSIZE*32.0);
 
     light_new(14*CELLSIZE, 0, 10*CELLSIZE, 0.7, 0.2, 0.1, 150);
-    light_new(14*CELLSIZE, 0, 10*CELLSIZE, 0.2, 0.3, 0.4, 10000);
+    light_new(14*CELLSIZE, 0, 10*CELLSIZE, 0.2, 0.3, 0.4, 1000000);
+
+    for (i=0; i<100; i++) {
+        for (y=7+i; y<map_height-(7+i); y++) {
+            for (x=7+i; x<=map_width-(7+i); x++) {
+                cell[y*map_width + x].floorz -= 8 + (i/40);
+            }
+        }
+    }
+
+    for (y=0; y<map_height; y++)
+        for (x=0; x<map_width; x++)
+            map_update_cell(x, y);
 }
 
 void map_free(void)
@@ -119,6 +133,7 @@ void map_free(void)
     list_free(lights);
     list_free(ents);
     free(cluster);
+    free(ocmap);
     free(cell);
 }
 
@@ -139,8 +154,15 @@ void map_update_cell(int x, int y)
 {
     int cx = x/CLUSTERSIZE;
     int cy = y/CLUSTERSIZE;
+    int addr;
 
     invalidate_cluster(cx, cy);
+
+    addr = y*map_width + x;
+    if (cell[y*map_width + x].flags & CF_OCCLUDER)
+        ocmap[(addr>>3)] |= 1 << (addr&7);
+    else
+        ocmap[(addr>>3)] &= ~(1 << (addr&7));
 
     /* check for edges */
     if (x > 0 && (x - 1)/CLUSTERSIZE != cx) invalidate_cluster(cx - 1, cy);
@@ -176,17 +198,17 @@ static void calc_lightmap_for_cell_at(float* or, float* og, float* ob, int mx, i
         }
     }
 
-    x1 = mx - 1; if (x1 < 0) x1 = 0;
-    y1 = my - 1; if (y1 < 0) y1 = 0;
-    x2 = mx + 1; if (x2 >= map_width) x2 = map_width - 1;
-    y2 = my + 1; if (y2 >= map_height) y2 = map_height - 1;
+    x1 = mx - 2; if (x1 < 0) x1 = 0;
+    y1 = my - 2; if (y1 < 0) y1 = 0;
+    x2 = mx + 2; if (x2 >= map_width) x2 = map_width - 1;
+    y2 = my + 2; if (y2 >= map_height) y2 = map_height - 1;
     for (y=y1; y<=y2; y++) {
         for (x=x1; x<=x2; x++) {
             cell_t* nc = cell + y*map_width + x;
             if (nc->floorz > c->floorz + CELLSIZE || nc->ceilz < c->ceilz - CELLSIZE || (nc->flags & CF_OCCLUDER)) {
-                r -= 0.08;
-                g -= 0.08;
-                b -= 0.08;
+                r -= 0.02;
+                g -= 0.02;
+                b -= 0.02;
             }
         }
     }

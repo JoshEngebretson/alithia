@@ -82,6 +82,7 @@ typedef struct _lmap_texel_t
 } lmap_texel_t;
 
 extern cell_t* cell;
+extern char* ocmap;
 extern cluster_t* cluster;
 extern list_t* ents;
 extern list_t* lights;

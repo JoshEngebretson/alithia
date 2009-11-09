@@ -1,7 +1,7 @@
 Import('*')
 
 env.Append(LIBS = ['SDL', 'm'])
-env.Append(CFLAGS = ['-Wall', '-O3', '-fomit-frame-pointer', '-funroll-loops'])
+env.Append(CFLAGS = ['-Wall', '-O3', '-fomit-frame-pointer', '-ffast-math'])
 #env.Append(CFLAGS = ['-Wall', '-g3'])
 
 if target == 'win32':

@@ -131,8 +131,7 @@ static void calc_campoints(float r)
             pntc++;
         }
     }
-    i = 1;
-    while (i < pntc - 1) {
+    for (i=1; i<pntc-1; i++) {
         int px = pntx[i];
         int py = pnty[i];
         int ox = pntx[i - 1];
@@ -167,8 +166,6 @@ static void calc_campoints(float r)
             pntc--;
             i = 0;
         }
-
-        i++;
     }
 }
 
@@ -184,11 +181,13 @@ static void bar(float x1, float y1, float x2, float y2)
 
 static int proc_map(int x, int y)
 {
+    int addr;
     cluster[(y / CLUSTERSIZE) * cluster_width + (x / CLUSTERSIZE)].visible = 1;
     if (x / CLUSTERSIZE < cluster_width - 1) cluster[(y / CLUSTERSIZE)
         * cluster_width + (x / CLUSTERSIZE) + 1].visible = 1;
-    if (cell[y * map_width + x].flags & CF_OCCLUDER) return 0;
-    return 1;
+
+    addr = y*map_width + x;
+    return !(ocmap[(addr>>3)] & (1 << (addr&7)));
 }
 
 void ray_march(int x1, int y1, int x2, int y2)
@@ -675,14 +674,14 @@ static void calc_frustum_planes(void)
     frustum[5][3] /= t;
 }
 
-static int point_in_frustum(float x, float y, float z)
+/*static int point_in_frustum(float x, float y, float z)
 {
     int i;
     for (i = 0; i < 6; i++)
         if (frustum[i][0] * x + frustum[i][1] * y + frustum[i][2] * z
             + frustum[i][3] <= 0.0f) return 0;
     return 1;
-}
+}*/
 
 static int box_in_frustum(float x1, float y1, float z1, float x2, float y2,
     float z2)
@@ -714,13 +713,10 @@ static void update(void)
 {
     static int init_frames = 10;
     int x, y, i;
-    char buff[64];
     entity_t* e[1024];
     int ec = 0;
     float pmtx[16];
     float vmtx[16];
-    float mtx[16];
-    float px, py, pz;
     float pos[] = { 0, 1, 0, 0 };
     float amb[] = { 0.9, 0.9, 0.9, 1.0 };
     float col[] = { 0.9, 0.9, 0.9, 1.0 };
@@ -739,7 +735,7 @@ static void update(void)
     /* prepare for rendering the perspective from camera */
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    gluPerspective(60.0, (double)vid_width/(double)vid_height, 1.0, 16384.0);
+    gluPerspective(60.0, (double)vid_width/(double)vid_height, 1.0, 65536.0);
     glGetFloatv(GL_PROJECTION_MATRIX, pmtx);
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
@@ -1114,6 +1110,7 @@ static void move_towards(float ix, float iy, float iz)
 
 static void update_game(float ms)
 {
+    float floorz = cell[camy*map_width + camx].floorz;
     if (key[SDLK_w]) {
         move_towards(-sin(pla*PI/180.0)*ms*0.55, 0, -cos(pla*PI/180.0)*ms*0.55);
     }
@@ -1125,6 +1122,15 @@ static void update_game(float ms)
     }
     if (key[SDLK_d]) {
         move_towards(sin((pla+90)*PI/180.0)*ms*0.55, 0, cos((pla+90)*PI/180.0)*ms*0.55);
+    }
+
+    if (floorz > ply + 48) {
+        ply += ms*4;
+        if (ply > floorz + 48) ply = floorz + 48;
+    }
+    if (floorz < ply + 48) {
+        ply -= ms;
+        if (ply < floorz + 48) ply = floorz + 48;
     }
 }
 
@@ -1138,7 +1144,7 @@ static void run(void)
     if (!normal) printf("normal failed\n");
 
     map_init(256, 256);
-    calc_campoints(512);
+    calc_campoints(sqrt(256*256 + 256*256));
     lmap_update();
     plx = (map_width*CELLSIZE)*0.5;
     ply = -128+48;
@@ -1174,7 +1180,5 @@ int main(int _argc, char **_argv)
     run();
 
     vid_shutdown();
-
-    printf("%lli\n", total);
     return 0;
 }
