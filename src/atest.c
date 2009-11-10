@@ -71,19 +71,20 @@ int pntx[MAX_POINTS], pnty[MAX_POINTS];
 int pntc = 0;
 int camx = 0, camy = 0;
 int down = 0;
-int draw_map = 0;
+int gui_mode = 1;
+float mouse_x = 0;
+float mouse_y = 0;
 int draw_wire = 0;
 float plx, ply, plz, pla, pll;
 texture_t* tex_bricks;
 texture_t* tex_floor;
 texture_t* tex_stuff;
 texture_t* tex_wtf;
+texture_t* pointer_cursor;
 float frustum[6][4];
 float proj[16];
 float modl[16];
 float clip[16];
-font_t* normal;
-
 
 static void process_events(void)
 {
@@ -91,10 +92,14 @@ static void process_events(void)
     while (SDL_PollEvent(&ev)) {
         switch (ev.type) {
         case SDL_MOUSEMOTION:
-            pla -= ev.motion.xrel/10.0;
-            pll -= ev.motion.yrel/10.0;
-            if (pll > 60) pll = 60;
-            if (pll < -60) pll = -60;
+            mouse_x = ((float)ev.motion.x/(float)vid_width)*2.0 - 1.0;
+            mouse_y = 1.0 - ((float)ev.motion.y/(float)vid_height)*2.0;
+            if (!gui_mode) {
+                pla -= ev.motion.xrel/10.0;
+                pll -= ev.motion.yrel/10.0;
+                if (pll > 60) pll = 60;
+                if (pll < -60) pll = -60;
+            }
             break;
         case SDL_MOUSEBUTTONDOWN:
             down = 1;
@@ -103,18 +108,25 @@ static void process_events(void)
             down = 0;
             break;
         case SDL_KEYDOWN:
+            if (ev.key.keysym.sym == SDLK_F11) {
+                SDL_WM_GrabInput(SDL_GRAB_OFF);
+            }
             if (ev.key.keysym.sym == SDLK_F10) running = 0;
-            if (ev.key.keysym.sym == SDLK_m) draw_map = !draw_map;
-            if (ev.key.keysym.sym == SDLK_q) draw_wire = !draw_wire;
-            key[ev.key.keysym.sym] = 1;
+            if (ev.key.keysym.sym == SDLK_g) gui_mode = !gui_mode;
+            if (!gui_mode) {
+                if (ev.key.keysym.sym == SDLK_q) draw_wire = !draw_wire;
+                key[ev.key.keysym.sym] = 1;
+            }
             break;
         case SDL_KEYUP:
-            key[ev.key.keysym.sym] = 0;
+            if (!gui_mode) key[ev.key.keysym.sym] = 0;
             break;
         case SDL_QUIT:
             running = 0;
             break;
         }
+        if (gui_mode)
+            gui_handle_event(&ev);
     }
 }
 
@@ -735,7 +747,7 @@ static void update(void)
     /* prepare for rendering the perspective from camera */
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    gluPerspective(60.0, (double)vid_width/(double)vid_height, 1.0, 65536.0);
+    gluPerspective(60.0, wh_ratio, 1.0, 65536.0);
     glGetFloatv(GL_PROJECTION_MATRIX, pmtx);
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
@@ -845,7 +857,7 @@ static void update(void)
                         }
                     }
                 }
-                if (!draw_map) cls->visible = 0;
+                cls->visible = 0;
             }
         }
     }
@@ -1016,49 +1028,26 @@ static void update(void)
     glDisable(GL_DEPTH_TEST);
 
     glColor4f(1, 1, 1, 1);
-    font_render(normal, -1, 1 - 0.06, status, statlen, 0.06);
+    font_render(font_normal, -1, 1 - 0.06, status, statlen, 0.06);
 
-    /* overlay map */
-    glDisable(GL_TEXTURE_2D);
+    /* overlay gui */
+    if (gui_mode) {
+        gui_render();
 
-    calls += 3;
-
-    if (draw_map) {
-        glMatrixMode(GL_PROJECTION);
-        glLoadIdentity();
-        glOrtho(0, 800, 600, 0, 0, 1);
-        glMatrixMode(GL_MODELVIEW);
-        glLoadIdentity();
-
-        glTranslatef(10, 10, 0);
-
-        for (y = 0; y < map_height; y++) {
-            for (x = 0; x < map_width; x++) {
-                float v = (cell[y * map_width + x].flags & CF_OCCLUDER) ? 1.0
-                    : 0.0;
-                glColor3f(v * 0.4, v * 0.7, v * 0.8);
-                bar(x * CELLVSIZE, y * CELLVSIZE, x * CELLVSIZE + CELLVSIZE, y
-                    * CELLVSIZE + CELLVSIZE);
-            }
-        }
-
+        glColor4f(1, 1, 1, 1);
         glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        i = 0;
-        for (y = 0; y < cluster_height; y++) {
-            for (x = 0; x < cluster_width; x++) {
-                int v = cluster[y * cluster_width + x].visible;
-                if (v) {
-                    glColor4f(0.8, 0.5, 0.3, 0.3);
-                    bar(x * CELLVSIZE * CLUSTERSIZE, y * CELLVSIZE
-                        * CLUSTERSIZE, x * CELLVSIZE * CLUSTERSIZE + CELLVSIZE
-                        * CLUSTERSIZE, y * CELLVSIZE * CLUSTERSIZE + CELLVSIZE
-                        * CLUSTERSIZE);
-                    i++;
-                }
-                cluster[y * cluster_width + x].visible = 0;
-            }
-        }
+        glBlendFunc(GL_DST_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glActiveTexture(GL_TEXTURE0);
+        glEnable(GL_TEXTURE_2D);
+        glBindTexture(GL_TEXTURE_2D, pointer_cursor->name);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+        glBegin(GL_QUADS);
+        glTexCoord2f(0, 1); glVertex2f(mouse_x, mouse_y - 0.08);
+        glTexCoord2f(1, 1); glVertex2f(mouse_x + 0.08*hw_ratio, mouse_y - 0.08);
+        glTexCoord2f(1, 0); glVertex2f(mouse_x + 0.08*hw_ratio, mouse_y);
+        glTexCoord2f(0, 0); glVertex2f(mouse_x, mouse_y);
+        glEnd();
         glDisable(GL_BLEND);
     }
 
@@ -1140,8 +1129,7 @@ static void run(void)
     tex_floor = tex_load("data/textures/floor.bmp");
     tex_stuff = tex_load("data/textures/stuff.bmp");
     tex_wtf = tex_load("data/textures/wtf.bmp");
-    normal = font_load("data/fonts/normal.bifo");
-    if (!normal) printf("normal failed\n");
+    pointer_cursor = tex_load("data/other/pointer_cursor.bmp");
 
     map_init(256, 256);
     calc_campoints(sqrt(256*256 + 256*256));
@@ -1176,9 +1164,13 @@ int main(int _argc, char **_argv)
     argc = _argc;
     argv = _argv;
     if (!vid_init()) return 1;
+    font_init();
+    gui_init();
 
     run();
 
+    gui_shutdown();
+    font_shutdown();
     vid_shutdown();
     return 0;
 }

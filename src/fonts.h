@@ -14,8 +14,14 @@ typedef struct _font_t
     fontcharinfo_t ci[127];
 } font_t;
 
+extern font_t* font_normal;
+
+void font_init(void);
+void font_shutdown(void);
+
 font_t* font_load(const char* filename);
 void font_free(font_t* font);
 void font_render(font_t* font, float x, float y, const char* str, int len, float size);
+float font_width(font_t* font, const char* str, int len, float size);
 
 #endif

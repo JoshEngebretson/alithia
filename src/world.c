@@ -108,7 +108,7 @@ void map_init(int width, int height)
 
     light_new(14*CELLSIZE, 0, 10*CELLSIZE, 0.7, 0.2, 0.1, 150);
     light_new(14*CELLSIZE, 0, 10*CELLSIZE, 0.2, 0.3, 0.4, 1000000);
-
+/*
     for (i=0; i<100; i++) {
         for (y=7+i; y<map_height-(7+i); y++) {
             for (x=7+i; x<=map_width-(7+i); x++) {
@@ -116,7 +116,7 @@ void map_init(int width, int height)
             }
         }
     }
-
+*/
     for (y=0; y<map_height; y++)
         for (x=0; x<map_width; x++)
             map_update_cell(x, y);

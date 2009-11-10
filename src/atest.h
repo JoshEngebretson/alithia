@@ -41,6 +41,8 @@
 extern int running;
 extern int argc;
 extern char** argv;
+extern float mouse_x;
+extern float mouse_y;
 
 #include "defines.h"
 #include "utils.h"
@@ -48,6 +50,7 @@ extern char** argv;
 #include "vidmode.h"
 #include "textures.h"
 #include "fonts.h"
+#include "gui.h"
 #include "models.h"
 #include "world.h"
 

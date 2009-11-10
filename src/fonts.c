@@ -23,6 +23,18 @@
 
 #include "atest.h"
 
+font_t* font_normal;
+
+void font_init(void)
+{
+    font_normal = font_load("data/fonts/normal.bifo");
+}
+
+void font_shutdown(void)
+{
+    font_free(font_normal);
+}
+
 font_t* font_load(const char* filename)
 {
     font_t* font = new(font_t);
@@ -67,7 +79,7 @@ font_t* font_load(const char* filename)
         font->ci[i].v1 = (float)y/(float)bmp_height;
         font->ci[i].u2 = (float)(x + width)/(float)bmp_width;
         font->ci[i].v2 = (float)(y + height)/(float)bmp_height;
-        font->ci[i].w = (float)width/(float)height*((float)vid_height/(float)vid_width);
+        font->ci[i].w = (float)width/(float)height*hw_ratio;
     }
 
     fclose(f);
@@ -105,6 +117,7 @@ void font_free(font_t* font)
     }
     free(font);
 }
+
 void font_render(font_t* font, float x, float y, const char* str, int len, float size)
 {
     float sx = x;
@@ -129,7 +142,7 @@ void font_render(font_t* font, float x, float y, const char* str, int len, float
             continue;
         }
         if (*str < 33 || *str > 126) {
-            x += size/3.0;
+            x += size/(6.0*hw_ratio);
             len--;
             str++;
             continue;
@@ -149,4 +162,24 @@ void font_render(font_t* font, float x, float y, const char* str, int len, float
     glEnd();
     glPopAttrib();
     glPopClientAttrib();
+}
+
+float font_width(font_t* font, const char* str, int len, float size)
+{
+    float w = 0;
+    if (len == -1) len = strlen(str);
+    while (len > 0) {
+        fontcharinfo_t* ci;
+        if (*str < 33 || *str > 126) {
+            w += size/(6.0*hw_ratio);
+            len--;
+            str++;
+            continue;
+        }
+        ci = font->ci + *str;
+        w += ci->w*size;
+        str++;
+        len--;
+    }
+    return w;
 }

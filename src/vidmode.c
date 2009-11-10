@@ -27,6 +27,8 @@ PFNGLACTIVETEXTUREPROC glActiveTexture;
 PFNGLMULTITEXCOORD2FARBPROC glMultiTexCoord2f;
 int vid_width;
 int vid_height;
+float wh_ratio;
+float hw_ratio;
 
 #define EXT_LOAD(n) { \
     n = SDL_GL_GetProcAddress(#n); \
@@ -92,6 +94,10 @@ int vid_init(void)
     SDL_WM_SetCaption("ATest", "ATest");
     SDL_WM_GrabInput(SDL_GRAB_ON);
     SDL_ShowCursor(0);
+    SDL_EnableUNICODE(SDL_ENABLE);
+
+    wh_ratio = (float)width/(float)height;
+    hw_ratio = (float)height/(float)width;
 
     return TRUE;
 }
