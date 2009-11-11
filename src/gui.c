@@ -110,6 +110,7 @@ void gui_init(void)
     uicontrol_t* btn;
     uicontrol_t* fld;
     uicontrol_t* chk;
+    uicontrol_t* ted;
 
     uiroot = uictl_new(NULL);
     uictl_place(uiroot, -1, -1, 2, 2);
@@ -125,6 +126,7 @@ void gui_init(void)
     chk = uicheckbox_new(win, btn->wpref + FONTSIZE*0.6*hw_ratio, lbl->hpref*1.0, "...or that", 0, 1);
 
     win = uiwin_new(0.8, 0.7, 1.5*hw_ratio, 0.75, "Another window");
+    ted = uieditor_new(win, 0.02*hw_ratio, 0.02, win->w - 0.04*hw_ratio, win->h - FONTSIZE*1.3 - 0.04);
 }
 
 void gui_render(void)
@@ -203,7 +205,8 @@ void uictl_free(uicontrol_t* ctl)
     uictl_callback(ctl, CB_DESTROYED, NULL);
     if (capture == ctl) capture = NULL;
     if (ctl->dispose) ctl->dispose(ctl);
-    if (ctl->text) return;
+    if (ctl->ctldata) free(ctl->ctldata);
+    if (ctl->text) free(ctl->text);
     if (ctl->children) list_free(ctl->children);
     free(ctl);
 }
@@ -729,4 +732,148 @@ int uicheckbox_checked(uicontrol_t* chk)
 {
     checkbox_data_t* data = chk->ctldata;
     return data->checked;
+}
+
+
+/* Text editor controls */
+typedef struct _editline_t
+{
+    char* text;
+    int textlen;
+} editline_t;
+
+typedef struct _editor_data_t
+{
+    float xcursor;
+    float ycursor;
+    float xscroll;
+    float yscroll;
+    int line, col;
+    list_t* lines;
+} editor_data_t;
+
+static void editor_render_text(uicontrol_t* ted, editor_data_t* data)
+{
+    float x = ted->x - data->xscroll + 0.15*FONTSIZE*hw_ratio;
+    float y = ted->y + ted->h - FONTSIZE + data->yscroll - 0.15*FONTSIZE;
+    int linecnt = 0;
+    listitem_t* liline;
+
+    for (liline = data->lines->first; liline; liline=liline->next) {
+        editline_t* line = liline->ptr;
+        if (ted == focus && linecnt == data->line) {
+            color(0.32, 0.31, 0.33, 1.0);
+            bar(0, y, 10, FONTSIZE);
+            color(0.27, 0.26, 0.28, 1.0);
+            bar(ted->x, y, 0.01*hw_ratio, FONTSIZE);
+            color(0, 0, 0, 1);
+        }
+        font_render(font_normal, x, y, line->text, line->textlen, FONTSIZE);
+        if (linecnt == data->line) {
+            data->xcursor = ted->x + font_width(font_normal, line->text, data->col, FONTSIZE)- data->xscroll + 0.15*FONTSIZE*hw_ratio;
+            data->ycursor = y;
+        }
+        y -= FONTSIZE;
+        linecnt++;
+    }
+    if (linecnt == data->line) {
+        if (ted == focus) {
+            color(0.32, 0.31, 0.33, 1.0);
+            bar(0, y, 10, FONTSIZE);
+            color(0.27, 0.26, 0.28, 1.0);
+            bar(ted->x, y, 0.01*hw_ratio, FONTSIZE);
+            color(0, 0, 0, 1);
+        }
+        data->xcursor = ted->x + 0.15*FONTSIZE*hw_ratio;
+        data->ycursor = y;
+    }
+}
+
+static void editor_render(uicontrol_t* ted)
+{
+    editor_data_t* data = ted->ctldata;
+    if (focus == ted)
+        color(0.22, 0.27, 0.29, 1.0);
+    else
+        color(0.20, 0.25, 0.27, 1.0);
+    bar(ted->x, ted->y, ted->w, ted->h);
+    if (focus == ted)
+        color(0.27, 0.32, 0.35, 1.0);
+    else
+        color(0.25, 0.3, 0.33, 1.0);
+    bar(ted->x + 0.01*hw_ratio, ted->y, ted->w - 0.01*hw_ratio, ted->h - 0.01);
+    color(0.0, 0.0, 0.0, 1.0);
+    editor_render_text(ted, data);
+    if (focus == ted) {
+        color(0.5, 0.2, 0.1, 1.0);
+        bar(data->xcursor, data->ycursor, 3*pixelw, FONTSIZE + 0.005);
+    }
+}
+
+static void editor_dispose(uicontrol_t* ted)
+{
+    editor_data_t* data = ted->ctldata;
+    listitem_t* liline;
+    for (liline=data->lines->first; liline; liline=liline->next) {
+        editline_t* line = liline->ptr;
+        free(line->text);
+    }
+    list_free(data->lines);
+}
+
+static int editor_handle_event(uicontrol_t* ted, SDL_Event* ev)
+{
+    editor_data_t* data = ted->ctldata;
+    float mx, my;
+    uictl_mouse_position(ted, &mx, &my);
+
+    switch (ev->type) {
+    case SDL_MOUSEBUTTONDOWN:
+        if (ev->button.button == 1) {
+            gui_focus(ted);
+            return 1;
+        }
+        return 0;
+    case SDL_KEYDOWN:
+        if (ev->key.keysym.sym == SDLK_DOWN) {
+            if (data->line < data->lines->count) {
+                data->line++;
+            }
+            return 1;
+        } else if (ev->key.keysym.sym == SDLK_UP) {
+            if (data->line) {
+                data->line--;
+            }
+            return 1;
+        }
+        return 0;
+    }
+    return 0;
+}
+
+uicontrol_t* uieditor_new(uicontrol_t* parent, float x, float y, float w, float h)
+{
+    uicontrol_t* ted = uictl_new(parent);
+    ted->render = editor_render;
+    ted->dispose = editor_dispose;
+    ted->handle_event = editor_handle_event;
+    ted->ctldata = new(editor_data_t);
+    ((editor_data_t*)ted->ctldata)->lines = list_new();
+    uictl_place(ted, x, y, w, h);
+
+    uieditor_append(ted, "First line");
+    uieditor_append(ted, "Second line");
+    uieditor_append(ted, "Third line");
+    uieditor_append(ted, "Stuff");
+
+    return ted;
+}
+
+void uieditor_append(uicontrol_t* ted, const char* text)
+{
+    editor_data_t* data = ted->ctldata;
+    editline_t* line = new(editline_t);
+    line->text = strdup(text);
+    line->textlen = strlen(text);
+    list_add(data->lines, line);
 }

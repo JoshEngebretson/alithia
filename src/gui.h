@@ -97,4 +97,8 @@ uicontrol_t* uicheckbox_new(uicontrol_t* parent, float x, float y, const char* t
 void uicheckbox_check(uicontrol_t* chk, int checked);
 int uicheckbox_checked(uicontrol_t* chk);
 
+/* Text editor controls */
+uicontrol_t* uieditor_new(uicontrol_t* parent, float x, float y, float w, float h);
+void uieditor_append(uicontrol_t* ted, const char* text);
+
 #endif
