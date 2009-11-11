@@ -29,6 +29,8 @@ int vid_width;
 int vid_height;
 float wh_ratio;
 float hw_ratio;
+float pixelw;
+float pixelh;
 
 #define EXT_LOAD(n) { \
     n = SDL_GL_GetProcAddress(#n); \
@@ -98,6 +100,8 @@ int vid_init(void)
 
     wh_ratio = (float)width/(float)height;
     hw_ratio = (float)height/(float)width;
+    pixelw = 2.0/(float)width;
+    pixelh = 2.0/(float)height;
 
     return TRUE;
 }

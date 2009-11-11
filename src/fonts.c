@@ -118,9 +118,10 @@ void font_free(font_t* font)
     free(font);
 }
 
-void font_render(font_t* font, float x, float y, const char* str, int len, float size)
+void font_render_ex(font_t* font, float x, float y, const char* str, int len, float size, float maxwidth)
 {
     float sx = x;
+    float w = 0;
     glPushClientAttrib(GL_ALL_ATTRIB_BITS);
     glPushAttrib(GL_ALL_ATTRIB_BITS);
     glActiveTexture(GL_TEXTURE1);
@@ -132,17 +133,19 @@ void font_render(font_t* font, float x, float y, const char* str, int len, float
     glEnable(GL_BLEND);
     glBlendFunc(GL_DST_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glBegin(GL_QUADS);
-    while (len > 0) {
+    while (len > 0 && w <= maxwidth) {
         fontcharinfo_t* ci;
         if (*str == '\n') {
             x = sx;
+            w = 0;
             y -= size;
             len--;
             str++;
             continue;
         }
         if (*str < 33 || *str > 126) {
-            x += size/(6.0*hw_ratio);
+            x += (size/3.0)*hw_ratio;
+            w += (size/3.0)*hw_ratio;
             len--;
             str++;
             continue;
@@ -155,6 +158,7 @@ void font_render(font_t* font, float x, float y, const char* str, int len, float
         glTexCoord2f(ci->u2, ci->v2); glVertex2f(x + ci->w*size, y);
 
         x += ci->w*size;
+        w += ci->w*size;
 
         str++;
         len--;
@@ -164,6 +168,11 @@ void font_render(font_t* font, float x, float y, const char* str, int len, float
     glPopClientAttrib();
 }
 
+void font_render(font_t* font, float x, float y, const char* str, int len, float size)
+{
+    font_render_ex(font, x, y, str, len, size, 1000.0);
+}
+
 float font_width(font_t* font, const char* str, int len, float size)
 {
     float w = 0;
@@ -171,7 +180,7 @@ float font_width(font_t* font, const char* str, int len, float size)
     while (len > 0) {
         fontcharinfo_t* ci;
         if (*str < 33 || *str > 126) {
-            w += size/(6.0*hw_ratio);
+            w += (size/3.0)*hw_ratio;
             len--;
             str++;
             continue;

@@ -23,15 +23,64 @@
 
 #include "atest.h"
 
+#define MAX_CLIPS 256
 #define FONTSIZE 0.05
+
+typedef struct _clipbox_t
+{
+    float x1;
+    float y1;
+    float x2;
+    float y2;
+} clipbox_t;
 
 static uicontrol_t* capture = NULL;
 static uicontrol_t* focus = NULL;
 static float save_x;
 static float save_y;
+static clipbox_t clipbox[MAX_CLIPS];
+static int clipboxhead = 0;
+static list_t* checkboxes = NULL;
 uicontrol_t* uiroot = NULL;
 
 /* Helper rendering functions */
+static void set_clip(float x1, float y1, float x2, float y2)
+{
+    x1 = round(vid_width*((x1 + 1.0f)/2.0f));
+    y1 = round(vid_height*((y1 + 1.0f)/2.0f));
+    x2 = round(vid_width*((x2 + 1.0f)/2.0f));
+    y2 = round(vid_height*((y2 + 1.0f)/2.0f));
+    if (x2 <= x1 || y2 <= y1) {
+        glScissor(0, 0, 0, 0);
+    } else {
+        glScissor((int)x1, (int)y1, (int)(x2 - x1), (int)(y2 - y1));
+    }
+}
+
+static void open_clip(float x1, float y1, float x2, float y2)
+{
+    if (clipboxhead == MAX_CLIPS) return;
+    if (clipboxhead) {
+        if (x1 < clipbox[clipboxhead - 1].x1) x1 = clipbox[clipboxhead - 1].x1;
+        if (y1 < clipbox[clipboxhead - 1].y1) y1 = clipbox[clipboxhead - 1].y1;
+        if (x2 > clipbox[clipboxhead - 1].x2) x2 = clipbox[clipboxhead - 1].x2;
+        if (y2 > clipbox[clipboxhead - 1].y2) y2 = clipbox[clipboxhead - 1].y2;
+    }
+    clipbox[clipboxhead].x1 = x1;
+    clipbox[clipboxhead].y1 = y1;
+    clipbox[clipboxhead].x2 = x2;
+    clipbox[clipboxhead].y2 = y2;
+    clipboxhead++;
+    set_clip(x1, y1, x2, y2);
+}
+
+static void close_clip(void)
+{
+    if (!clipboxhead) return;
+    clipboxhead--;
+    set_clip(clipbox[clipboxhead].x1, clipbox[clipboxhead].y1, clipbox[clipboxhead].x2, clipbox[clipboxhead].y2);
+}
+
 static void color(float r, float g, float b, float a)
 {
     if (a < 1.0) {
@@ -60,14 +109,20 @@ void gui_init(void)
     uicontrol_t* lbl;
     uicontrol_t* btn;
     uicontrol_t* fld;
+    uicontrol_t* chk;
 
     uiroot = uictl_new(NULL);
     uictl_place(uiroot, -1, -1, 2, 2);
 
-    win = uiwin_new(0.4, 1.0, 0.5*hw_ratio, 0.35, "A window");
+    checkboxes = list_new();
+
+    win = uiwin_new(0.4*hw_ratio, 1.0, 0.6*hw_ratio, 0.35, "A window");
     lbl = uilabel_new(win, 0, 0, "Hello, world");
-    btn = uibutton_new(win, FONTSIZE*0.15, lbl->hpref*1.5, "Push me!");
-    fld = uifield_new(win, FONTSIZE*0.15, lbl->hpref*3.5, btn->wpref);
+    btn = uibutton_new(win, FONTSIZE*0.15*hw_ratio, lbl->hpref*1.5, "Push me!");
+    fld = uifield_new(win, FONTSIZE*0.15*hw_ratio, lbl->hpref*3.5, btn->wpref);
+    chk = uicheckbox_new(win, btn->wpref + FONTSIZE*0.6*hw_ratio, lbl->hpref*3.5, "Check me", 0, 0);
+    chk = uicheckbox_new(win, btn->wpref + FONTSIZE*0.6*hw_ratio, lbl->hpref*2.0, "This...", 1, 1);
+    chk = uicheckbox_new(win, btn->wpref + FONTSIZE*0.6*hw_ratio, lbl->hpref*1.0, "...or that", 0, 1);
 
     win = uiwin_new(0.8, 0.7, 1.5*hw_ratio, 0.75, "Another window");
 }
@@ -92,6 +147,9 @@ void gui_render(void)
     }
     glActiveTexture(GL_TEXTURE0);
 
+    glEnable(GL_SCISSOR_TEST);
+    clipboxhead = 0;
+
     uictl_render(uiroot);
 
     glPopMatrix();
@@ -106,6 +164,7 @@ void gui_render(void)
 void gui_shutdown(void)
 {
     uictl_free(uiroot);
+    list_free(checkboxes);
 }
 
 void gui_handle_event(SDL_Event* ev)
@@ -151,11 +210,15 @@ void uictl_free(uicontrol_t* ctl)
 
 void uictl_render(uicontrol_t* ctl)
 {
+    float x = 0, y = 0;
+    uictl_local_to_screen(ctl, &x, &y);
+    open_clip(x, y, x + ctl->w, y + ctl->h);
     if (ctl->render) {
         ctl->render(ctl);
     } else {
         uictl_render_children(ctl);
     }
+    close_clip();
 }
 
 void uictl_render_children(uicontrol_t* ctl)
@@ -166,11 +229,13 @@ void uictl_render_children(uicontrol_t* ctl)
         ctl->render_children(ctl);
     } else {
         listitem_t* itchild;
+        float x, y;
         glPushMatrix();
         glTranslatef(ctl->x, ctl->y, 0.0);
 
         for (itchild=ctl->children->first; itchild; itchild=itchild->next) {
-            uictl_render(itchild->ptr);
+            uicontrol_t* child = itchild->ptr;
+            uictl_render(child);
         }
 
         glPopMatrix();
@@ -284,7 +349,10 @@ void uictl_mouse_position(uicontrol_t* ctl, float* x, float* y)
 static void win_render(uicontrol_t* win)
 {
     color(0.0, 0.0, 0.0, 0.5);
+    glDisable(GL_SCISSOR_TEST);
     bar(win->x + 0.03*hw_ratio, win->y - 0.03, win->w, win->h);
+    bar(win->x - pixelw, win->y - pixelh, win->w + pixelw*2, win->h + pixelh*2);
+    glEnable(GL_SCISSOR_TEST);
     color(0.3, 0.35, 0.37, 1.0);
     bar(win->x, win->y, win->w, win->h - FONTSIZE*1.3);
     color(0.4, 0.45, 0.47, 1.0);
@@ -384,8 +452,10 @@ static void button_render(uicontrol_t* btn)
         color(0.0, 0.0, 0.0, 1.0);
         font_render(font_normal, btn->x + FONTSIZE*0.15 + 0.01*hw_ratio, btn->y + FONTSIZE*0.1 - 0.01, btn->text, btn->textlen, FONTSIZE);
     } else {
+        glDisable(GL_SCISSOR_TEST);
         color(0.0, 0.0, 0.0, 0.5);
         bar(btn->x + 0.02*hw_ratio, btn->y - 0.02, btn->w, btn->h);
+        glEnable(GL_SCISSOR_TEST);
         color(0.4, 0.45, 0.47, 1.0);
         bar(btn->x, btn->y, btn->w, btn->h);
         color(0.0, 0.0, 0.0, 1.0);
@@ -452,8 +522,15 @@ uicontrol_t* uibutton_new(uicontrol_t* parent, float x, float y, const char* tex
 
 
 /* Field controls */
+typedef struct _uifield_data_t
+{
+    float xscroll;
+    int cursor;
+} uifield_data_t;
+
 static void field_render(uicontrol_t* fld)
 {
+    uifield_data_t* data = fld->ctldata;
     if (focus == fld)
         color(0.22, 0.27, 0.29, 1.0);
     else
@@ -465,16 +542,32 @@ static void field_render(uicontrol_t* fld)
         color(0.25, 0.3, 0.33, 1.0);
     bar(fld->x + 0.01*hw_ratio, fld->y, fld->w - 0.01*hw_ratio, fld->h - 0.01);
     color(0.0, 0.0, 0.0, 1.0);
-    font_render(font_normal, fld->x + FONTSIZE*0.15, fld->y + FONTSIZE*0.15, fld->text, fld->textlen, FONTSIZE);
+    font_render(font_normal, fld->x + FONTSIZE*0.15*hw_ratio - data->xscroll, fld->y + FONTSIZE*0.15, fld->text, fld->textlen, FONTSIZE);
     if (focus == fld) {
-        float w = font_width(font_normal, fld->text, fld->textlen, FONTSIZE);
+        float w = font_width(font_normal, fld->text, data->cursor, FONTSIZE);
         color(0.5, 0.2, 0.1, 1.0);
-        bar(fld->x + FONTSIZE*0.15 + w, fld->y + 0.005, 0.005, fld->h - 0.01);
+        bar(fld->x + FONTSIZE*0.15*hw_ratio + w - data->xscroll, fld->y + 0.005, 3*pixelw, fld->h - 0.01);
+    }
+}
+
+static void field_check_scroll(uicontrol_t* fld)
+{
+    uifield_data_t* data = fld->ctldata;
+    float curpos = font_width(font_normal, fld->text, data->cursor, FONTSIZE) - data->xscroll;
+    while (curpos >= fld->w - 0.01*hw_ratio - FONTSIZE*0.15*hw_ratio) {
+        data->xscroll += fld->w/2;
+        curpos -= fld->w/2;
+    }
+    while (curpos < 0) {
+        data->xscroll -= fld->w/2;
+        curpos += fld->w/2;
+        if (data->xscroll < 0) data->xscroll = 0;
     }
 }
 
 static int field_handle_event(uicontrol_t* fld, SDL_Event* ev)
 {
+    uifield_data_t* data = fld->ctldata;
     float mx, my;
     uictl_mouse_position(fld, &mx, &my);
 
@@ -486,20 +579,54 @@ static int field_handle_event(uicontrol_t* fld, SDL_Event* ev)
         }
         return 0;
     case SDL_KEYDOWN:
-        if (ev->key.keysym.sym == SDLK_BACKSPACE) {
-            if (fld->textlen) {
-                char* newtext = strdup(fld->text);
-                newtext[strlen(newtext) - 1] = 0;
+        if (ev->key.keysym.sym == SDLK_HOME) {
+            data->cursor = 0;
+            field_check_scroll(fld);
+        } else if (ev->key.keysym.sym == SDLK_END) {
+            data->cursor = fld->textlen;
+            field_check_scroll(fld);
+        } else if (ev->key.keysym.sym == SDLK_LEFT) {
+            if (data->cursor) data->cursor--;
+            field_check_scroll(fld);
+        } else if (ev->key.keysym.sym == SDLK_RIGHT) {
+            if (data->cursor < fld->textlen) data->cursor++;
+            field_check_scroll(fld);
+        } else if (ev->key.keysym.sym == SDLK_BACKSPACE) {
+            if (data->cursor) {
+                char* newtext = malloc(fld->textlen);
+                char* tmp = strdup(fld->text);
+                tmp[data->cursor - 1] = 0;
+                sprintf(newtext, "%s%s", tmp, fld->text + data->cursor);
                 uictl_set_text(fld, newtext);
+                free(tmp);
+                free(newtext);
+                data->cursor--;
+                field_check_scroll(fld);
+                uictl_callback(fld, CB_CHANGED, NULL);
+            }
+            return 1;
+        } else if (ev->key.keysym.sym == SDLK_DELETE) {
+            if (fld->text && fld->text[data->cursor]) {
+                char* newtext = malloc(fld->textlen);
+                char* tmp = strdup(fld->text);
+                tmp[data->cursor] = 0;
+                sprintf(newtext, "%s%s", tmp, fld->text + data->cursor + 1);
+                uictl_set_text(fld, newtext);
+                free(tmp);
                 free(newtext);
                 uictl_callback(fld, CB_CHANGED, NULL);
             }
             return 1;
-        } else if (!(ev->key.keysym.unicode & 0xFF80)) {
+        } else if (!(ev->key.keysym.unicode & 0xFF80) && ev->key.keysym.unicode > 31) {
             char* newtext = malloc(fld->textlen + 2);
-            sprintf(newtext, "%s%c", uictl_get_text(fld), ev->key.keysym.unicode);
+            char* tmp = strdup(uictl_get_text(fld));
+            tmp[data->cursor] = 0;
+            sprintf(newtext, "%s%c%s", tmp, ev->key.keysym.unicode, uictl_get_text(fld) + data->cursor);
             uictl_set_text(fld, newtext);
+            free(tmp);
             free(newtext);
+            data->cursor++;
+            field_check_scroll(fld);
             uictl_callback(fld, CB_CHANGED, NULL);
             return 1;
         }
@@ -512,7 +639,94 @@ uicontrol_t* uifield_new(uicontrol_t* parent, float x, float y, float w)
     uicontrol_t* fld = uictl_new(parent);
     fld->render = field_render;
     fld->handle_event = field_handle_event;
-    uictl_set_text(fld, "field");
+    fld->ctldata = new(uifield_data_t);
     uictl_place(fld, x, y, w, FONTSIZE*1.3);
     return fld;
+}
+
+
+/* Checkbox controls */
+typedef struct _checkbox_data_t
+{
+    int checked;
+    unsigned int group;
+} checkbox_data_t;
+
+static void checkbox_render(uicontrol_t* chk)
+{
+    checkbox_data_t* data = chk->ctldata;
+    color(0.4, 0.45, 0.47, 1.0);
+    bar(chk->x + FONTSIZE*0.1*hw_ratio, chk->y + FONTSIZE*0.2, chk->h*hw_ratio - FONTSIZE*0.4*hw_ratio, chk->h - FONTSIZE*0.4);
+    color(0.3, 0.35, 0.37, 1.0);
+    bar(chk->x + FONTSIZE*0.1*hw_ratio + pixelw*2, chk->y + FONTSIZE*0.2 + pixelh*2.0, chk->h*hw_ratio - FONTSIZE*0.4*hw_ratio - pixelw*4.0, chk->h - FONTSIZE*0.4 - pixelh*4.0);
+    if (data->checked) {
+        color(0.4, 0.45, 0.47, 1.0);
+        if (data->group)
+            bar(chk->x + FONTSIZE*0.1*hw_ratio + pixelw*5, chk->y + FONTSIZE*0.2 + pixelh*5.0, chk->h*hw_ratio - FONTSIZE*0.4*hw_ratio - pixelw*10.0, chk->h - FONTSIZE*0.4 - pixelh*10.0);
+        else
+            bar(chk->x + FONTSIZE*0.1*hw_ratio + pixelw*4, chk->y + FONTSIZE*0.2 + pixelh*4.0, chk->h*hw_ratio - FONTSIZE*0.4*hw_ratio - pixelw*8.0, chk->h - FONTSIZE*0.4 - pixelh*8.0);
+    }
+    color(0.0, 0.0, 0.0, 1.0);
+    font_render(font_normal, chk->x + FONTSIZE*1.15*hw_ratio, chk->y + FONTSIZE*0.1, chk->text, chk->textlen, FONTSIZE);
+}
+
+static void checkbox_update(uicontrol_t* chk)
+{
+    chk->wpref = font_width(font_normal, chk->text, chk->textlen, FONTSIZE) + FONTSIZE*1.3;
+    chk->hpref = FONTSIZE*1.3;
+}
+
+static void checkbox_dispose(uicontrol_t* chk)
+{
+    list_remove(checkboxes, chk, 0);
+}
+
+static int checkbox_handle_event(uicontrol_t* chk, SDL_Event* ev)
+{
+    checkbox_data_t* data = chk->ctldata;
+    if (ev->type == SDL_MOUSEBUTTONDOWN && ev->button.button == 1) {
+        uicheckbox_check(chk, data->group ? 1 : !data->checked);
+    }
+    return 0;
+}
+
+uicontrol_t* uicheckbox_new(uicontrol_t* parent, float x, float y, const char* text, int checked, unsigned int group)
+{
+    uicontrol_t* chk = uictl_new(parent);
+    chk->render = checkbox_render;
+    chk->update = checkbox_update;
+    chk->dispose = checkbox_dispose;
+    chk->handle_event = checkbox_handle_event;
+    chk->ctldata = new(uifield_data_t);
+    ((checkbox_data_t*)chk->ctldata)->checked = checked ? 1 : 0;
+    ((checkbox_data_t*)chk->ctldata)->group = group;
+    uictl_set_text(chk, text);
+    uictl_place(chk, x, y, chk->wpref, chk->hpref);
+    list_add(checkboxes, chk);
+    return chk;
+}
+
+void uicheckbox_check(uicontrol_t* chk, int checked)
+{
+    listitem_t* litem;
+    checkbox_data_t* data = chk->ctldata;
+    checked = checked ? 1 : 0;
+    if (data->checked != checked) {
+        data->checked = checked;
+        uictl_callback(chk, CB_CHANGED, NULL);
+        if (checked && data->group) {
+            for (litem = checkboxes->first; litem; litem=litem->next) {
+                uicontrol_t* cbox = litem->ptr;
+                if (cbox == chk || ((checkbox_data_t*)cbox->ctldata)->group != data->group) continue;
+                if (uicheckbox_checked(cbox))
+                    uicheckbox_check(cbox, 0);
+            }
+        }
+    }
+}
+
+int uicheckbox_checked(uicontrol_t* chk)
+{
+    checkbox_data_t* data = chk->ctldata;
+    return data->checked;
 }

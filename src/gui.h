@@ -92,4 +92,9 @@ uicontrol_t* uibutton_new(uicontrol_t* parent, float x, float y, const char* tex
 /* Field controls */
 uicontrol_t* uifield_new(uicontrol_t* parent, float x, float y, float w);
 
+/* Checkbox controls */
+uicontrol_t* uicheckbox_new(uicontrol_t* parent, float x, float y, const char* text, int checked, unsigned int group);
+void uicheckbox_check(uicontrol_t* chk, int checked);
+int uicheckbox_checked(uicontrol_t* chk);
+
 #endif
