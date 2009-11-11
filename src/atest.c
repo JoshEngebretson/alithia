@@ -71,7 +71,7 @@ int pntx[MAX_POINTS], pnty[MAX_POINTS];
 int pntc = 0;
 int camx = 0, camy = 0;
 int down = 0;
-int gui_mode = 1;
+int gui_mode = 0;
 float mouse_x = 0;
 float mouse_y = 0;
 int draw_wire = 0;
@@ -112,7 +112,7 @@ static void process_events(void)
                 SDL_WM_GrabInput(SDL_GRAB_OFF);
             }
             if (ev.key.keysym.sym == SDLK_F10) running = 0;
-            if (ev.key.keysym.sym == SDLK_g) gui_mode = !gui_mode;
+            if (ev.key.keysym.sym == SDLK_ESCAPE) gui_mode = !gui_mode;
             if (!gui_mode) {
                 if (ev.key.keysym.sym == SDLK_q) draw_wire = !draw_wire;
                 key[ev.key.keysym.sym] = 1;
