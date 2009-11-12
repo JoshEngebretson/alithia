@@ -743,7 +743,7 @@ static void update(void)
 
     if (init_frames)
         init_frames--;
-
+#if 1
     /* prepare for rendering the perspective from camera */
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
@@ -1019,7 +1019,10 @@ static void update(void)
     glDisable(GL_POLYGON_OFFSET_FILL);
 
     calls += 20;
-
+#else
+    glClear(GL_COLOR_BUFFER_BIT);
+    gui_mode = 1;
+#endif
     /* hud */
     glActiveTexture(GL_TEXTURE1);
     glDisable(GL_TEXTURE_2D);

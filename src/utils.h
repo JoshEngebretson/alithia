@@ -47,6 +47,7 @@ void* malloc0(size_t size);
 list_t* list_new(void);
 void list_free(list_t* list);
 void list_add(list_t* list, void* ptr);
+void list_insert(list_t* list, void* item, void* ptr);
 void list_remove(list_t* list, void* ptr, int release);
 listitem_t* list_find(list_t* list, void* ptr);
 #define list_has(list,ptr) (list_find(list, ptr) != NULL)

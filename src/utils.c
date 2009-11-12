@@ -64,6 +64,33 @@ void list_add(list_t* list, void* ptr)
     list->count++;
 }
 
+void list_insert(list_t* list, void* item, void* ptr)
+{
+    if (item == NULL) {
+        listitem_t* nitem = new(listitem_t);
+        nitem->list = list;
+        nitem->next = list->first;
+        nitem->ptr = ptr;
+        if (list->first) list->first->prev = nitem;
+        else list->last = nitem;
+        list->first = nitem;
+    } else {
+        listitem_t* eitem = list_find(list, item);
+        listitem_t* nitem = new(listitem_t);
+        if (!eitem || !eitem->next) {
+            list_add(list, ptr);
+            return;
+        }
+        nitem->ptr = ptr;
+        nitem->list = list;
+        nitem->prev = eitem;
+        nitem->next = eitem->next;
+        eitem->next = nitem;
+        nitem->next->prev = nitem;
+    }
+    list->count++;
+}
+
 void list_remove(list_t* list, void* ptr, int release)
 {
     listitem_t* item = list_find(list, ptr);

@@ -689,6 +689,9 @@ static int checkbox_handle_event(uicontrol_t* chk, SDL_Event* ev)
     checkbox_data_t* data = chk->ctldata;
     if (ev->type == SDL_MOUSEBUTTONDOWN && ev->button.button == 1) {
         uicheckbox_check(chk, data->group ? 1 : !data->checked);
+        gui_focus(chk);
+    } else if (ev->type == SDL_KEYDOWN && ev->key.keysym.sym == SDLK_SPACE) {
+        uicheckbox_check(chk, data->group ? 1 : !data->checked);
     }
     return 0;
 }
@@ -748,9 +751,58 @@ typedef struct _editor_data_t
     float ycursor;
     float xscroll;
     float yscroll;
-    int line, col;
+    int row, col;
     list_t* lines;
+    editline_t** line;
 } editor_data_t;
+
+static void editor_update_line_array(uicontrol_t* ted)
+{
+    editor_data_t* data = ted->ctldata;
+    int i = 0;
+    listitem_t* liline;
+    if (data->line) free(data->line);
+    data->line = malloc(sizeof(editline_t*)*data->lines->count);
+    for (liline = data->lines->first; liline; liline=liline->next) {
+        data->line[i++] = liline->ptr;
+    }
+}
+
+static void editor_check_cursor(uicontrol_t* ted)
+{
+    editor_data_t* data = ted->ctldata;
+    float pos;
+    if (data->row < data->lines->count) {
+        if (data->line[data->row]->textlen < data->col)
+            data->col = data->line[data->row]->textlen;
+    } else {
+        data->col = 0;
+    }
+
+    pos = ted->h - FONTSIZE*1.15 + data->yscroll - data->row*FONTSIZE;
+    while (pos <= 0.0) {
+        pos += FONTSIZE;
+        data->yscroll += FONTSIZE;
+    }
+
+    while (pos >= ted->h - FONTSIZE) {
+        pos -= FONTSIZE;
+        data->yscroll -= FONTSIZE;
+    }
+    if (data->yscroll < 0) data->yscroll = 0;
+
+    pos = (data->row == data->lines->count ? 0 : font_width(font_normal, data->line[data->row]->text, data->col, FONTSIZE)) - data->xscroll + FONTSIZE*0.15*hw_ratio;
+    while (pos <= 0.0) {
+        pos += ted->w*0.35;
+        data->xscroll -= ted->w*0.35;
+    }
+
+    while (pos >= ted->w) {
+        pos -= ted->w*0.35;
+        data->xscroll += ted->w*0.35;
+    }
+    if (data->xscroll < 0) data->xscroll = 0;
+}
 
 static void editor_render_text(uicontrol_t* ted, editor_data_t* data)
 {
@@ -761,7 +813,7 @@ static void editor_render_text(uicontrol_t* ted, editor_data_t* data)
 
     for (liline = data->lines->first; liline; liline=liline->next) {
         editline_t* line = liline->ptr;
-        if (ted == focus && linecnt == data->line) {
+        if (ted == focus && linecnt == data->row) {
             color(0.32, 0.31, 0.33, 1.0);
             bar(0, y, 10, FONTSIZE);
             color(0.27, 0.26, 0.28, 1.0);
@@ -769,14 +821,14 @@ static void editor_render_text(uicontrol_t* ted, editor_data_t* data)
             color(0, 0, 0, 1);
         }
         font_render(font_normal, x, y, line->text, line->textlen, FONTSIZE);
-        if (linecnt == data->line) {
+        if (linecnt == data->row) {
             data->xcursor = ted->x + font_width(font_normal, line->text, data->col, FONTSIZE)- data->xscroll + 0.15*FONTSIZE*hw_ratio;
             data->ycursor = y;
         }
         y -= FONTSIZE;
         linecnt++;
     }
-    if (linecnt == data->line) {
+    if (linecnt == data->row) {
         if (ted == focus) {
             color(0.32, 0.31, 0.33, 1.0);
             bar(0, y, 10, FONTSIZE);
@@ -819,11 +871,13 @@ static void editor_dispose(uicontrol_t* ted)
         free(line->text);
     }
     list_free(data->lines);
+    if (data->line) free(data->line);
 }
 
 static int editor_handle_event(uicontrol_t* ted, SDL_Event* ev)
 {
     editor_data_t* data = ted->ctldata;
+    editline_t* line;
     float mx, my;
     uictl_mouse_position(ted, &mx, &my);
 
@@ -836,14 +890,177 @@ static int editor_handle_event(uicontrol_t* ted, SDL_Event* ev)
         return 0;
     case SDL_KEYDOWN:
         if (ev->key.keysym.sym == SDLK_DOWN) {
-            if (data->line < data->lines->count) {
-                data->line++;
+            if (data->row < data->lines->count) {
+                data->row++;
+                editor_check_cursor(ted);
             }
             return 1;
         } else if (ev->key.keysym.sym == SDLK_UP) {
-            if (data->line) {
-                data->line--;
+            if (data->row) {
+                data->row--;
+                editor_check_cursor(ted);
             }
+            return 1;
+        } else if (ev->key.keysym.sym == SDLK_LEFT) {
+            if (data->col) {
+                data->col--;
+                editor_check_cursor(ted);
+            }
+            return 1;
+        } else if (ev->key.keysym.sym == SDLK_RIGHT) {
+            data->col++;
+            editor_check_cursor(ted);
+            return 1;
+        } else if (ev->key.keysym.sym == SDLK_HOME) {
+            data->col = 0;
+            editor_check_cursor(ted);
+            return 1;
+        } else if (ev->key.keysym.sym == SDLK_END) {
+            if (data->row < data->lines->count) {
+                data->col = data->line[data->row]->textlen;
+                editor_check_cursor(ted);
+            }
+            return 1;
+        } else if (ev->key.keysym.sym == SDLK_BACKSPACE) {
+            char* newtext;
+            char* tmp;
+
+            if (data->row == 0 && data->col == 0) return 1;
+
+            if (data->row == data->lines->count) {
+                if (data->line[data->row - 1]->textlen == 0) {
+                    uieditor_remove_line(ted, data->row - 1);
+                } else {
+                    data->col = data->line[data->row - 1]->textlen;
+                    data->row--;
+                    editor_check_cursor(ted);
+                }
+                return 1;
+            }
+
+            line = data->line[data->row];
+            if (data->col == 0) { /* combine with line above */
+                newtext = malloc(line->textlen + data->line[data->row - 1]->textlen + 1);
+                sprintf(newtext, "%s%s", data->line[data->row - 1]->text, line->text);
+                free(data->line[data->row - 1]->text);
+                data->line[data->row - 1]->text = newtext;
+                data->col = data->line[data->row - 1]->textlen;
+                data->line[data->row - 1]->textlen = strlen(newtext);
+                uieditor_remove_line(ted, data->row);
+                data->row--;
+                editor_check_cursor(ted);
+                return 1;
+            }
+
+            newtext = malloc(line->textlen);
+            tmp = strdup(line->text);
+            tmp[data->col - 1] = 0;
+            sprintf(newtext, "%s%s", tmp, line->text + data->col);
+            free(line->text);
+            line->text = newtext;
+            line->textlen--;
+            data->col--;
+            free(tmp);
+            editor_check_cursor(ted);
+
+            return 1;
+        } else if (ev->key.keysym.sym == SDLK_DELETE) {
+            char* newtext;
+            char* tmp;
+
+            if (data->row == data->lines->count) return 1;
+
+            line = data->line[data->row];
+            if (data->col == line->textlen) { /* combine with line below */
+                if (data->row == data->lines->count - 1) {
+                    if (data->col == 0) {
+                        uieditor_remove_line(ted, data->row);
+                    }
+                    return 1;
+                }
+                newtext = malloc(line->textlen + data->line[data->row + 1]->textlen + 1);
+                sprintf(newtext, "%s%s", line->text, data->line[data->row + 1]->text);
+                free(data->line[data->row + 1]->text);
+                data->line[data->row + 1]->text = newtext;
+                data->line[data->row + 1]->textlen = strlen(newtext);
+                uieditor_remove_line(ted, data->row);
+                editor_check_cursor(ted);
+                return 1;
+            }
+
+            newtext = malloc(line->textlen);
+            tmp = strdup(line->text);
+            tmp[data->col] = 0;
+            sprintf(newtext, "%s%s", tmp, line->text + data->col + 1);
+            free(line->text);
+            line->text = newtext;
+            line->textlen--;
+            free(tmp);
+            editor_check_cursor(ted);
+
+            return 1;
+        } else if (ev->key.keysym.sym == SDLK_RETURN) {
+            char* newtext;
+            char* newline;
+            if (data->row == data->lines->count) {
+                uieditor_append(ted, "");
+                data->row++;
+                editor_check_cursor(ted);
+                return 1;
+            }
+
+            line = data->line[data->row];
+            newtext = strdup(line->text);
+            newline = strdup(line->text + data->col);
+            newtext[data->col] = 0;
+            uieditor_insert(ted, data->row + 1, newline);
+            free(newline);
+            free(line->text);
+            line->text = newtext;
+            line->textlen = strlen(newtext);
+            data->row++;
+            data->col = 0;
+            editor_check_cursor(ted);
+
+            if (data->row > 0) {
+                SDL_Event fake;
+                int i, j;
+                memset(&fake, 0, sizeof(fake));
+                fake.type = SDL_KEYDOWN;
+                fake.key.keysym.sym = SDLK_SPACE;
+                fake.key.keysym.unicode = 32;
+                j = 0;
+                line = data->line[data->row - 1];
+                while (j < line->textlen && line->text[j] == 32) j++;
+                for (i=0; i<j; i++) editor_handle_event(ted, &fake);
+            }
+            return 1;
+        } else if (ev->key.keysym.sym == SDLK_TAB) {
+            SDL_Event fake;
+            int i, j;
+            memset(&fake, 0, sizeof(fake));
+            fake.type = SDL_KEYDOWN;
+            fake.key.keysym.sym = SDLK_SPACE;
+            fake.key.keysym.unicode = 32;
+            j = 4 - (data->col&3);
+            for (i=0; i<j; i++) editor_handle_event(ted, &fake);
+            return 1;
+        } else if (!(ev->key.keysym.unicode & 0xFF80) && ev->key.keysym.unicode > 31) {
+            char* newtext;
+            char* tmp;
+            if (data->row >= data->lines->count) uieditor_append(ted, "");
+            line = data->line[data->row];
+            newtext = malloc(line->textlen + 2);
+            tmp = strdup(line->text);
+            tmp[data->col] = 0;
+            sprintf(newtext, "%s%c%s", tmp, ev->key.keysym.unicode, line->text + data->col);
+            free(tmp);
+            free(line->text);
+            line->text = newtext;
+            line->textlen++;
+            data->col++;
+            editor_check_cursor(ted);
+            uictl_callback(ted, CB_CHANGED, NULL);
             return 1;
         }
         return 0;
@@ -876,4 +1093,63 @@ void uieditor_append(uicontrol_t* ted, const char* text)
     line->text = strdup(text);
     line->textlen = strlen(text);
     list_add(data->lines, line);
+    editor_update_line_array(ted);
+}
+
+void uieditor_insert(uicontrol_t* ted, int index, const char* text)
+{
+    editor_data_t* data = ted->ctldata;
+    editline_t* line = new(editline_t);
+    line->text = strdup(text);
+    line->textlen = strlen(text);
+    if (index <= 0)
+        list_insert(data->lines, NULL, line);
+    else if (index >= data->lines->count)
+        list_add(data->lines, line);
+    else
+        list_insert(data->lines, data->line[index - 1], line);
+    editor_update_line_array(ted);
+    if (index <= data->row) {
+        data->row++;
+        editor_check_cursor(ted);
+    }
+}
+
+int uieditor_line_count(uicontrol_t* ted)
+{
+    editor_data_t* data = ted->ctldata;
+    return data->lines->count;
+}
+
+const char* uieditor_get_line(uicontrol_t* ted, unsigned int index)
+{
+    editor_data_t* data = ted->ctldata;
+    if (index >= 0 && index < data->lines->count) {
+        return data->line[index]->text;
+    } else if (index == data->lines->count) {
+        return "";
+    } else return NULL;
+}
+
+void uieditor_set_line(uicontrol_t* ted, unsigned int index, const char* text)
+{
+    editor_data_t* data = ted->ctldata;
+    if (index >= 0 && index < data->lines->count) {
+        free(data->line[index]->text);
+        data->line[index]->text = strdup(text);
+        data->line[index]->textlen = strlen(text);
+    } else if (index == data->lines->count) {
+        uieditor_append(ted, text);
+    }
+}
+
+void uieditor_remove_line(uicontrol_t* ted, unsigned int index)
+{
+    editor_data_t* data = ted->ctldata;
+    if (index >= 0 && index < data->lines->count) {
+        free(data->line[index]->text);
+        list_remove(data->lines, data->line[index], 1);
+        editor_update_line_array(ted);
+        if (data->row > index) data->row--;
+    }
 }

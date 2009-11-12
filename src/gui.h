@@ -100,5 +100,10 @@ int uicheckbox_checked(uicontrol_t* chk);
 /* Text editor controls */
 uicontrol_t* uieditor_new(uicontrol_t* parent, float x, float y, float w, float h);
 void uieditor_append(uicontrol_t* ted, const char* text);
+void uieditor_insert(uicontrol_t* ted, int index, const char* text);
+int uieditor_line_count(uicontrol_t* ted);
+const char* uieditor_get_line(uicontrol_t* ted, unsigned int index);
+void uieditor_set_line(uicontrol_t* ted, unsigned int index, const char* text);
+void uieditor_remove_line(uicontrol_t* ted, unsigned int index);
 
 #endif
