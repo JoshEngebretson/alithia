@@ -884,6 +884,11 @@ static int editor_handle_event(uicontrol_t* ted, SDL_Event* ev)
     switch (ev->type) {
     case SDL_MOUSEBUTTONDOWN:
         if (ev->button.button == 1) {
+            data->row = ((ted->h - my - FONTSIZE*0.15) + data->yscroll)/FONTSIZE;
+            printf("%i\n", data->row);
+            if (data->row < 0) data->row = 0;
+            else if (data->row > data->lines->count) data->row = data->lines->count;
+            editor_check_cursor(ted);
             gui_focus(ted);
             return 1;
         }

@@ -1,0 +1,231 @@
+<?xml version="1.0"?>
+<?xml-stylesheet href="style.css" type="text/css"?>
+<page>
+<title>Alithia Engine</title>
+<pageinfo>This document describes how the <s>Alithia Engine</s> is designed, implemented and, generally, <em>working</em>. The document is written by <s>Kostas <q>Bad Sector</q> Michalopoulos</s>.
+<warn>Please keep in mind that the engine is still under heavy development and this document will be also heavily modified, extended <em>and</em> have a great lag in updates. The best source for information currently is the source code.</warn>
+</pageinfo>
+
+<!-- Part: Overview -->
+<part>
+<title id="part-about">About</title>
+<p><s>Alithia Engine</s> is a 3D game engine written by <s>Runtime Terror</s>. The engine is designed in a straightforward manner with implementation simplicity and fast content creation being the major goals. It includes both a game mode and an editing mode and editing can be done mostly from inside the engine - including creating maps, placing entities and editing scripts.</p>
+
+<p>The engine is written in plain portable C and compiled using the <em>GNU C Compiler</em> under Windows and Linux platforms (with a Mac OS X platform to follow once i get access to this OS - Apple must provide free machines for developers at some point :-P). For portability, the engine uses the <em>OpenGL</em> graphics API and the <em>Simple Directmedia Layer (SDL)</em> library for handling system-specific resources, input and output (except graphics, of course). All development is currently done using the <em>Eclipse IDE</em> and most of the work is done under <em>Ubuntu Linux</em> with some parts under Windows. To drive the build process, the <em>SCons</em> building tool is used and for auxiliary tools, some scripts written in <em>Python</em> might be used (such as, for example, the <em>Blender exporer</em> tool).</p>
+
+<p>A big development decision is to keep 3rd party dependencies to a minimum. 3rd party dependenceis are libraries, tools and code written by somebody other than the main developer (<em>Kostas Michalopoulos</em>). This is done to make sure that the developers have full control and understanding of all the code for the engine. To save development time where needed and to take advantage of existing libraries, custom resource formats are used in the engine and <em>external tools</em> are used to convert resources to the custom formats. This way we can utility libraries such as <em>libpng</em>, <em>libjpeg</em>, etc without having an engine dependency on these libraries, thus keeping the engine lightweight.</p>
+
+<p>Our motto is <ss>Dependencies Suck!</ss></p>
+</part>
+
+<!-- Part: Engine organization -->
+<part>
+<title id="part-engine-organization">Engine organization</title>
+
+<p>The engine is organized in a few parts. These are the <em>front-end</em>, <em>renderer</em>, <em>gui</em> and <em>utilities</em>. These parts are mostly independent, although they talk to each other. However they can be replaced as long as a replacement has the same entries as the previous part. The engine source code files are not divided in these parts though. Some files, especially <file>atest.c</file> contain multiple parts. Below is a description of each file in the engine. The files are in alphabetical order.</p>
+
+<subpart id="part-engine-organization-subpart-source-files">
+<title>Source files</title>
+<p>The source code files for the engine are placed inside the <dir>src/</dir> directory. The files (at least until the <githash>34b013d1f76e9da9fa229d478c6850712b82b3b4</githash> commit) are as follows:</p>
+<filedesclist>
+  <filedescitem>
+    <files>
+      <file>argparse.c</file>
+      <file>argparse.h</file>
+    </files>
+    <desc>launcher arguments parser and argument registry</desc>
+  </filedescitem>
+  <filedescitem>
+    <files>
+      <file>atest.c</file>
+      <file>atest.h</file>
+    </files>
+    <desc>the engine launcher, main loop, main rendering code, etc. Also the common header file included by all other <ext>c</ext> files.</desc>
+  </filedescitem>
+  <filedescitem>
+    <files>
+      <file>defines.h</file>
+    </files>
+    <desc>common defines and macros</desc>
+  </filedescitem>
+  <filedescitem>
+    <files>
+      <file>fonts.c</file>
+      <file>fonts.h</file>
+    </files>
+    <desc>bitmap font files (<ext>bifo</ext>) loader and rendering code</desc>
+  </filedescitem>
+  <filedescitem>
+    <files>
+      <file>gui.c</file>
+      <file>gui.h</file>
+    </files>
+    <desc>all the generic GUI code, including the controls (buttons, text fields, windows, etc), rendering and handling is included in these files. Note that GUI usage (game menus, editor GUI, etc) are <em>not</em> included in these files!</desc>
+  </filedescitem>
+  <filedescitem>
+    <files>
+      <file>models.c</file>
+      <file>models.h</file>
+    </files>
+    <desc>alithia model files (<ext>alm</ext>) loader</desc>
+  </filedescitem>
+  <filedescitem>
+    <files>
+      <file>textures.c</file>
+      <file>textures.h</file>
+    </files>
+    <desc>texture files (<ext>bmp</ext>) loader</desc>
+  </filedescitem>
+  <filedescitem>
+    <files>
+      <file>utils.c</file>
+      <file>utils.h</file>
+    </files>
+    <desc>utility functions and data structures</desc>
+  </filedescitem>
+  <filedescitem>
+    <files>
+      <file>vidmode.c</file>
+      <file>vidmode.h</file>
+    </files>
+    <desc>video mode initialization. The header also contains some video mode related metrics, such as pixel width/height and ratios.</desc>
+  </filedescitem>
+  <filedescitem>
+    <files>
+      <file>world.c</file>
+      <file>world.h</file>
+    </files>
+    <desc>world data structures, segmentation, functions and definitions.</desc>
+  </filedescitem>
+</filedesclist>
+</subpart>
+
+<subpart id="part-engine-organization-subpart-other-files-and-directories">
+<title>Other files and directories</title>
+<p>Other files and directories in the engine's source tree (from the tree's root point of view) are the following:</p>
+<filedesclist>
+  <filedescitem>
+    <files>
+      <dir>data</dir>
+    </files>
+    <desc>contains the engine data files. Note that these files are not included in the engine's source code distribution and in the git repository and you have to obtain them elsewhere (look in the git repository's description for possible information).</desc>
+  </filedescitem>
+  <filedescitem>
+    <files>
+      <dir>scons-tools</dir>
+    </files>
+    <desc>tools for the SCons building system. Currently it contains the <file>crossmingw.py</file> tool for building the engine from Linux using the MinGW cross-compiler suite.</desc>
+  </filedescitem>
+  <filedescitem>
+    <files>
+      <dir>tools</dir>
+    </files>
+    <desc>engine-specific tools</desc>
+  </filedescitem>
+  <filedescitem>
+    <files>
+      <dir>tools/exporter</dir>
+    </files>
+    <desc><ext>ALM</ext> exporter for the <em>Blender 2.5</em> 3D modelling program</desc>
+  </filedescitem>
+  <filedescitem>
+    <files>
+      <file>license.txt</file>
+    </files>
+    <desc>the <em>zlib</em> license text</desc>
+  </filedescitem>
+  <filedescitem>
+    <files>
+      <file>Makefile</file>
+    </files>
+    <desc>a Makefile that simply calls <tt>scons</tt></desc>
+  </filedescitem>
+  <filedescitem>
+    <files>
+      <file>SConstruct</file>
+    </files>
+    <desc>The main SConstruct file</desc>
+  </filedescitem>
+  <filedescitem>
+    <files>
+      <file>*/SConscript</file>
+    </files>
+    <desc>SConscript files included by the main SConstruct</desc>
+  </filedescitem>
+</filedesclist>
+</subpart>
+
+<subpart id="part-engine-organization-subpart-where-to-find-what">
+<title>Where to find what</title>
+<p>Here are some pointers on where to find some specific parts in the engine's source code.</p>
+<p>First of all, the <s>world and entity rendering</s> is done in the <file>atest.c</file> file, in the <func>update</func> function. See below for details on how the rendering is done. In the same file you'll find the <s>entry point</s> (the <func>main</func> function), <s>main loop</s> (the <func>run</func> function), <s>input and event handling</s> (the <func>process_events</func> function) and <s>timing</s> (lower parts of the <func>run</func> function).</p>
+<p><s>Video mode setup and handling</s> is done in <file>vidmode.c</file>, where also the <s>resolution-dependent metrics</s> (pixel width, pixel height, etc) can be found.</p>
+<p>The <s>GUI foundation</s> (that is, the parts that make the GUI tick) can be found in the <file>gui.c</file>. This file contains the code for windows, buttons, text fields and other common controls.</p>
+<p>Model, texture, etc <s>resource loading</s> is done in the <file>fonts.c</file>, <file>models.c</file> and <file>textures.c</file> files. The kind of resource that is loaded from the code found in these files is obvious :-).</p>
+<p><s>Generic data structures</s> and othe helper stuff can be found in the <file>utils.c</file> file.</p>
+<p>To find other stuff, just use common sense and your editor's search functionality or a good <em>grep</em>. All <ext>c</ext> files include the <file>atest.h</file> header file which in turn includes the other header files of the project, so you can also use this file as a starting point.</p>
+</subpart>
+</part>
+
+<!-- Part: Rendering -->
+<part>
+<title id="part-rendering">Rendering</title>
+<p>This part describes how the rendering in <em>Alithia Engine</em> is performed. The rendering is broken in several stages and each one will be discussed separately. The stages are <em>visibility</em>, <em>culling</em>, <em>bucket filling</em> and finally <em>bucket rendering</em>. This part does not deal with HUD or GUI rendering. For HUD the rendering is straightforward, 
+while GUI rendering will be discussed in another point of this document.</p>
+
+<subpart id="part-rendering-subpart-overview">
+<title>Overview</title>
+<p>The engine tries to minimize the preprocessing steps required to render map, which allows for faster content creation and testing cycles. To do this, it imposes some restrictions on how the world is represented and rendered. The restriction is simple: the world is defined by a 2D grid with each cell having two height values - one for the <q>floor</q> and one for the <q>ceiling</q> - thus forming a world made up of two height fields. The world has a single world-sized lightmap with one lumel for each cell. The lights inside the world are used to compute the lightmap at map load time. Even if the world and lightmap are essentially 2D, the lights and entities use 3D coordinates, so proper 3D renderling and lighting can be used (later the entities will also contain optional collision and occlusion geometry, so more complex 3D structures will be possible - <em>eventually</em>).</p>
+<p>To speed up the rendering process and be modern GPU friendly without hogging older GPUs with unnecessary data, the world is broken in <em>clusters</em> which are typically sized at 16x times of a map cell (that is, one cluster contains 16x16 map cells). The clusters are also used to group <em>entities</em> for visibility and collision detection: each cluster has a list of entities which are inside the cluster so if a cluster is determined to be visible, the entities inside the cluster are also believed to be visible. Before rendering a cluster, the cluster is converted to one or more display lists with each list containing only vertex data (this kind of display list is very fast on modern hardware, especially nVidia GPUs).</p>
+<p>The engine renders both the world and the entities at about the same time and tries to minimize bindings when rendering the world. To do that, it uses what i call, a <em>bucket system</em> where each bucket contains a single texture reference and one or more display lists which contain vertex data to be rendered using this texture. To avoid any uneccessary sorting, each texture also contains a bucket reference and the bucket rendering process simply skips the empty buckets (it is supposed that a map will contain similar buckets grouped together - at map loading time, the bucket cache will be cleaned to avoid too many holes in the bucket array).</p>
+</subpart>
+
+<subpart id="part-rendering-subpart-visibility">
+<title>Visibility</title>
+<p>At the beginning of the frame, the engine tries to figure out what is potentially visible. A large part of the data this process returns will be discarded in the culling step below, however in a highly occluded map, the larger part of the map will be ignored thanks to this step. The visibility step works in the 2D grid only and assumes a <q>camera</q> that can see at 360 degrees. It works by sending rays from the camera's cell to all directions inside the 2D grid. The ray is marched inside the cell with one step per cell and stops once an occluding cell is found (an occluding cell is one with the <const>CF_OCCLUDER</const> flag). The non-occluding cells are considered as vibible and the cluster they belong to is marked as visible.</p>
+
+<p>The ray marching method is based on Bresenham's line algorithm and it always starts from the first given point. It has a small inaccuracy at points which are far away from the camera, so when a cluster is marked as visible, the cluster which is next to it in the X direction is always marked as visible to cover for possible errors. The culling process below will cut some of these invisible clusters which are outside the camera's frustum.</p>
+
+<p>Currently the visibility method considers all cells as flat - that is, it doesn't take in account the cell height values. So the cells considered as visible are those who can be seen from the camera's cell and invisible those who have an occluder cell between them and the camera's cell, disregarding the cell heights. A later optimization on this might be to take in account the cell heights when computing the visible cells, but this might actually slow down the visibility algorithm due to cache misses. Currently the engine uses a separate bit-map for the occlusion flag which uses one bit per cell to keep as much information in the CPU cache as possible. The use of this bit-map was one of the optimizations which increased dramatically the rendering speed in an Intel Atom-based Acer Aspire One.</p>
+</subpart>
+
+<subpart id="part-rendering-subpart-culling">
+<title>Culling</title>
+<p>The visiblity step above creates a list of possibly visible <em>clusters</em>. However most of these clusters are outside the camera's <em>viewing frustum</em>, so they need to be ignored. The culling is done in 3D space using the cluster's bounding box which is calculated using the cells' coordinates inside the grid for the X and Z coordinates and the minimum and maximum heights inside the cell for the Y coordinates.</p>
+<p>As the clusters are found visible (and not culled), a visible entity list is filled with the entities found inside the clusters. This list is used for filling the buckets (see below) with the entity geometry and later drawing the entity shadows.</p>
+</subpart>
+
+<subpart id="part-rendering-subpart-bucket-filling">
+<title>Bucket filling</title>
+<p>Once what is really visible is found (with a few errors, of course, but hopefully they are on the <em>good</em> side), the engine starts to fill the geometry buckets. These buckets contain a single texture and one or more display lists (actually they can contain no display lists at all, but empty buckets are ignored). When rendering, the texture's bucket reference is used by the engine to decide in which bucket the display list in question (we'll discuss shortly how these lists are made) will be put. If the texture has no bucket reference, a new bucket is allocated for that texture in the global bucket array and the list with that texture is put there. At the end of this process, all buckets are filled with display lists which use the texture referenced in each bucket and each texture has only a single bucket.</p>
+
+<p>The display lists mentioned only have vertex information - position, normals, UV coords, etc. Anything that can go between a <func>glBegin</func> and <func>glEnd</func> basically (including one call of each). These can be as fast or -in nVidia hardware- faster than vertex arrays, VBOs, etc (in dumb implementations they can be also slower though, but so far i've seen none of these). These lists are generated from the clusters and the entities. The entity display lists are straightforward copies of the entity's model mesh. For these lists the bucket also contains transformation information for the display list so it can render the list at the correct place for each entity (since a display list is associated with a <em>model</em> and not an entity and entities can share the same model, we can't bake this information in the display list).</p>
+
+<p>For the display lists created from clusters the process is a little more complex and involves two steps. Since a cluster can contain more than one texture, the cluster is broken in several <em>cluster parts</em> with one texture and one display list per part. If a cluster has these parts built, it simply sends the display lists inside these parts to the buckets. Otherwise the geometry for the parts is built and then the lists made by the building process is sent to the buckets. The first step to build these display lists is to calculate the mesh for the cells inside the cluster based on the cell heights and flags. The second step is to optimize this mesh to combine similar quads. This second step is another optimization which brought the engine from barely realtime to playable speeds in an Intel GMA 950 found in my Acer Aspire One. </p>
+
+<p>The cell's geometry is calculated by first calculating the top (<q>ceiling</q>) and bottom (<q>floor</q>) quads for each cell. These quads are calculated in the <func>cell_vertices</func> function. The (badly named) <func>draw_cell</func> function uses this function to calculate these quads and the cap quads - if needed - which are used to close the holes between two cells which have different heights (the cap quads are the only quads you see in walls or columns which have the same height for their floor and ceiling). These quads are added in a bucket-like structure inside each cluster called <em>partbuild</em> - this is a temporary structure to hold cluster parts while these parts are being built. When all cells in a cluster have their geometry calculated, these structures are converted to cluster parts and the optimization step is performed.</p>
+
+<p>The optimization step uses a simple mesh simplification algorithm which takes advantage of the fact that all quads are squares and checks all coplanar quads for common edges. When a common edge is found, the non-common vertices of each of the two quads are used to build a new quad which replaces the first one and the second quad is removed. This process is repeated for all quads inside the cell until no quads are combined. This step can reduce the vertex count in a cell from 2048 down to 8 for cells which contain only flat geometry. In a big room made of many flat clusters, this saves a great number of vertices which can be the difference between realtime and really crawling in a slow GPU such as GMA 950.</p>
+</subpart>
+
+<subpart id="part-rendering-subpart-bucket-rendering">
+<title>Bucket rendering</title>
+<p>Once all buckets are filled with the scene's geometry, the buckets are rendered. The global bucket array is scanned for non-empty buckets and for each bucket its texture is bound and the display lists inside the bucket are called for rendering. By default the buckets use multitexturing to combine the world textures (the textures defined in each cell) with the lightmap. Some bucket entries however, contain a transformation matrix for one or more of the bucket's list. For these lists, the second texture (lightmap) is temporary disabled and a directional light is placed <q>above</q> the geometry in the display list using the color from the nearest lightmap lumel for both the diffuse and ambient light components (the ambient component is set to 1/3 of the diffuse component).</p> 
+</subpart>
+
+<subpart id="part-rendering-subpart-shadows">
+<title>Shadows</title>
+<p>After the buckets, the entity shadows are rendered using the visible entity list. The shadows are rendered using the stencil buffer and a simple planar projection of the shadow to the ground in the XZ plane. The shadow's level (its Y value) is calculated using the floor height of cell nearest to the entity's origin point. Like the models themselves, the shadow geometry is also saved in a display list (however, at the future this might be changed to use the same display list with a zero Y scale).</p>
+<p>The shadow geometry is actually rendered in the stencil buffer with depth writes and color writes disabled, depth testing enabled and the stencil operation to set the affected pixels to 1 while the rest are set to 0. Then when all shadows are rendered in the stencil buffer, a fullscreen quad is rendered with the stencil test to allow only pixels with their value to 1. The fullscreen quad is alpha blended with an alpha value of 0.5, this making nice semi-transparent and intersecting shadows without artifacts (except the <q>artifact</q> of being planar of course).</p>
+</subpart>
+</part>
+
+<!-- Part: GUI -->
+<part>
+<title id="part-gui">GUI</title>
+<p>This part describes how the GUI and some of its more advanced controls (like the text editor) work.</p>
+<wip>This part is still work-in-progress...</wip>
+</part>
+
+</page>
+
