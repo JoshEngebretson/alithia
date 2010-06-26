@@ -1,12 +1,15 @@
 Import('*')
 
-env.Append(LIBS = ['SDL', 'm'])
+env.Append(LIBS = ['m'])
 env.Append(CFLAGS = ['-Wall', '-O3', '-fomit-frame-pointer', '-ffast-math'])
 #env.Append(CFLAGS = ['-Wall', '-g3'])
 
 if target == 'win32':
-    env.Append(LIBS = ['opengl32', 'glu32', 'gdi32'])
+    env.Append(LIBS = ['SDL', 'opengl32', 'glu32', 'gdi32'])
+elif target == 'macosx':
+    env.Append(CFLAGS = ['-framework', 'OpenGL', '-framework', 'SDL', '-framework', 'Cocoa', '-framework', 'Foundation'])
+    env.Append(LINKFLAGS = ['-framework', 'OpenGL', '-framework', 'SDL', '-framework', 'Cocoa', '-framework', 'Foundation'])
 else:
-    env.Append(LIBS = ['GL', 'GLU', 'X11'])
+    env.Append(LIBS = ['SDL', 'GL', 'GLU', 'X11'])
 
-env.Program('../atest', Glob('*.c'))
+env.Program('../atest', Glob('*.c') + Glob('*.m'))

@@ -111,7 +111,7 @@ static void process_events(void)
             if (ev.key.keysym.sym == SDLK_F11) {
                 SDL_WM_GrabInput(SDL_GRAB_OFF);
             }
-            if (ev.key.keysym.sym == SDLK_F10) running = 0;
+            if (ev.key.keysym.sym == SDLK_F10 || ev.key.keysym.sym == SDLK_0) running = 0;
             if (ev.key.keysym.sym == SDLK_ESCAPE) gui_mode = !gui_mode;
             if (!gui_mode) {
                 if (ev.key.keysym.sym == SDLK_q) draw_wire = !draw_wire;
@@ -1162,7 +1162,7 @@ static void run(void)
 }
 
 extern uint64_t total;
-int main(int _argc, char **_argv)
+int main(int _argc, char *_argv[])
 {
     argc = _argc;
     argv = _argv;

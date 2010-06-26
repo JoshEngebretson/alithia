@@ -23,8 +23,10 @@
 
 #include "atest.h"
 
+#ifndef GL_ARB_multitexture
 PFNGLACTIVETEXTUREPROC glActiveTexture;
 PFNGLMULTITEXCOORD2FARBPROC glMultiTexCoord2f;
+#endif
 int vid_width;
 int vid_height;
 float wh_ratio;
@@ -50,8 +52,10 @@ float pixelh;
 
 static int load_extensions(void)
 {
+#ifndef GL_ARB_multitexture
     EXT_LOAD2(glActiveTexture, glActiveTextureARB);
     EXT_LOAD2(glMultiTexCoord2f, glMultiTexCoord2fARB);
+#endif
 
     return 1;
 }

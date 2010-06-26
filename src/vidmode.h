@@ -24,8 +24,10 @@
 #ifndef __VIDMODE_H_INCLUDED__
 #define __VIDMODE_H_INCLUDED__
 
+#ifndef GL_ARB_multitexture
 extern PFNGLACTIVETEXTUREPROC glActiveTexture;
 extern PFNGLMULTITEXCOORD2FPROC glMultiTexCoord2f;
+#endif
 extern int vid_width;
 extern int vid_height;
 extern float wh_ratio;

@@ -17,6 +17,8 @@ else:
     else:
         env = Environment(env=os.environ)
     target = sys.platform
+    if target == 'darwin':
+        target = 'macosx'
 
 Export('env')
 Export('target')

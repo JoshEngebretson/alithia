@@ -30,13 +30,17 @@
 #include <string.h>
 #include <ctype.h>
 #include <math.h>
+#ifdef __APPLE__
+#include <OpenGL/gl.h>
+#include <OpenGL/glu.h>
+#include <OpenGL/glext.h>
+#else
 #include <GL/gl.h>
 #include <GL/glu.h>
 #include <GL/glext.h>
-#include <SDL/SDL.h>
-#ifdef main
-#undef main
 #endif
+#include <SDL/SDL.h>
+
 
 extern int running;
 extern int argc;
