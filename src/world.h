@@ -97,6 +97,8 @@ void map_init(int width, int height);
 void map_free(void);
 void map_update_cell(int x, int y);
 
+void ray_march(int x1, int y1, int x2, int y2, int (*func)(int x, int y, cell_t* cell, void* data), void* data);
+
 void lmap_update(void);
 
 light_t* light_new(float x, float y, float z, float r, float g, float b, float rad);

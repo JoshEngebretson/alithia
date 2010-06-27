@@ -49,6 +49,7 @@ typedef struct _uicontrol_t
     void (*dispose)(struct _uicontrol_t* ctl);
     void (*callback)(struct _uicontrol_t* ctl, int cbtype, void* cbdata);
     int (*handle_event)(struct _uicontrol_t* ctl, SDL_Event* ev);
+    int (*block_child_at)(struct _uicontrol_t* ctl, float x, float y);
 } uicontrol_t;
 
 extern uicontrol_t* uiroot;
@@ -82,6 +83,8 @@ void uictl_mouse_position(uicontrol_t* ctl, float* x, float* y);
 /* Top-level windows */
 uicontrol_t* uiwin_new(float x, float y, float w, float h, const char* title);
 void uiwin_raise(uicontrol_t* win);
+void uiwin_set_resizeable(uicontrol_t* win, int enable);
+int uiwin_is_resizeable(uicontrol_t* win);
 
 /* Label controls */
 uicontrol_t* uilabel_new(uicontrol_t* parent, float x, float y, const char* text);

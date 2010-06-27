@@ -171,6 +171,69 @@ void map_update_cell(int x, int y)
     if (y < map_height - 1 && (y + 1)/CLUSTERSIZE != cy) invalidate_cluster(cx, cy + 1);
 }
 
+void ray_march(int x1, int y1, int x2, int y2, int (*func)(int x, int y, cell_t* cell, void* data), void* data)
+{
+    int x, y, dx, dy, steep = abs(y2 - y1) > abs(x2 - x1), ystep = 1, error;
+    if (steep) {
+        x = x1;
+        x1 = y1;
+        y1 = x;
+        x = x2;
+        x2 = y2;
+        y2 = x;
+    }
+    if (x1 > x2) {
+        dx = x1 - x2;
+        dy = abs(y2 - y1);
+        error = dx >> 1;
+        if (y1 < y2) ystep = -1;
+        y = y1;
+        if (steep) {
+            for (x = x1; x > x2; x--) {
+                if (!func(y, x, cell + x*map_width + y, data)) return;
+                error -= dy;
+                if (error < 0) {
+                    y += ystep;
+                    error += dx;
+                }
+            }
+        } else {
+            for (x = x1; x > x2; x--) {
+                if (!func(x, y, cell + y*map_width + x, data)) return;
+                error -= dy;
+                if (error < 0) {
+                    y += ystep;
+                    error += dx;
+                }
+            }
+        }
+    } else {
+        dx = x2 - x1;
+        dy = abs(y2 - y1);
+        error = dx >> 1;
+        if (y2 < y1) ystep = -1;
+        y = y1;
+        if (steep) {
+            for (x = x1; x < x2; x++) {
+                if (!func(y, x, cell + x*map_width + y, data)) return;
+                error -= dy;
+                if (error < 0) {
+                    y += ystep;
+                    error += dx;
+                }
+            }
+        } else {
+            for (x = x1; x < x2; x++) {
+                if (!func(x, y, cell + y*map_width + x, data)) return;
+                error -= dy;
+                if (error < 0) {
+                    y += ystep;
+                    error += dx;
+                }
+            }
+        }
+    }
+}
 
 static void calc_lightmap_for_cell_at(float* or, float* og, float* ob, int mx, int my)
 {

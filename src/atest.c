@@ -202,7 +202,7 @@ static int proc_map(int x, int y)
     return !(ocmap[(addr>>3)] & (1 << (addr&7)));
 }
 
-void ray_march(int x1, int y1, int x2, int y2)
+static void ray_march_for_vis(int x1, int y1, int x2, int y2)
 {
     int x, y, dx, dy, steep = abs(y2 - y1) > abs(x2 - x1), ystep = 1, error;
     if (steep) {
@@ -765,7 +765,7 @@ static void update(void)
 
     /* find visible clusters */
     for (x = 0; x < pntc; x++)
-        ray_march(camx, camy, camx + pntx[x], camy + pnty[x]);
+        ray_march_for_vis(camx, camy, camx + pntx[x], camy + pnty[x]);
 
     /* enable texturing and depth tests */
     glEnable(GL_CULL_FACE);
@@ -1018,6 +1018,26 @@ static void update(void)
     glDisable(GL_STENCIL_TEST);
     glDisable(GL_POLYGON_OFFSET_FILL);
 
+    {
+        float xx = camx*CELLSIZE;
+        float yy = -CELLSIZE*20;
+        float zz = camy*CELLSIZE;
+        glColor4f(1, 1, 1, 1);
+        glDisable(GL_CULL_FACE);
+        glDisable(GL_DEPTH_TEST);
+        glActiveTexture(GL_TEXTURE1);
+        glDisable(GL_TEXTURE_2D);
+        glActiveTexture(GL_TEXTURE0);
+        glDisable(GL_TEXTURE_2D);
+        glBegin(GL_QUADS);
+        glVertex3d(xx, yy, zz);
+        glVertex3d(xx, yy, zz + CELLSIZE);
+        glVertex3d(xx + CELLSIZE, yy, zz + CELLSIZE);
+        glVertex3d(xx + CELLSIZE, yy, zz);
+        glEnd();
+//        printf("%0.3f %0.3f %0.3f \n", xx, yy, zz);
+    }
+
     calls += 20;
 #else
     glClear(GL_COLOR_BUFFER_BIT);
@@ -1055,6 +1075,7 @@ static void update(void)
     }
 
     /* present the backbuffer to the screen */
+    glFinish();
     SDL_GL_SwapBuffers();
     calls++;
 

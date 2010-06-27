@@ -76,9 +76,16 @@ static void open_clip(float x1, float y1, float x2, float y2)
 
 static void close_clip(void)
 {
-    if (!clipboxhead) return;
+    if (!clipboxhead) {
+        glScissor(0, 0, 0, 0);
+        return;
+    }
     clipboxhead--;
-    set_clip(clipbox[clipboxhead].x1, clipbox[clipboxhead].y1, clipbox[clipboxhead].x2, clipbox[clipboxhead].y2);
+    if (!clipboxhead) {
+        glScissor(0, 0, 0, 0);
+        return;
+    }
+    set_clip(clipbox[clipboxhead - 1].x1, clipbox[clipboxhead - 1].y1, clipbox[clipboxhead - 1].x2, clipbox[clipboxhead - 1].y2);
 }
 
 static void color(float r, float g, float b, float a)
@@ -103,6 +110,12 @@ static void bar(float x, float y, float w, float h)
 }
 
 /* GUI funcs */
+void do_layout(uicontrol_t* win)
+{
+    uicontrol_t* ted = win->userdata;
+    uictl_place(ted, 0.02*hw_ratio, 0.02, win->w - 0.04*hw_ratio, win->h - FONTSIZE*1.3 - 0.04);
+}
+
 void gui_init(void)
 {
     uicontrol_t* win;
@@ -126,7 +139,10 @@ void gui_init(void)
     chk = uicheckbox_new(win, btn->wpref + FONTSIZE*0.6*hw_ratio, lbl->hpref*1.0, "...or that", 0, 1);
 
     win = uiwin_new(0.8, 0.7, 1.5*hw_ratio, 0.75, "Another window");
+    uiwin_set_resizeable(win, 1);
     ted = uieditor_new(win, 0.02*hw_ratio, 0.02, win->w - 0.04*hw_ratio, win->h - FONTSIZE*1.3 - 0.04);
+    win->layout = do_layout;
+    win->userdata = ted;
 }
 
 void gui_render(void)
@@ -215,7 +231,7 @@ void uictl_render(uicontrol_t* ctl)
 {
     float x = 0, y = 0;
     uictl_local_to_screen(ctl, &x, &y);
-    open_clip(x, y, x + ctl->w, y + ctl->h);
+    open_clip(x, y, x + ctl->w - pixelw, y + ctl->h - pixelh);
     if (ctl->render) {
         ctl->render(ctl);
     } else {
@@ -232,7 +248,6 @@ void uictl_render_children(uicontrol_t* ctl)
         ctl->render_children(ctl);
     } else {
         listitem_t* itchild;
-        float x, y;
         glPushMatrix();
         glTranslatef(ctl->x, ctl->y, 0.0);
 
@@ -262,11 +277,12 @@ void uictl_callback(uicontrol_t* ctl, int cbtype, void* cbdata)
 
 void uictl_place(uicontrol_t* ctl, float x, float y, float w, float h)
 {
+    int need_layout = ctl->w != w || ctl->h != h;
     ctl->x = x;
     ctl->y = y;
     ctl->w = w;
     ctl->h = h;
-    uictl_layout(ctl);
+    if (need_layout) uictl_layout(ctl);
 }
 
 void uictl_add(uicontrol_t* parent, uicontrol_t* child)
@@ -307,6 +323,8 @@ const char* uictl_get_text(uicontrol_t* ctl)
 uicontrol_t* uictl_child_at(uicontrol_t* ctl, float x, float y)
 {
     listitem_t* itchild;
+    if (ctl->block_child_at && ctl->block_child_at(ctl, x, y))
+        return ctl;
     if (ctl->children) {
         for (itchild=ctl->children->last; itchild; itchild=itchild->prev) {
             uicontrol_t* child = itchild->ptr;
@@ -348,22 +366,36 @@ void uictl_mouse_position(uicontrol_t* ctl, float* x, float* y)
 
 /* Top-level windows */
 #define WINF_MOVING 0x0001
+#define WINF_RESIZEABLE 0x0002
+#define WINF_RESIZING 0x0004
 
 static void win_render(uicontrol_t* win)
 {
     color(0.0, 0.0, 0.0, 0.5);
     glDisable(GL_SCISSOR_TEST);
     bar(win->x + 0.03*hw_ratio, win->y - 0.03, win->w, win->h);
-    bar(win->x - pixelw, win->y - pixelh, win->w + pixelw*2, win->h + pixelh*2);
+    bar(win->x - pixelw, win->y - pixelh, win->w + pixelw*1, win->h + pixelh*1);
     glEnable(GL_SCISSOR_TEST);
     color(0.3, 0.35, 0.37, 1.0);
     bar(win->x, win->y, win->w, win->h - FONTSIZE*1.3);
+
+    uictl_render_children(win);
+
+    if (win->ctlflags & WINF_RESIZEABLE) {
+        color(0.4, 0.45, 0.47, 1.0);
+        bar(win->x + win->w - 0.04*hw_ratio - pixelw, win->y, 0.04*hw_ratio, 0.04);
+    }
     color(0.4, 0.45, 0.47, 1.0);
     bar(win->x, win->y + win->h - FONTSIZE*1.3, win->w, FONTSIZE*1.3);
     color(0.0, 0.0, 0.0, 1.0);
-    font_render(font_normal, win->x + FONTSIZE*0.15, win->y + win->h - FONTSIZE*1.15, win->text, win->textlen, FONTSIZE);
+    font_render(font_normal, win->x + FONTSIZE*0.15*hw_ratio, win->y + win->h - FONTSIZE*1.15, win->text, win->textlen, FONTSIZE);
+}
 
-    uictl_render_children(win);
+static int win_block_child_at(uicontrol_t* win, float x, float y)
+{
+    if (y > win->h - FONTSIZE*1.3) return 1;
+    if ((win->ctlflags & WINF_RESIZEABLE) && y < 0.04 && x < win->w && x > win->w - 0.04*hw_ratio) return 1;
+    return 0;
 }
 
 static int win_handle_event(uicontrol_t* win, SDL_Event* ev)
@@ -373,13 +405,23 @@ static int win_handle_event(uicontrol_t* win, SDL_Event* ev)
 
     switch (ev->type) {
     case SDL_MOUSEBUTTONDOWN:
-        if (ev->button.button == 1 && my > win->h - FONTSIZE*1.3) {
-            win->ctlflags |= WINF_MOVING;
-            save_x = mouse_x;
-            save_y = mouse_y;
-            gui_capture(win);
-            uiwin_raise(win);
-            return 1;
+        if (ev->button.button == 1) {
+            if (my > win->h - FONTSIZE*1.3) {
+                win->ctlflags |= WINF_MOVING;
+                save_x = mouse_x;
+                save_y = mouse_y;
+                gui_capture(win);
+                uiwin_raise(win);
+                return 1;
+            }
+            if ((win->ctlflags & WINF_RESIZEABLE) && my < 0.04 && mx < win->w && mx > win->w - 0.04*hw_ratio) {
+                win->ctlflags |= WINF_RESIZING;
+                save_x = mouse_x;
+                save_y = mouse_y;
+                gui_capture(win);
+                uiwin_raise(win);
+                return 1;
+            }
         }
         return 0;
     case SDL_MOUSEBUTTONUP:
@@ -388,11 +430,26 @@ static int win_handle_event(uicontrol_t* win, SDL_Event* ev)
             gui_capture(NULL);
             return 1;
         }
+        if (win->ctlflags & WINF_RESIZING) {
+            win->ctlflags &= ~WINF_RESIZING;
+            gui_capture(NULL);
+            return 1;
+        }
         return 0;
     case SDL_MOUSEMOTION:
         if (win->ctlflags & WINF_MOVING) {
-            win->x -= save_x - mouse_x;
-            win->y -= save_y - mouse_y;
+            uictl_place(win, win->x - (save_x - mouse_x), win->y - (save_y - mouse_y), win->w, win->h);
+            save_x = mouse_x;
+            save_y = mouse_y;
+            return 1;
+        }
+        if (win->ctlflags & WINF_RESIZING) {
+            float new_w = win->w - save_x + mouse_x;
+            float new_h = win->h + save_y - mouse_y;
+            float new_y = win->y - save_y + mouse_y;
+            if (new_w < floor(FONTSIZE*2.3/pixelw)*pixelw) new_w = floor(FONTSIZE*2.3/pixelw)*pixelw;
+            if (new_h < floor(FONTSIZE*2.3/pixelh)*pixelh) new_h = floor(FONTSIZE*2.3/pixelh)*pixelh;
+            uictl_place(win, win->x, new_y, new_w, new_h);
             save_x = mouse_x;
             save_y = mouse_y;
             return 1;
@@ -407,6 +464,7 @@ uicontrol_t* uiwin_new(float x, float y, float w, float h, const char* title)
     uicontrol_t* win = uictl_new(uiroot);
     win->render = win_render;
     win->handle_event = win_handle_event;
+    win->block_child_at = win_block_child_at;
     uictl_set_text(win, title);
     uictl_place(win, x, y, w, h);
     return win;
@@ -417,6 +475,19 @@ void uiwin_raise(uicontrol_t* win)
     listitem_t* it = list_find(uiroot->children, win);
     it->ptr = uiroot->children->last->ptr;
     uiroot->children->last->ptr = win;
+}
+
+void uiwin_set_resizeable(uicontrol_t* win, int enable)
+{
+    if (enable)
+        win->ctlflags |= WINF_RESIZEABLE;
+    else
+        win->ctlflags &= ~WINF_RESIZEABLE;
+}
+
+int uiwin_is_resizeable(uicontrol_t* win)
+{
+    return win->ctlflags&WINF_RESIZEABLE;
 }
 
 
@@ -543,7 +614,7 @@ static void field_render(uicontrol_t* fld)
         color(0.27, 0.32, 0.35, 1.0);
     else
         color(0.25, 0.3, 0.33, 1.0);
-    bar(fld->x + 0.01*hw_ratio, fld->y, fld->w - 0.01*hw_ratio, fld->h - 0.01);
+    bar(fld->x + 0.01*hw_ratio, fld->y, fld->w - 0.01*hw_ratio, fld->h - 0.01 - pixelh);
     color(0.0, 0.0, 0.0, 1.0);
     font_render(font_normal, fld->x + FONTSIZE*0.15*hw_ratio - data->xscroll, fld->y + FONTSIZE*0.15, fld->text, fld->textlen, FONTSIZE);
     if (focus == fld) {
