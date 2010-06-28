@@ -1,0 +1,55 @@
+h1. Alithia Engine TODO
+
+Some tasks that need to be done in Alithia Engine. This file will be updated frequently.
+
+h1. Table of contents
+
+{toc}
+
+h1. Core engine
+
+h2. World
+
+* Add ray picking against world geometry and entities
+
+h2. Editing
+
+* Start working on world editor. Needs ray picking above.
+
+h2. Models
+
+* Add animation in models
+* Make model shadow optional
+
+h2. Resources
+
+* Add resource loading, tagging, preloading, etc
+* Add support for Alithia Package files
+
+h2. GUI
+
+* Add popup menus
+
+h2. Scripting
+
+* Add Minimal to Alithia Engine
+* Add two separate 'libraries' for functions and a common one.
+** One library for the game
+** And another for the editor
+
+h3. Game Scripting
+
+* Add scripts to entities
+* Add world triggers
+
+h3. Editor Scripting
+
+* Add scripting functionality for the editor
+
+h1. Tools
+
+h2. Exporter and models
+
+* Add animation export for the Blender 2.5 exporter
+* Write an OBJ to ALM converter for non-Blender users (low priority)
+** The converter should be able to use multitple OBJ files for multiple frames
