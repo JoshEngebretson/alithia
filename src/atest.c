@@ -180,7 +180,7 @@ static void calc_campoints(float r)
         }
     }
 }
-
+/*
 static void bar(float x1, float y1, float x2, float y2)
 {
     glBegin(GL_QUADS);
@@ -190,7 +190,7 @@ static void bar(float x1, float y1, float x2, float y2)
     glVertex2f(x1, y2);
     glEnd();
 }
-
+*/
 static int proc_map(int x, int y)
 {
     int addr;
