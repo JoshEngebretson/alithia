@@ -1,8 +1,10 @@
-This is the Alithia Model (ALM) exporter for Blender 2.5. Copy the
-export_alm.py file in the Blender's .blender/scripts/io/ directory and
-press F8 in Blender (or restart the program) to update the menus. Then
-select the model you want to export and from File select Export and then
-Alithia Model (ALM)...
+Blender ALM Exporter
+--------------------
+
+Alithia Engine includes an exporter script for Blender 2.5. The script can be
+found in tools/exporter. To install it copy the export_alm.py file in Blender's
+.blender/scripts/io/ directory and press F8 in Blender (or restart the program)
+to update the menus. Then select the model you want to export from the scene
+and from File select Export and then Alithia Model (ALM)...
 
 The model must be a mesh that contains one FaceUV layer.
-
