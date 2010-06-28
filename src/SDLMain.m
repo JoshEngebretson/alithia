@@ -1,13 +1,32 @@
-/*   SDLMain.m - main entry point for our Cocoa-ized SDL app
- Initial Version: Darrell Walisser <dwaliss1@purdue.edu>
- Non-NIB-Code & other changes: Max Horn <max@quendi.de>
- 
- Feel free to customize this file to suit your needs
+/*
+ * Alithia Engine
+ * Copyright (C) 2010 Kostas Michalopoulos
+ *
+ * This software is provided 'as-is', without any express or implied
+ * warranty.  In no event will the authors be held liable for any damages
+ * arising from the use of this software.
+ *
+ * Permission is granted to anyone to use this software for any purpose,
+ * including commercial applications, and to alter it and redistribute it
+ * freely, subject to the following restrictions:
+ *
+ * 1. The origin of this software must not be misrepresented; you must not
+ *    claim that you wrote the original software. If you use this software
+ *    in a product, an acknowledgment in the product documentation would be
+ *    appreciated but is not required.
+ * 2. Altered source versions must be plainly marked as such, and must not be
+ *    misrepresented as being the original software.
+ * 3. This notice may not be removed or altered from any source distribution.
+ *
+ * Kostas Michalopoulos <badsector@runtimeterror.com>
  */
 
+/* Based on SDLMain.m distributed for Mac OS X SDL */
+
+#include "defines.h"
 #include <SDL/SDL.h>
 #include "SDLMain.h"
-#include <sys/param.h> /* for MAXPATHLEN */
+#include <sys/param.h>
 #include <unistd.h>
 
 /* For some reaon, Apple removed setAppleMenu from the headers in 10.4,
@@ -17,12 +36,6 @@
 - (void)setAppleMenu:(NSMenu *)menu;
 @end
 
-/* Use this flag to determine whether we use SDLMain.nib or not */
-#define		SDL_USE_NIB_FILE	0
-
-/* Use this flag to determine whether we use CPS (docking) or not */
-#define		SDL_USE_CPS		1
-#ifdef SDL_USE_CPS
 /* Portions of CPS.h */
 typedef struct CPSProcessSerNum
 {
@@ -34,35 +47,10 @@ extern OSErr	CPSGetCurrentProcess( CPSProcessSerNum *psn);
 extern OSErr 	CPSEnableForegroundOperation( CPSProcessSerNum *psn, UInt32 _arg2, UInt32 _arg3, UInt32 _arg4, UInt32 _arg5);
 extern OSErr	CPSSetFrontProcess( CPSProcessSerNum *psn);
 
-#endif /* SDL_USE_CPS */
-
 static int    gArgc;
 static char  **gArgv;
 static BOOL   gFinderLaunch;
 static BOOL   gCalledAppMainline = FALSE;
-
-static NSString *getApplicationName(void)
-{
-    const NSDictionary *dict;
-    NSString *appName = 0;
-	
-    /* Determine the application name */
-    dict = (const NSDictionary *)CFBundleGetInfoDictionary(CFBundleGetMainBundle());
-    if (dict)
-        appName = [dict objectForKey: @"CFBundleName"];
-    
-    if (![appName length])
-        appName = [[NSProcessInfo processInfo] processName];
-	
-    return appName;
-}
-
-#if SDL_USE_NIB_FILE
-/* A helper category for NSString */
-@interface NSString (ReplaceSubString)
-- (NSString *)stringByReplacingRange:(NSRange)aRange with:(NSString *)aString;
-@end
-#endif
 
 @interface SDLApplication : NSApplication
 @end
@@ -97,51 +85,22 @@ static NSString *getApplicationName(void)
     }
 }
 
-#if SDL_USE_NIB_FILE
-
-/* Fix menu to contain the real app name instead of "SDL App" */
-- (void)fixMenu:(NSMenu *)aMenu withAppName:(NSString *)appName
-{
-    NSRange aRange;
-    NSEnumerator *enumerator;
-    NSMenuItem *menuItem;
-	
-    aRange = [[aMenu title] rangeOfString:@"SDL App"];
-    if (aRange.length != 0)
-        [aMenu setTitle: [[aMenu title] stringByReplacingRange:aRange with:appName]];
-	
-    enumerator = [[aMenu itemArray] objectEnumerator];
-    while ((menuItem = [enumerator nextObject]))
-    {
-        aRange = [[menuItem title] rangeOfString:@"SDL App"];
-        if (aRange.length != 0)
-            [menuItem setTitle: [[menuItem title] stringByReplacingRange:aRange with:appName]];
-        if ([menuItem hasSubmenu])
-            [self fixMenu:[menuItem submenu] withAppName:appName];
-    }
-    [ aMenu sizeToFit ];
-}
-
-#else
-
 static void setApplicationMenu(void)
 {
     /* warning: this code is very odd */
     NSMenu *appleMenu;
     NSMenuItem *menuItem;
     NSString *title;
-    NSString *appName;
     
-    appName = getApplicationName();
     appleMenu = [[NSMenu alloc] initWithTitle:@""];
     
     /* Add menu items */
-    title = [@"About " stringByAppendingString:appName];
+    title = [@"About " stringByAppendingString:@GAME_TITLE];
     [appleMenu addItemWithTitle:title action:@selector(orderFrontStandardAboutPanel:) keyEquivalent:@""];
 	
     [appleMenu addItem:[NSMenuItem separatorItem]];
 	
-    title = [@"Hide " stringByAppendingString:appName];
+    title = [@"Hide " stringByAppendingString:@GAME_TITLE];
     [appleMenu addItemWithTitle:title action:@selector(hide:) keyEquivalent:@"h"];
 	
     menuItem = (NSMenuItem *)[appleMenu addItemWithTitle:@"Hide Others" action:@selector(hideOtherApplications:) keyEquivalent:@"h"];
@@ -151,7 +110,7 @@ static void setApplicationMenu(void)
 	
     [appleMenu addItem:[NSMenuItem separatorItem]];
 	
-    title = [@"Quit " stringByAppendingString:appName];
+    title = [@"Quit " stringByAppendingString:@GAME_TITLE];
     [appleMenu addItemWithTitle:title action:@selector(terminate:) keyEquivalent:@"q"];
 	
     
@@ -204,7 +163,6 @@ static void CustomApplicationMain (int argc, char **argv)
     /* Ensure the application object is initialised */
     [SDLApplication sharedApplication];
     
-#ifdef SDL_USE_CPS
     {
         CPSProcessSerNum PSN;
         /* Tell the dock about us */
@@ -213,7 +171,6 @@ static void CustomApplicationMain (int argc, char **argv)
                 if (!CPSSetFrontProcess(&PSN))
                     [SDLApplication sharedApplication];
     }
-#endif /* SDL_USE_CPS */
 	
     /* Set up the menubar */
     [NSApp setMainMenu:[[NSMenu alloc] init]];
@@ -230,9 +187,6 @@ static void CustomApplicationMain (int argc, char **argv)
     [sdlMain release];
     [pool release];
 }
-
-#endif
-
 
 /*
  * Catch document open requests...this lets us notice files when the app
@@ -290,11 +244,6 @@ static void CustomApplicationMain (int argc, char **argv)
 	
     /* Set the working directory to the .app's parent directory */
     [self setupWorkingDirectory:gFinderLaunch];
-	
-#if SDL_USE_NIB_FILE
-    /* Set the main menu to contain the real app name instead of "SDL App" */
-    [self fixMenu:[NSApp mainMenu] withAppName:getApplicationName()];
-#endif
 	
     /* Hand off to main application code */
     gCalledAppMainline = TRUE;
@@ -372,12 +321,8 @@ int main (int argc, char **argv)
         gFinderLaunch = NO;
     }
 	
-#if SDL_USE_NIB_FILE
-    [SDLApplication poseAsClass:[NSApplication class]];
-    NSApplicationMain (argc, argv);
-#else
     CustomApplicationMain (argc, argv);
-#endif
+
     return 0;
 }
 

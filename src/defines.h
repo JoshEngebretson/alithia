@@ -24,6 +24,8 @@
 #ifndef __DEFINES_H_INCLUDED__
 #define __DEFINES_H_INCLUDED__
 
+#define GAME_TITLE "Alithia Engine"
+
 #define TRUE 1
 #define FALSE 0
 

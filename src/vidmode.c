@@ -97,7 +97,7 @@ int vid_init(void)
     if (!load_extensions())
         return FALSE;
 
-    SDL_WM_SetCaption("ATest", "ATest");
+    SDL_WM_SetCaption(GAME_TITLE, GAME_TITLE);
     SDL_WM_GrabInput(SDL_GRAB_ON);
     SDL_ShowCursor(0);
     SDL_EnableUNICODE(SDL_ENABLE);

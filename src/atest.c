@@ -111,8 +111,14 @@ static void process_events(void)
             if (ev.key.keysym.sym == SDLK_F11) {
                 SDL_WM_GrabInput(SDL_GRAB_OFF);
             }
-            if (ev.key.keysym.sym == SDLK_F10 || ev.key.keysym.sym == SDLK_0) running = 0;
-            if (ev.key.keysym.sym == SDLK_ESCAPE) gui_mode = !gui_mode;
+            if (ev.key.keysym.sym == SDLK_F10) running = 0;
+            if (ev.key.keysym.sym == SDLK_ESCAPE) {
+                gui_mode = !gui_mode;
+                if (gui_mode)
+                    SDL_WM_GrabInput(SDL_GRAB_OFF);
+                else
+                    SDL_WM_GrabInput(SDL_GRAB_ON);
+            }
             if (!gui_mode) {
                 if (ev.key.keysym.sym == SDLK_q) draw_wire = !draw_wire;
                 key[ev.key.keysym.sym] = 1;
