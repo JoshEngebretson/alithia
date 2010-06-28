@@ -1,0 +1,34 @@
+Alithia Package (ALP) File Format
+---------------------------------
+
+1. Description of archive
+  Alithia Package files (ALP files) are simple uncompressed archives with a
+  flat directory of archived files and raw data. The directory is made up of
+  entries that contain the file name with its full path (relative to the
+  archive), its absolute position in the package file and its size in bytes.
+
+2. File layout
+  The package is made up of three parts: the header, the raw data and the
+  directory. The directory always cames at the end of the file. There is no
+  information about number of files in the directory - the whole directory until
+  the end of the file must be read.
+  
+  All integer numbers are in little endian.
+
+  Header:
+  4 bytes   for the 'ALP1' string
+  1 uint32  position of the directory in the file
+  
+  ( raw data follows )
+  
+  Directory:
+  for each entry until the end of the file:
+  1 uint16  filename's length in bytes
+  len bytes filename string
+  1 uint32  file's absolute position in the file
+  1 uint32  file's length in bytes
+
+3. Source code
+  Check the tools/alpak/alpak.c code. The program is rather small at about 165
+  lines of code and very readable.
+
