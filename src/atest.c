@@ -81,6 +81,8 @@ texture_t* tex_floor;
 texture_t* tex_stuff;
 texture_t* tex_wtf;
 texture_t* pointer_cursor;
+model_t* mdl_gun;
+float goffx, goffy, goffv;
 float frustum[6][4];
 float proj[16];
 float modl[16];
@@ -759,7 +761,7 @@ static void update(void)
     glLoadIdentity();
     glRotatef(-pll, 1, 0, 0);
     glRotatef(-pla, 0, 1, 0);
-    glTranslatef(-plx, -ply, -plz);
+    glTranslatef(-plx, -ply-goffy*1.5, -plz);
     glGetFloatv(GL_MODELVIEW_MATRIX, vmtx);
     glColor3f(1, 1, 1);
 
@@ -1045,6 +1047,35 @@ static void update(void)
     }
 
     calls += 20;
+
+    /* draw the gun */
+    glClear(GL_DEPTH_BUFFER_BIT);
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    gluPerspective(60.0, wh_ratio, 1.0, 65536.0);
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+    glRotatef(180, 0, 1, 0);
+    glRotatef(pll/23, 1, 0, 0);
+    glTranslatef(-13+goffx, -23+pll/20-3+goffy, 38);
+
+    glActiveTexture(GL_TEXTURE1);
+    glDisable(GL_TEXTURE_2D);
+    glActiveTexture(GL_TEXTURE0);
+    glEnable(GL_TEXTURE_2D);
+    glEnable(GL_DEPTH_TEST);
+    glBindTexture(GL_TEXTURE_2D, mdl_gun->tex->name);
+    glColor3f((float)lightmap[camy*map_width + camx].r/255.0 + 0.2 + 0.1*sin(pla*PI/90),
+        (float)lightmap[camy*map_width + camx].g/255.0 + 0.2 + 0.1*sin(pla*PI/90),
+        (float)lightmap[camy*map_width + camx].b/255.0 + 0.2 + 0.1*sin(pla*PI/90));
+    if (mdl_gun->dl)  glCallList(mdl_gun->dl);
+    calls += 18;
+
+    /* reset transformations */
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
 #else
     glClear(GL_COLOR_BUFFER_BIT);
     gui_mode = 1;
@@ -1081,7 +1112,6 @@ static void update(void)
     }
 
     /* present the backbuffer to the screen */
-    glFinish();
     SDL_GL_SwapBuffers();
     calls++;
 
@@ -1130,17 +1160,30 @@ static void move_towards(float ix, float iy, float iz)
 static void update_game(float ms)
 {
     float floorz = cell[camy*map_width + camx].floorz;
+    int goffup = 0;
     if (key[SDLK_w]) {
         move_towards(-sin(pla*PI/180.0)*ms*0.55, 0, -cos(pla*PI/180.0)*ms*0.55);
+        goffv += ms/170.0; goffup = 1;
     }
     if (key[SDLK_s]) {
         move_towards(sin(pla*PI/180.0)*ms*0.55, 0, cos(pla*PI/180.0)*ms*0.55);
+        if (!key[SDLK_w] && !goffup) goffv -= ms/270.0; goffup = 1;
     }
     if (key[SDLK_a]) {
         move_towards(sin((pla-90)*PI/180.0)*ms*0.55, 0, cos((pla-90)*PI/180.0)*ms*0.55);
+        if (!goffup) goffv += ms/370.0; goffup = 1;
     }
     if (key[SDLK_d]) {
         move_towards(sin((pla+90)*PI/180.0)*ms*0.55, 0, cos((pla+90)*PI/180.0)*ms*0.55);
+        if (!goffup) goffv += ms/370.0; goffup = 1;
+    }
+    if (goffup) {
+        goffx = sin(goffv)*4;
+        goffy = cos(goffv*2.5);
+    } else {
+        goffx *= 0.9;
+       // goffy *= 0.995;
+        goffv = 0;
     }
 
     if (floorz > ply + 48) {
@@ -1155,13 +1198,26 @@ static void update_game(float ms)
 
 static void run(void)
 {
+    entity_t* ent;
+    int x, y;
     tex_bricks = tex_load("data/textures/bricks.bmp");
     tex_floor = tex_load("data/textures/floor.bmp");
     tex_stuff = tex_load("data/textures/stuff.bmp");
     tex_wtf = tex_load("data/textures/wtf.bmp");
     pointer_cursor = tex_load("data/other/pointer_cursor.bmp");
 
+    mdl_gun = mdl_load("data/models/gun.alm", "data/models/gun.bmp");
+
     map_init(256, 256);
+
+    ent = ent_new();
+    ent_set_model(ent, mdl_gun);
+    ent_move(ent, 26*CELLSIZE*32.0, -128*32.0, 10*CELLSIZE*32.0);
+
+    for (y=0; y<map_height; y++)
+            for (x=0; x<map_width; x++)
+                map_update_cell(x, y);
+
     calc_campoints(sqrt(256*256 + 256*256));
     lmap_update();
     plx = (map_width*CELLSIZE)*0.5;
