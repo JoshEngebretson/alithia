@@ -32,6 +32,7 @@ static int drag_selection, has_selection;
 static int dsel_x1, dsel_y1;
 static int cur_x1, cur_y1;
 static int points_to_floor;
+static int camera_mode;
 
 void editor_raisefloor_modifier(int cx, int cy, cell_t* cell, void* data)
 {
@@ -128,6 +129,9 @@ void editor_move_towards(float ix, float iy, float iz)
 static void key_down(SDL_Event ev)
 {
     switch (ev.key.keysym.sym) {
+    case SDLK_RETURN:
+        camera_mode = !camera_mode;
+        break;
     case SDLK_e:
         screen_set(gamescreen);
         break;
@@ -207,7 +211,7 @@ static void editorscreen_sdl_event(SDL_Event ev)
         }
         break;
     case SDL_MOUSEMOTION:
-        if (button[2]) {
+        if (camera_mode || button[2]) {
             pla -= ev.motion.xrel/10.0;
             pll -= ev.motion.yrel/10.0;
             if (pll > 90) pll = 90;
@@ -331,6 +335,17 @@ static void editorscreen_render(void)
 
     glDisable(GL_BLEND);
 
+    if (camera_mode) {
+        glMatrixMode(GL_PROJECTION);
+        glLoadIdentity();
+        glMatrixMode(GL_MODELVIEW);
+        glLoadIdentity();
+        glPointSize(4);
+        glBegin(GL_POINTS);
+        glVertex2f(0, 0);
+        glEnd();
+    }
+
     glPopClientAttrib();
     glPopAttrib();
 }
@@ -345,7 +360,7 @@ static int editorscreen_proc(screen_t* scr, int msg, void* data)
         break;
     case SMS_UPDATE:
         editorscreen_update(*((float*)data));
-        scr->draw_mouse = !button[2];
+        scr->draw_mouse = !(button[2] || camera_mode);
         break;
     case SMS_SDL_EVENT:
         editorscreen_sdl_event(*((SDL_Event*)data));
