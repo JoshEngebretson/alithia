@@ -43,7 +43,7 @@ typedef struct _geoquad_t
 {
     float u[4], v[4];
     float x[4], y[4], z[4];
-    int ignore;
+    int ignore, optignore;
 } geoquad_t;
 
 typedef struct _partbuild_t
@@ -284,7 +284,8 @@ void cell_vertices(cell_t* c, int x, int y, float* vx, float* vy, float* vz, int
 
 static void do_quad(texture_t* tex, float x1, float y1, float z1, float x2,
     float y2, float z2, float x3, float y3, float z3, float x4, float y4,
-    float z4, float ux, float uy, float uz, float vx, float vy, float vz)
+    float z4, float ux, float uy, float uz, float vx, float vy, float vz,
+    int optignore)
 {
     int i;
     partbuild_t* part = NULL;
@@ -326,8 +327,16 @@ static void do_quad(texture_t* tex, float x1, float y1, float z1, float x2,
     part->q[part->qc].z[3] = z4;
 
     part->q[part->qc].ignore = 0;
+    part->q[part->qc].optignore = optignore;
 
     part->qc++;
+}
+
+// TODO: check ceiling/floor separately
+static int cell_has_offsets(cell_t* c)
+{
+    return c->zcoffs[0] || c->zcoffs[1] || c->zcoffs[2] || c->zcoffs[3] ||
+        c->zfoffs[0] || c->zfoffs[1] || c->zfoffs[2] || c->zfoffs[3];
 }
 
 static void draw_cell(cell_t* c, int cx, int cy)
@@ -344,32 +353,36 @@ static void draw_cell(cell_t* c, int cx, int cy)
     /* floor quad */
     if (c->floorz != c->ceilz) {
         do_quad(tex_floor, vx[0], vy[0], vz[0], vx[1], vy[1], vz[1], vx[2],
-            vy[2], vz[2], vx[3], vy[3], vz[3], 1, 0, 0, 0, 0, 1);
+            vy[2], vz[2], vx[3], vy[3], vz[3], 1, 0, 0, 0, 0, 1, 0);
     }
 
     /* up cap */
     if (cy > 0 && cu->floorz < c->floorz) {
         cell_vertices(cu, cx, cy - 1, avx, avy, avz, 1);
         do_quad(tex_bricks, vx[3], vy[3], vz[3], avx[2], avy[2], avz[2],
-            avx[1], avy[1], avz[1], vx[0], vy[0], vz[0], -1, 0, 0, 0, -1, 0);
+            avx[1], avy[1], avz[1], vx[0], vy[0], vz[0], -1, 0, 0, 0, -1, 0,
+            cell_has_offsets(c) || cell_has_offsets(cu));
     }
     /* down cap */
     if (cy < map_height - 1 && cd->floorz < c->floorz) {
         cell_vertices(cd, cx, cy + 1, avx, avy, avz, 1);
         do_quad(tex_bricks, vx[1], vy[1], vz[1], avx[0], avy[0], avz[0],
-            avx[3], avy[3], avz[3], vx[2], vy[2], vz[2], 1, 0, 0, 0, -1, 0);
+            avx[3], avy[3], avz[3], vx[2], vy[2], vz[2], 1, 0, 0, 0, -1, 0,
+            cell_has_offsets(c) || cell_has_offsets(cd));
     }
     /* left cap */
     if (cx > 0 && cl->floorz < c->floorz) {
         cell_vertices(cl, cx - 1, cy, avx, avy, avz, 1);
         do_quad(tex_bricks, vx[0], vy[0], vz[0], avx[3], avy[3], avz[3],
-            avx[2], avy[2], avz[2], vx[1], vy[1], vz[1], 0, 0, 1, 0, -1, 0);
+            avx[2], avy[2], avz[2], vx[1], vy[1], vz[1], 0, 0, 1, 0, -1, 0,
+            cell_has_offsets(c) || cell_has_offsets(cl));
     }
     /* right cap */
     if (cx < map_width - 1 && cr->floorz < c->floorz) {
         cell_vertices(cr, cx + 1, cy, avx, avy, avz, 1);
         do_quad(tex_bricks, vx[2], vy[2], vz[2], avx[1], avy[1], avz[1],
-            avx[0], avy[0], avz[0], vx[3], vy[3], vz[3], 0, 0, -1, 0, -1, 0);
+            avx[0], avy[0], avz[0], vx[3], vy[3], vz[3], 0, 0, -1, 0, -1, 0,
+            cell_has_offsets(c) || cell_has_offsets(cr));
     }
 
     /**** CEILING ****/
@@ -377,33 +390,37 @@ static void draw_cell(cell_t* c, int cx, int cy)
     /* ceiling quad */
     if (c->floorz != c->ceilz) {
         do_quad(tex_wtf, vx[0], vy[0], vz[0], vx[3], vy[3], vz[3], vx[2],
-            vy[2], vz[2], vx[1], vy[1], vz[1], 1, 0, 0, 0, 0, -1);
+            vy[2], vz[2], vx[1], vy[1], vz[1], 1, 0, 0, 0, 0, -1, 0);
     }
 
     /* up cap */
     if (cy > 0 && cu->ceilz > c->ceilz) {
         cell_vertices(cu, cx, cy - 1, avx, avy, avz, 0);
         do_quad(tex_stuff, avx[2], avy[2], avz[2], vx[3], vy[3], vz[3], vx[0],
-            vy[0], vz[0], avx[1], avy[1], avz[1], -1, 0, 0, 0, -1, 0);
+            vy[0], vz[0], avx[1], avy[1], avz[1], -1, 0, 0, 0, -1, 0,
+            cell_has_offsets(c) || cell_has_offsets(cu));
     }
     /* down cap */
     if (cy < map_height - 1 && cd->ceilz > c->ceilz) {
         cell_vertices(cd, cx, cy + 1, avx, avy, avz, 0);
         do_quad(tex_stuff, avx[0], avy[0], avz[0], vx[1], vy[1], vz[1], vx[2],
-            vy[2], vz[2], avx[3], avy[3], avz[3], 1, 0, 0, 0, -1, 0);
+            vy[2], vz[2], avx[3], avy[3], avz[3], 1, 0, 0, 0, -1, 0,
+            cell_has_offsets(c) || cell_has_offsets(cd));
     }
     /* left cap */
     if (cx > 0 && cl->ceilz > c->ceilz) {
         cell_vertices(cl, cx - 1, cy, avx, avy, avz, 0);
         do_quad(tex_stuff, avx[3], avy[3], avz[3], vx[0], vy[0], vz[0], vx[1],
-            vy[1], vz[1], avx[2], avy[2], avz[2], 0, 0, 1, 0, -1, 0);
+            vy[1], vz[1], avx[2], avy[2], avz[2], 0, 0, 1, 0, -1, 0,
+            cell_has_offsets(c) || cell_has_offsets(cl));
     }
 
     /* right cap */
     if (cx < map_width - 1 && cr->ceilz > c->ceilz) {
         cell_vertices(cr, cx + 1, cy, avx, avy, avz, 0);
         do_quad(tex_stuff, avx[1], avy[1], avz[1], vx[2], vy[2], vz[2], vx[3],
-            vy[3], vz[3], avx[0], avy[0], avz[0], 0, 0, -1, 0, -1, 0);
+            vy[3], vz[3], avx[0], avy[0], avz[0], 0, 0, -1, 0, -1, 0,
+            cell_has_offsets(c) || cell_has_offsets(cr));
     }
 }
 
@@ -435,12 +452,13 @@ static int same_plane(geoquad_t* a, geoquad_t* b)
     float nx1, ny1, nz1, d1;
     float nx2, ny2, nz2, d2;
     plane_from_three_points2(a->x[0], a->y[0], a->z[0], a->x[1], a->y[1], a->z[1], a->x[2], a->y[2], a->z[2], &nx1, &ny1, &nz1, &d1);
-    plane_from_three_points2(a->x[0], a->y[0], a->z[0], a->x[2], a->y[2], a->z[2], a->x[3], a->y[3], a->z[3], &nx1, &ny1, &nz1, &d1);
+    plane_from_three_points2(a->x[0], a->y[0], a->z[0], a->x[2], a->y[2], a->z[2], a->x[3], a->y[3], a->z[3], &nx2, &ny2, &nz2, &d2);
     if (!((nx1 == nx2) && (ny1 == ny2) && (nz1 == nz2) && (d1 == d2))) return 0;
+    /*
     plane_from_three_points2(b->x[0], b->y[0], b->z[0], b->x[1], b->y[1], b->z[1], b->x[2], b->y[2], b->z[2], &nx1, &ny1, &nz1, &d1);
     plane_from_three_points2(b->x[0], b->y[0], b->z[0], b->x[2], b->y[2], b->z[2], b->x[3], b->y[3], b->z[3], &nx1, &ny1, &nz1, &d1);
     if (!((nx1 == nx2) && (ny1 == ny2) && (nz1 == nz2) && (d1 == d2))) return 0;
-
+    */
     plane_from_three_points2(a->x[0], a->y[0], a->z[0], a->x[1], a->y[1], a->z[1], a->x[2], a->y[2], a->z[2], &nx1, &ny1, &nz1, &d1);
     plane_from_three_points2(b->x[0], b->y[0], b->z[0], b->x[1], b->y[1], b->z[1], b->x[2], b->y[2], b->z[2], &nx2, &ny2, &nz2, &d2);
     if (!((nx1 == nx2) && (ny1 == ny2) && (nz1 == nz2) && (d1 == d2))) return 0;
@@ -456,13 +474,13 @@ static int optimize_part(partbuild_t* pb)
     int optimizations = 0;
     for (i=0; i<pb->qc; i++) {
         geoquad_t* a = pb->q + i;
-        if (a->ignore) continue;
+        if (a->ignore || a->optignore) continue;
         for (j=0; j<pb->qc; j++) {
             geoquad_t* b = pb->q + j;
             float x[4], y[4], z[4], u[4], v[4];
             int coma[4], comb[4];
             if (i == j) continue;
-            if (b->ignore) continue;
+            if (b->ignore || b->optignore) continue;
             if (!same_plane(a, b)) continue;
 
             memset(coma, 0, sizeof(coma));

@@ -120,9 +120,9 @@ void editor_move_towards(float ix, float iy, float iz)
     if (plx < 0) plx = 0;
     else if (plx > CELLSIZE*(map_width - 1)) plx = (map_width - 1)*CELLSIZE;
     ply += iy;
-    if (ply < 0) ply = 0;
-    else if (ply > CELLSIZE*(map_height - 1)) ply = (map_height - 1)*CELLSIZE;
     plz += iz;
+    if (plz < 0) plz = 0;
+    else if (plz > CELLSIZE*(map_height - 1)) plz = (map_height - 1)*CELLSIZE;
 }
 
 static void key_down(SDL_Event ev)
