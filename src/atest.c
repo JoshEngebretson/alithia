@@ -83,6 +83,12 @@ texture_t* tex_floor;
 texture_t* tex_stuff;
 texture_t* tex_wtf;
 texture_t* pointer_cursor;
+texture_t* skybox_left;
+texture_t* skybox_right;
+texture_t* skybox_top;
+texture_t* skybox_bottom;
+texture_t* skybox_front;
+texture_t* skybox_back;
 model_t* mdl_gun;
 float goffx, goffy, goffv;
 float frustum[6][4];
@@ -91,6 +97,8 @@ float modl[16];
 float clip[16];
 vector_t centeraya, centerayb;
 screen_t* gamescreen;
+int disable_occlusion;
+int skybox_bucket = -1;
 
 static void process_events(void)
 {
@@ -352,35 +360,35 @@ static void draw_cell(cell_t* c, int cx, int cy)
     cell_vertices(c, cx, cy, vx, vy, vz, 1);
     /* floor quad */
     if (c->floorz != c->ceilz) {
-        do_quad(tex_floor, vx[0], vy[0], vz[0], vx[1], vy[1], vz[1], vx[2],
+        do_quad(c->bottomtex, vx[0], vy[0], vz[0], vx[1], vy[1], vz[1], vx[2],
             vy[2], vz[2], vx[3], vy[3], vz[3], 1, 0, 0, 0, 0, 1, 0);
     }
 
     /* up cap */
     if (cy > 0 && cu->floorz < c->floorz) {
         cell_vertices(cu, cx, cy - 1, avx, avy, avz, 1);
-        do_quad(tex_bricks, vx[3], vy[3], vz[3], avx[2], avy[2], avz[2],
+        do_quad(cu->lowetex, vx[3], vy[3], vz[3], avx[2], avy[2], avz[2],
             avx[1], avy[1], avz[1], vx[0], vy[0], vz[0], -1, 0, 0, 0, -1, 0,
             cell_has_offsets(c) || cell_has_offsets(cu));
     }
     /* down cap */
     if (cy < map_height - 1 && cd->floorz < c->floorz) {
         cell_vertices(cd, cx, cy + 1, avx, avy, avz, 1);
-        do_quad(tex_bricks, vx[1], vy[1], vz[1], avx[0], avy[0], avz[0],
+        do_quad(cd->lowetex, vx[1], vy[1], vz[1], avx[0], avy[0], avz[0],
             avx[3], avy[3], avz[3], vx[2], vy[2], vz[2], 1, 0, 0, 0, -1, 0,
             cell_has_offsets(c) || cell_has_offsets(cd));
     }
     /* left cap */
     if (cx > 0 && cl->floorz < c->floorz) {
         cell_vertices(cl, cx - 1, cy, avx, avy, avz, 1);
-        do_quad(tex_bricks, vx[0], vy[0], vz[0], avx[3], avy[3], avz[3],
+        do_quad(cl->lowetex, vx[0], vy[0], vz[0], avx[3], avy[3], avz[3],
             avx[2], avy[2], avz[2], vx[1], vy[1], vz[1], 0, 0, 1, 0, -1, 0,
             cell_has_offsets(c) || cell_has_offsets(cl));
     }
     /* right cap */
     if (cx < map_width - 1 && cr->floorz < c->floorz) {
         cell_vertices(cr, cx + 1, cy, avx, avy, avz, 1);
-        do_quad(tex_bricks, vx[2], vy[2], vz[2], avx[1], avy[1], avz[1],
+        do_quad(cr->lowetex, vx[2], vy[2], vz[2], avx[1], avy[1], avz[1],
             avx[0], avy[0], avz[0], vx[3], vy[3], vz[3], 0, 0, -1, 0, -1, 0,
             cell_has_offsets(c) || cell_has_offsets(cr));
     }
@@ -389,28 +397,28 @@ static void draw_cell(cell_t* c, int cx, int cy)
     cell_vertices(c, cx, cy, vx, vy, vz, 0);
     /* ceiling quad */
     if (c->floorz != c->ceilz) {
-        do_quad(tex_wtf, vx[0], vy[0], vz[0], vx[3], vy[3], vz[3], vx[2],
+        do_quad(c->toptex, vx[0], vy[0], vz[0], vx[3], vy[3], vz[3], vx[2],
             vy[2], vz[2], vx[1], vy[1], vz[1], 1, 0, 0, 0, 0, -1, 0);
     }
 
     /* up cap */
     if (cy > 0 && cu->ceilz > c->ceilz) {
         cell_vertices(cu, cx, cy - 1, avx, avy, avz, 0);
-        do_quad(tex_stuff, avx[2], avy[2], avz[2], vx[3], vy[3], vz[3], vx[0],
+        do_quad(c->uppertex, avx[2], avy[2], avz[2], vx[3], vy[3], vz[3], vx[0],
             vy[0], vz[0], avx[1], avy[1], avz[1], -1, 0, 0, 0, -1, 0,
             cell_has_offsets(c) || cell_has_offsets(cu));
     }
     /* down cap */
     if (cy < map_height - 1 && cd->ceilz > c->ceilz) {
         cell_vertices(cd, cx, cy + 1, avx, avy, avz, 0);
-        do_quad(tex_stuff, avx[0], avy[0], avz[0], vx[1], vy[1], vz[1], vx[2],
+        do_quad(c->uppertex, avx[0], avy[0], avz[0], vx[1], vy[1], vz[1], vx[2],
             vy[2], vz[2], avx[3], avy[3], avz[3], 1, 0, 0, 0, -1, 0,
             cell_has_offsets(c) || cell_has_offsets(cd));
     }
     /* left cap */
     if (cx > 0 && cl->ceilz > c->ceilz) {
         cell_vertices(cl, cx - 1, cy, avx, avy, avz, 0);
-        do_quad(tex_stuff, avx[3], avy[3], avz[3], vx[0], vy[0], vz[0], vx[1],
+        do_quad(c->uppertex, avx[3], avy[3], avz[3], vx[0], vy[0], vz[0], vx[1],
             vy[1], vz[1], avx[2], avy[2], avz[2], 0, 0, 1, 0, -1, 0,
             cell_has_offsets(c) || cell_has_offsets(cl));
     }
@@ -418,7 +426,7 @@ static void draw_cell(cell_t* c, int cx, int cy)
     /* right cap */
     if (cx < map_width - 1 && cr->ceilz > c->ceilz) {
         cell_vertices(cr, cx + 1, cy, avx, avy, avz, 0);
-        do_quad(tex_stuff, avx[1], avy[1], avz[1], vx[2], vy[2], vz[2], vx[3],
+        do_quad(c->uppertex, avx[1], avy[1], avz[1], vx[2], vy[2], vz[2], vx[3],
             vy[3], vz[3], avx[0], avy[0], avz[0], 0, 0, -1, 0, -1, 0,
             cell_has_offsets(c) || cell_has_offsets(cr));
     }
@@ -558,15 +566,16 @@ static void optimize_parts(void)
 static void add_list_to_bucket(texture_t* tex, GLuint dl, GLfloat* mtx)
 {
     bucket_t* buck;
-    if (tex->bucket == -1) {
+    int* buckidx = tex? &tex->bucket : &skybox_bucket;
+    if (*buckidx == -1) {
         buck = bucket + buckets;
         buck->dls = 16;
         buck->dlc = 0;
         buck->dl = malloc(sizeof(GLuint) * 16);
         buck->dlmtx = malloc(sizeof(GLfloat*) * 16);
         buck->tex = tex;
-        tex->bucket = buckets++;
-    } else buck = bucket + tex->bucket;
+        *buckidx = buckets++;
+    } else buck = bucket + *buckidx;
 
     if (buck->dls == buck->dlc) {
         buck->dls += 16;
@@ -749,6 +758,90 @@ static int box_in_frustum(float x1, float y1, float z1, float x2, float y2,
     return 1;
 }
 
+static void render_skybox(void)
+{
+    glActiveTexture(GL_TEXTURE1);
+    glDisable(GL_TEXTURE_2D);
+    glActiveTexture(GL_TEXTURE0);
+    glEnable(GL_TEXTURE_2D);
+
+    glEnable(GL_CULL_FACE);
+    glEnable(GL_DEPTH_TEST);
+    glDepthMask(0);
+
+#define M 1
+
+    /* left side */
+    glBindTexture(GL_TEXTURE_2D, skybox_left->name);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glBegin(GL_QUADS);
+    glTexCoord2f(0, 0);           glVertex3f(-2, 2, 2);
+    glTexCoord2f(0, M);           glVertex3f(-2, -2, 2);
+    glTexCoord2f(M, M);           glVertex3f(-2, -2, -2);
+    glTexCoord2f(M, 0);           glVertex3f(-2, 2, -2);
+    glEnd();
+
+    /* front side */
+    glBindTexture(GL_TEXTURE_2D, skybox_front->name);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glBegin(GL_QUADS);
+    glTexCoord2f(0, 0);       glVertex3f(-2, 2, -2);
+    glTexCoord2f(0, M);       glVertex3f(-2, -2, -2);
+    glTexCoord2f(M, M);       glVertex3f(2, -2, -2);
+    glTexCoord2f(M, 0);       glVertex3f(2, 2, -2);
+    glEnd();
+
+    /* right side */
+    glBindTexture(GL_TEXTURE_2D, skybox_right->name);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glBegin(GL_QUADS);
+    glTexCoord2f(0, 0);       glVertex3f(2, 2, -2);
+    glTexCoord2f(0, M);       glVertex3f(2, -2, -2);
+    glTexCoord2f(M, M);       glVertex3f(2, -2, 2);
+    glTexCoord2f(M, 0);       glVertex3f(2, 2, 2);
+    glEnd();
+
+    /* back side */
+    glBindTexture(GL_TEXTURE_2D, skybox_back->name);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glBegin(GL_QUADS);
+    glTexCoord2f(0, 0);       glVertex3f(2, 2, 2);
+    glTexCoord2f(0, M);       glVertex3f(2, -2, 2);
+    glTexCoord2f(M, M);       glVertex3f(-2, -2, 2);
+    glTexCoord2f(M, 0);       glVertex3f(-2, 2, 2);
+    glEnd();
+
+    /* bottom side */
+    glBindTexture(GL_TEXTURE_2D, skybox_bottom->name);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glBegin(GL_QUADS);
+    glTexCoord2f(0, 0);       glVertex3f(-2, -2, -2);
+    glTexCoord2f(0, M);       glVertex3f(-2, -2, 2);
+    glTexCoord2f(M, M);       glVertex3f(2, -2, 2);
+    glTexCoord2f(M, 0);       glVertex3f(2, -2, -2);
+    glEnd();
+
+    /* top side */
+    glBindTexture(GL_TEXTURE_2D, skybox_top->name);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glBegin(GL_QUADS);
+    glTexCoord2f(0, 0);       glVertex3f(-2, 2, 2);
+    glTexCoord2f(0, M);       glVertex3f(-2, 2, -2);
+    glTexCoord2f(M, M);       glVertex3f(2, 2, -2);
+    glTexCoord2f(M, 0);       glVertex3f(2, 2, 2);
+    glEnd();
+
+    glDepthMask(1);
+
+#undef M
+}
+
 static void render_world(void)
 {
     static int init_frames = 10;
@@ -783,6 +876,9 @@ static void render_world(void)
     glLoadIdentity();
     glRotatef(-pll, 1, 0, 0);
     glRotatef(-pla, 0, 1, 0);
+
+    render_skybox();
+
     glTranslatef(-plx, -ply-goffy*1.5, -plz);
     glGetDoublev(GL_MODELVIEW_MATRIX, vmtx);
     glColor3f(1, 1, 1);
@@ -795,8 +891,14 @@ static void render_world(void)
     calc_frustum_planes();
 
     /* find visible clusters */
-    for (x = 0; x < pntc; x++)
-        ray_march_for_vis(camx, camy, camx + pntx[x], camy + pnty[x]);
+    if (disable_occlusion) {
+        for (y = 0; y < cluster_height; y++)
+            for (x = 0; x < cluster_width; x++)
+                cluster[y*cluster_width + x].visible = 1;
+    } else {
+        for (x = 0; x < pntc; x++)
+            ray_march_for_vis(camx, camy, camx + pntx[x], camy + pnty[x]);
+    }
 
     /* enable texturing and depth tests */
     glEnable(GL_CULL_FACE);
@@ -805,6 +907,9 @@ static void render_world(void)
     glEnable(GL_TEXTURE_2D);
     glActiveTexture(GL_TEXTURE1);
     glEnable(GL_TEXTURE_2D);
+    glActiveTexture(GL_TEXTURE1);
+    glEnable(GL_TEXTURE_2D);
+
 
     if (draw_wire)
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -969,9 +1074,20 @@ static void render_world(void)
     glEnable(GL_TEXTURE_2D);
     glBindTexture(GL_TEXTURE_2D, lmaptex);
     glActiveTexture(GL_TEXTURE0);
+
+    if (skybox_bucket > -1 && bucket[skybox_bucket].dlc) {
+        glColorMask(0, 0, 0, 0);
+        for (i = 0; i<bucket[skybox_bucket].dlc; i++)
+            glCallList(bucket[skybox_bucket].dl[i]);
+        bucket[skybox_bucket].dlc = 0;
+        glColorMask(1, 1, 1, 1);
+    }
+
     for (i = 0; i < buckets; i++)
         if (bucket[i].dlc) {
             int j;
+            if (i == skybox_bucket)
+                continue;
             glBindTexture(GL_TEXTURE_2D, bucket[i].tex->name);
             for (j = 0; j < bucket[i].dlc; j++) {
                 if (bucket[i].dlmtx[j]) {
@@ -1355,17 +1471,39 @@ static void gamescreen_init(void)
 
 static void run(void)
 {
-    entity_t* ent;
     int x, y;
+    entity_t* ent;
     tex_bricks = tex_load("data/textures/bricks.bmp");
     tex_floor = tex_load("data/textures/floor.bmp");
     tex_stuff = tex_load("data/textures/stuff.bmp");
     tex_wtf = tex_load("data/textures/wtf.bmp");
     pointer_cursor = tex_load("data/other/pointer_cursor.bmp");
+    tex_load_skybox("data/textures/skybox.bmp", &skybox_left, &skybox_back, &skybox_right, &skybox_bottom, &skybox_top, &skybox_front);
+/*    skybox_left = tex_load("data/textures/skybox_left.bmp");
+    skybox_right = tex_load("data/textures/skybox_right.bmp");
+    skybox_top = tex_load("data/textures/skybox_top.bmp");
+    skybox_bottom = tex_load("data/textures/skybox_bottom.bmp");
+    skybox_front = tex_load("data/textures/skybox_front.bmp");
+    skybox_back = tex_load("data/textures/skybox_back.bmp");*/
 
     mdl_gun = mdl_load("data/models/gun.alm", "data/models/gun.bmp");
 
     map_init(256, 256);
+
+    for (y=0; y<256; y++)
+        for (x=0; x<256; x++) {
+            cell_t* c = &cell[y*map_width + x];
+            c->uppertex = tex_stuff;
+            c->lowetex = tex_bricks;
+            c->toptex = tex_stuff;
+            c->bottomtex = tex_floor;
+        }
+
+    for (y=20; y<120; y++)
+        for (x=20; x<120; x++) {
+            cell_t* c = &cell[y*map_width + x];
+            c->toptex = NULL;
+        }
 
     ent = ent_new();
     ent_set_model(ent, mdl_gun);

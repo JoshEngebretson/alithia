@@ -31,6 +31,7 @@ typedef struct _texture_t
 } texture_t;
 
 texture_t* tex_load(const char* filename);
+void tex_load_skybox(const char* filename, texture_t** left, texture_t** back, texture_t** right, texture_t** bottom, texture_t** top, texture_t** front);
 void tex_free(texture_t* tex);
 
 #endif

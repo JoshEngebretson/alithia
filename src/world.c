@@ -35,7 +35,7 @@ int cluster_height;
 lmap_texel_t* lightmap;
 GLuint lmaptex;
 int lmap_needs_update;
-int lmap_quality = 0;
+int lmap_quality = 2;
 
 model_t* mdl_vytio;
 model_t* mdl_armor;
@@ -385,7 +385,7 @@ static void calc_lightmap_for_cell(lmap_texel_t* lm, int mx, int my)
     int x, y, x1, y1, x2, y2, n = 0;
     float r, g, b, nr, ng, nb;
 
-    if (lmap_quality == 1) {
+    if (lmap_quality > 0) {
         x1 = mx - 1; if (x1 < 0) x1 = 0;
         y1 = my - 1; if (y1 < 0) y1 = 0;
         x2 = mx + 1; if (x2 >= map_width) x2 = map_width - 1;

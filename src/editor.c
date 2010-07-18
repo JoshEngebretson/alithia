@@ -32,7 +32,8 @@ static int drag_selection, has_selection;
 static int dsel_x1, dsel_y1;
 static int cur_x1, cur_y1;
 static int points_to_floor;
-static int camera_mode;
+static int camera_mode = 1;
+static float last_cell_y;
 
 void editor_raisefloor_modifier(int cx, int cy, cell_t* cell, void* data)
 {
@@ -132,6 +133,10 @@ static void key_down(SDL_Event ev)
     case SDLK_RETURN:
         camera_mode = !camera_mode;
         break;
+    case SDLK_o:
+        if (SDL_GetModState() & KMOD_CTRL)
+            disable_occlusion = !disable_occlusion;
+        break;
     case SDLK_e:
         screen_set(gamescreen);
         break;
@@ -223,7 +228,27 @@ static void editorscreen_sdl_event(SDL_Event ev)
             case PICK_WORLD:
                 cur_x1 = ((int)pd.ip.x)/CELLSIZE;
                 cur_y1 = ((int)pd.ip.z)/CELLSIZE;
+                if (cur_x1 < 1) cur_x1 = 1;
+                else if (cur_x1 > map_width - 1) cur_x1 = map_width - 1;
+                if (cur_y1 < 1) cur_y1 = 1;
+                else if (cur_y1 > map_height - 1) cur_y1 = map_height - 1;
+                last_cell_y = pd.cell->floorz;
                 break;
+            }
+        } else {
+            plane_t p;
+            vector_t ip;
+            p.nx = 0;
+            p.ny = 1;
+            p.nz = 0;
+            p.d = last_cell_y;
+            if (ray_plane_intersection(&p, &centeraya, &centerayb, &ip)) {
+                cur_x1 = ((int)ip.x)/CELLSIZE;
+                cur_y1 = ((int)ip.z)/CELLSIZE;
+                if (cur_x1 < 1) cur_x1 = 1;
+                else if (cur_x1 > map_width - 1) cur_x1 = map_width - 1;
+                if (cur_y1 < 1) cur_y1 = 1;
+                else if (cur_y1 > map_height - 1) cur_y1 = map_height - 1;
             }
         }
 

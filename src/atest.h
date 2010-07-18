@@ -74,6 +74,7 @@ extern float proj[16];
 extern float modl[16];
 extern float clip[16];
 extern vector_t centeraya, centerayb;
+extern int disable_occlusion;
 
 void cell_vertices(cell_t* c, int x, int y, float* vx, float* vy, float* vz, int floor);
 void map_update_cell(int x, int y);
