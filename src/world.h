@@ -58,10 +58,11 @@ typedef struct _cell_t
     texture_t* bottomtex;
     texture_t* uppertex;
     texture_t* lowetex;
-    int floorz;
-    int ceilz;
-    int flags;
-    int height;
+    int32_t floorz;
+    int32_t ceilz;
+    int32_t flags;
+    int8_t zfoffs[4];
+    int8_t zcoffs[4];
 } cell_t;
 
 typedef struct _clusterpart_t

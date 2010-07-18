@@ -35,6 +35,7 @@ int cluster_height;
 lmap_texel_t* lightmap;
 GLuint lmaptex;
 int lmap_needs_update;
+int lmap_quality = 0;
 
 model_t* mdl_vytio;
 model_t* mdl_armor;
@@ -353,17 +354,19 @@ static void calc_lightmap_for_cell_at(float* or, float* og, float* ob, int mx, i
         }
     }
 
-    x1 = mx - 2; if (x1 < 0) x1 = 0;
-    y1 = my - 2; if (y1 < 0) y1 = 0;
-    x2 = mx + 2; if (x2 >= map_width) x2 = map_width - 1;
-    y2 = my + 2; if (y2 >= map_height) y2 = map_height - 1;
-    for (y=y1; y<=y2; y++) {
-        for (x=x1; x<=x2; x++) {
-            cell_t* nc = cell + y*map_width + x;
-            if (nc->floorz > c->floorz + CELLSIZE || nc->ceilz < c->ceilz - CELLSIZE || (nc->flags & CF_OCCLUDER)) {
-                r -= 0.02;
-                g -= 0.02;
-                b -= 0.02;
+    if (lmap_quality == 2) {
+        x1 = mx - 2; if (x1 < 0) x1 = 0;
+        y1 = my - 2; if (y1 < 0) y1 = 0;
+        x2 = mx + 2; if (x2 >= map_width) x2 = map_width - 1;
+        y2 = my + 2; if (y2 >= map_height) y2 = map_height - 1;
+        for (y=y1; y<=y2; y++) {
+            for (x=x1; x<=x2; x++) {
+                cell_t* nc = cell + y*map_width + x;
+                if (nc->floorz > c->floorz + CELLSIZE || nc->ceilz < c->ceilz - CELLSIZE || (nc->flags & CF_OCCLUDER)) {
+                    r -= 0.02;
+                    g -= 0.02;
+                    b -= 0.02;
+                }
             }
         }
     }
@@ -381,26 +384,31 @@ static void calc_lightmap_for_cell(lmap_texel_t* lm, int mx, int my)
 {
     int x, y, x1, y1, x2, y2, n = 0;
     float r, g, b, nr, ng, nb;
-    x1 = mx - 1; if (x1 < 0) x1 = 0;
-    y1 = my - 1; if (y1 < 0) y1 = 0;
-    x2 = mx + 1; if (x2 >= map_width) x2 = map_width - 1;
-    y2 = my + 1; if (y2 >= map_height) y2 = map_height - 1;
 
-    r = g = b = 0.0f;
+    if (lmap_quality == 1) {
+        x1 = mx - 1; if (x1 < 0) x1 = 0;
+        y1 = my - 1; if (y1 < 0) y1 = 0;
+        x2 = mx + 1; if (x2 >= map_width) x2 = map_width - 1;
+        y2 = my + 1; if (y2 >= map_height) y2 = map_height - 1;
 
-    for (y=y1; y<=y2; y++) {
-        for (x=x1; x<=x2; x++) {
-            calc_lightmap_for_cell_at(&nr, &ng, &nb, x, y);
-            r += nr;
-            g += ng;
-            b += nb;
-            n++;
+        r = g = b = 0.0f;
+
+        for (y=y1; y<=y2; y++) {
+            for (x=x1; x<=x2; x++) {
+                calc_lightmap_for_cell_at(&nr, &ng, &nb, x, y);
+                r += nr;
+                g += ng;
+                b += nb;
+                n++;
+            }
         }
-    }
 
-    r /= (float)n;
-    g /= (float)n;
-    b /= (float)n;
+        r /= (float)n;
+        g /= (float)n;
+        b /= (float)n;
+    } else {
+        calc_lightmap_for_cell_at(&r, &g, &b, mx, my);
+    }
 
     lm->r = (int)(255.0*r);
     lm->g = (int)(255.0*g);

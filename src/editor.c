@@ -68,6 +68,18 @@ void editor_makecolumn_modifier(int cx, int cy, cell_t* cell, void* data)
     cell->floorz = cell->ceilz = (cell->floorz + cell->ceilz)*0.5;
 }
 
+void editor_adjustflooroffs_modifier(int cx, int cy, cell_t* cell, void* data)
+{
+    int32_t di = *((int32_t*)data);
+    cell->zfoffs[di&0x0F] += di>>4;
+}
+
+void editor_adjustceilingoffs_modifier(int cx, int cy, cell_t* cell, void* data)
+{
+    int32_t di = *((int32_t*)data);
+    cell->zcoffs[di&0x0F] += di>>4;
+}
+
 void editor_apply_cell_modifier(modifier_proc_t proc, void* data)
 {
     int x, y;
@@ -102,6 +114,17 @@ void editor_set_selection(int x1, int y1, int x2, int y2)
     }
 }
 
+void editor_move_towards(float ix, float iy, float iz)
+{
+    plx += ix;
+    if (plx < 0) plx = 0;
+    else if (plx > CELLSIZE*(map_width - 1)) plx = (map_width - 1)*CELLSIZE;
+    ply += iy;
+    if (ply < 0) ply = 0;
+    else if (ply > CELLSIZE*(map_height - 1)) ply = (map_height - 1)*CELLSIZE;
+    plz += iz;
+}
+
 static void key_down(SDL_Event ev)
 {
     switch (ev.key.keysym.sym) {
@@ -121,18 +144,17 @@ static void key_down(SDL_Event ev)
 
 static void editorscreen_update(float ms)
 {
-    float floorz = cell[camy*map_width + camx].floorz;
     if (key[SDLK_w]) {
-        move_towards(-sin(pla*PI/180.0)*ms*0.55, 0, -cos(pla*PI/180.0)*ms*0.55);
+        editor_move_towards(-sin(pla*PI/180.0)*ms*0.55, sin(pll*PI/180.0)*ms*0.55, -cos(pla*PI/180.0)*ms*0.55);
     }
     if (key[SDLK_s]) {
-        move_towards(sin(pla*PI/180.0)*ms*0.55, 0, cos(pla*PI/180.0)*ms*0.55);
+        editor_move_towards(sin(pla*PI/180.0)*ms*0.55, -sin(pll*PI/180.0)*ms*0.55, cos(pla*PI/180.0)*ms*0.55);
     }
     if (key[SDLK_a]) {
-        move_towards(sin((pla-90)*PI/180.0)*ms*0.55, 0, cos((pla-90)*PI/180.0)*ms*0.55);
+        editor_move_towards(sin((pla-90)*PI/180.0)*ms*0.55, 0, cos((pla-90)*PI/180.0)*ms*0.55);
     }
     if (key[SDLK_d]) {
-        move_towards(sin((pla+90)*PI/180.0)*ms*0.55, 0, cos((pla+90)*PI/180.0)*ms*0.55);
+        editor_move_towards(sin((pla+90)*PI/180.0)*ms*0.55, 0, cos((pla+90)*PI/180.0)*ms*0.55);
     }
 }
 
@@ -149,11 +171,31 @@ static void editorscreen_sdl_event(SDL_Event ev)
             has_selection = 1;
         }
         if (ev.button.button == 4) { /* scroll wheel up */
-            int one = 4;
-            editor_apply_cell_modifier(editor_raisefloor_modifier, &one);
+            int offs = -1;
+            if (key[SDLK_i]) offs = 0;
+            else if (key[SDLK_o]) offs = 1;
+            else if (key[SDLK_k]) offs = 2;
+            else if (key[SDLK_j]) offs = 3;
+            else {
+                offs = 4;
+                editor_apply_cell_modifier(points_to_floor ? editor_raisefloor_modifier : editor_raiseceiling_modifier, &offs);
+                return;
+            }
+            offs |= (1<<4);
+            editor_apply_cell_modifier(points_to_floor ? editor_adjustflooroffs_modifier : editor_adjustceilingoffs_modifier, &offs);
         } else if (ev.button.button == 5) { /* scroll wheel down */
-            int one = 4;
-            editor_apply_cell_modifier(editor_lowerfloor_modifier, &one);
+            int offs = -1;
+            if (key[SDLK_i]) offs = 0;
+            else if (key[SDLK_o]) offs = 1;
+            else if (key[SDLK_k]) offs = 2;
+            else if (key[SDLK_j]) offs = 3;
+            else {
+                offs = 4;
+                editor_apply_cell_modifier(points_to_floor ? editor_lowerfloor_modifier : editor_lowerceiling_modifier, &offs);
+                return;
+            }
+            offs |= -(1<<4);
+            editor_apply_cell_modifier(points_to_floor ? editor_adjustflooroffs_modifier : editor_adjustceilingoffs_modifier, &offs);
         }
         break;
     case SDL_MOUSEBUTTONUP:
@@ -168,8 +210,8 @@ static void editorscreen_sdl_event(SDL_Event ev)
         if (button[2]) {
             pla -= ev.motion.xrel/10.0;
             pll -= ev.motion.yrel/10.0;
-            if (pll > 60) pll = 60;
-            if (pll < -60) pll = -60;
+            if (pll > 90) pll = 90;
+            if (pll < -90) pll = -90;
         }
 
         if (pick(&centeraya, &centerayb, &pd)) {
@@ -265,10 +307,12 @@ static void editorscreen_render(void)
     glDisable(GL_TEXTURE_2D);
     glDisable(GL_CULL_FACE);
 
+    points_to_floor = centeraya.y > centerayb.y;
+
     /* Draw grid around cursor */
     glLineWidth(2);
     glBegin(GL_LINES);
-    draw_cell_grid(cur_x1 - 4, cur_y1 - 4, cur_x1 + 4, cur_y1 + 4, 1);
+    draw_cell_grid(cur_x1 - 4, cur_y1 - 4, cur_x1 + 4, cur_y1 + 4, points_to_floor);
     glEnd();
     glLineWidth(1);
 
@@ -278,10 +322,10 @@ static void editorscreen_render(void)
 
     glBegin(GL_QUADS);
     glColor4f(1.0, 0.4, 0.4, 0.4);
-    fill_cell(cur_x1, cur_y1, 1);
+    fill_cell(cur_x1, cur_y1, points_to_floor);
     if (has_selection) {
         glColor4f(1.0, 0.4, 1.0, 0.4);
-        fill_selection(1);
+        fill_selection(points_to_floor);
     }
     glEnd();
 
@@ -297,6 +341,7 @@ static int editorscreen_proc(screen_t* scr, int msg, void* data)
     case SMS_INIT:
         scr->draw_mouse = 1;
         scr->draw_world = 1;
+        scr->do_clear = 1;
         break;
     case SMS_UPDATE:
         editorscreen_update(*((float*)data));

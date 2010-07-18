@@ -269,16 +269,16 @@ static void ray_march_for_vis(int x1, int y1, int x2, int y2)
 void cell_vertices(cell_t* c, int x, int y, float* vx, float* vy, float* vz, int floor)
 {
     vx[0] = x * CELLSIZE;
-    vy[0] = floor ? c->floorz : c->ceilz;
+    vy[0] = floor ? (c->floorz + c->zfoffs[0]) : (c->ceilz + c->zcoffs[0]);
     vz[0] = y * CELLSIZE;
     vx[1] = x * CELLSIZE;
-    vy[1] = floor ? c->floorz : c->ceilz;
+    vy[1] = floor ? (c->floorz + c->zfoffs[1]) : (c->ceilz + c->zcoffs[1]);
     vz[1] = y * CELLSIZE + CELLSIZE;
     vx[2] = x * CELLSIZE + CELLSIZE;
-    vy[2] = floor ? c->floorz : c->ceilz;
+    vy[2] = floor ? (c->floorz + c->zfoffs[2]) : (c->ceilz + c->zcoffs[2]);
     vz[2] = y * CELLSIZE + CELLSIZE;
     vx[3] = x * CELLSIZE + CELLSIZE;
-    vy[3] = floor ? c->floorz : c->ceilz;
+    vy[3] = floor ? (c->floorz + c->zfoffs[3]) : (c->ceilz + c->zcoffs[3]);
     vz[3] = y * CELLSIZE;
 }
 
@@ -435,8 +435,19 @@ static int same_plane(geoquad_t* a, geoquad_t* b)
     float nx1, ny1, nz1, d1;
     float nx2, ny2, nz2, d2;
     plane_from_three_points2(a->x[0], a->y[0], a->z[0], a->x[1], a->y[1], a->z[1], a->x[2], a->y[2], a->z[2], &nx1, &ny1, &nz1, &d1);
+    plane_from_three_points2(a->x[0], a->y[0], a->z[0], a->x[2], a->y[2], a->z[2], a->x[3], a->y[3], a->z[3], &nx1, &ny1, &nz1, &d1);
+    if (!((nx1 == nx2) && (ny1 == ny2) && (nz1 == nz2) && (d1 == d2))) return 0;
+    plane_from_three_points2(b->x[0], b->y[0], b->z[0], b->x[1], b->y[1], b->z[1], b->x[2], b->y[2], b->z[2], &nx1, &ny1, &nz1, &d1);
+    plane_from_three_points2(b->x[0], b->y[0], b->z[0], b->x[2], b->y[2], b->z[2], b->x[3], b->y[3], b->z[3], &nx1, &ny1, &nz1, &d1);
+    if (!((nx1 == nx2) && (ny1 == ny2) && (nz1 == nz2) && (d1 == d2))) return 0;
+
+    plane_from_three_points2(a->x[0], a->y[0], a->z[0], a->x[1], a->y[1], a->z[1], a->x[2], a->y[2], a->z[2], &nx1, &ny1, &nz1, &d1);
     plane_from_three_points2(b->x[0], b->y[0], b->z[0], b->x[1], b->y[1], b->z[1], b->x[2], b->y[2], b->z[2], &nx2, &ny2, &nz2, &d2);
-    return (nx1 == nx2) && (ny1 == ny2) && (nz1 == nz2) && (d1 == d2);
+    if (!((nx1 == nx2) && (ny1 == ny2) && (nz1 == nz2) && (d1 == d2))) return 0;
+    plane_from_three_points2(a->x[0], a->y[0], a->z[0], a->x[2], a->y[2], a->z[2], a->x[3], a->y[3], a->z[3], &nx1, &ny1, &nz1, &d1);
+    plane_from_three_points2(b->x[0], b->y[0], b->z[0], b->x[2], b->y[2], b->z[2], b->x[3], b->y[3], b->z[3], &nx2, &ny2, &nz2, &d2);
+    if (!((nx1 == nx2) && (ny1 == ny2) && (nz1 == nz2) && (d1 == d2))) return 0;
+    return 1;
 }
 
 static int optimize_part(partbuild_t* pb)
@@ -737,7 +748,7 @@ static void render_world(void)
     /* prepare scene for rendering */
     glClearColor(0.1, 0.12, 0.2, 1.0);
     glClearStencil(0);
-    if (draw_wire)
+    if (draw_wire || active_screen->do_clear)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     else
         glClear(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
@@ -877,7 +888,9 @@ static void render_world(void)
                         }
                     }
                 }
-                //cls->visible = 0;
+#ifndef DEBUG_DRAW_PICK_DATA
+                cls->visible = 0;
+#endif
             }
         }
     }
@@ -1339,10 +1352,6 @@ static void run(void)
     ent = ent_new();
     ent_set_model(ent, mdl_gun);
     ent_move(ent, 26*CELLSIZE*32.0, -128*32.0, 10*CELLSIZE*32.0);
-
-    for (y=0; y<map_height; y++)
-            for (x=0; x<map_width; x++)
-                map_update_cell(x, y);
 
     calc_campoints(sqrt(256*256 + 256*256));
     lmap_update();

@@ -34,6 +34,7 @@
 
 typedef struct _screen_t
 {
+    int do_clear;
     int draw_gui;
     int draw_world;
     int draw_mouse;
