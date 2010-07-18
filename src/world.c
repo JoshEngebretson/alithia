@@ -34,6 +34,7 @@ int cluster_width;
 int cluster_height;
 lmap_texel_t* lightmap;
 GLuint lmaptex;
+int lmap_needs_update;
 
 model_t* mdl_vytio;
 model_t* mdl_armor;
@@ -161,6 +162,11 @@ void map_update_cell(int x, int y)
 
     invalidate_cluster(cx, cy);
 
+    if (cell[y*map_width + x].floorz == cell[y*map_width +x ].ceilz)
+        cell[y*map_width + x].flags |= CF_OCCLUDER;
+    else
+        cell[y*map_width + x].flags &= ~CF_OCCLUDER;
+
     addr = y*map_width + x;
     if (cell[y*map_width + x].flags & CF_OCCLUDER)
         ocmap[(addr>>3)] |= 1 << (addr&7);
@@ -172,6 +178,8 @@ void map_update_cell(int x, int y)
     if (y > 0 && (y - 1)/CLUSTERSIZE != cy) invalidate_cluster(cx, cy - 1);
     if (x < map_width - 1 && (x + 1)/CLUSTERSIZE != cx) invalidate_cluster(cx + 1, cy);
     if (y < map_height - 1 && (y + 1)/CLUSTERSIZE != cy) invalidate_cluster(cx, cy + 1);
+
+    lmap_needs_update = 1;
 }
 
 void ray_march(int x1, int y1, int x2, int y2, int (*func)(int x, int y, cell_t* cell, void* data), void* data)
@@ -193,19 +201,19 @@ void ray_march(int x1, int y1, int x2, int y2, int (*func)(int x, int y, cell_t*
         y = y1;
         if (steep) {
             for (x = x1; x > x2; x--) {
-                if (!func(y, x, cell + x*map_width + y, data)) return;
+                if (!func(y, x, cell + (x*map_width + y), data)) return;
                 error -= dy;
                 if (error < 0) {
-                    y += ystep;
+                    y -= ystep;
                     error += dx;
                 }
             }
         } else {
             for (x = x1; x > x2; x--) {
-                if (!func(x, y, cell + y*map_width + x, data)) return;
+                if (!func(x, y, cell + (y*map_width + x), data)) return;
                 error -= dy;
                 if (error < 0) {
-                    y += ystep;
+                    y -= ystep;
                     error += dx;
                 }
             }
@@ -218,7 +226,7 @@ void ray_march(int x1, int y1, int x2, int y2, int (*func)(int x, int y, cell_t*
         y = y1;
         if (steep) {
             for (x = x1; x < x2; x++) {
-                if (!func(y, x, cell + x*map_width + y, data)) return;
+                if (!func(y, x, cell + (x*map_width + y), data)) return;
                 error -= dy;
                 if (error < 0) {
                     y += ystep;
@@ -227,7 +235,7 @@ void ray_march(int x1, int y1, int x2, int y2, int (*func)(int x, int y, cell_t*
             }
         } else {
             for (x = x1; x < x2; x++) {
-                if (!func(x, y, cell + y*map_width + x, data)) return;
+                if (!func(x, y, cell + (y*map_width + x), data)) return;
                 error -= dy;
                 if (error < 0) {
                     y += ystep;
@@ -236,6 +244,85 @@ void ray_march(int x1, int y1, int x2, int y2, int (*func)(int x, int y, cell_t*
             }
         }
     }
+}
+
+static int pick_rm_func(int x, int y, cell_t* cell, void* data)
+{
+    pickdata_t* pd = data;
+    size_t i;
+    int cx, cy;
+    cluster_t* cls;
+    vector_t ip;
+    float ipad;
+    if (x < 0 || y < 0 || x >= map_width || y >= map_height) return 0;
+    cx = x/CLUSTERSIZE;
+    cy = y/CLUSTERSIZE;
+    cls = &cluster[cy*cluster_width + cx];
+#ifdef DEBUG_DRAW_PICK
+    glColor3f(0, 0, 1);
+    glBegin(GL_QUADS);
+    glVertex3f(x*CELLSIZE, -126, y*CELLSIZE);
+    glVertex3f(x*CELLSIZE + CELLSIZE, -126, y*CELLSIZE);
+    glVertex3f(x*CELLSIZE + CELLSIZE, -126, y*CELLSIZE + CELLSIZE);
+    glVertex3f(x*CELLSIZE, -126, y*CELLSIZE + CELLSIZE);
+    glEnd();
+#endif
+    if (cls == pd->lastcluster) return 1;
+    pd->lastcluster = cls;
+    for (i=0; i<cls->tris; i++) {
+        if (ray_tri_intersection(cls->tri + i, pd->a, pd->b, &ip)) {
+            ipad = vec_distsq(pd->a, &ip);
+            if (pd->nopick || ipad < pd->ipad) {
+                pd->nopick = 0;
+                pd->ip = ip;
+                pd->ipad = ipad;
+                pd->cluster_x = cx;
+                pd->cluster_y = cy;
+                pd->cluster = cls;
+                pd->cell = &cell[y*map_width + x];
+                pd->cellx = x;
+                pd->celly = y;
+                pd->result = PICK_WORLD;
+                pd->tri = cls->tri[i];
+            }
+        }
+    }
+    return 1;
+}
+
+int pick(vector_t* a, vector_t* b, pickdata_t* pd)
+{
+    pd->a = a;
+    pd->b = b;
+    pd->nopick = 1;
+    pd->lastcluster = NULL;
+    /*{
+        int x, y;
+        for (y=0; y<map_height; y++)
+            for (x=0; x<map_width; x++)
+                pick_rm_func(x, y, &cell[y*map_width + x], pd);
+    }*/
+    ray_march(a->x/CELLSIZE, a->z/CELLSIZE, b->x/CELLSIZE, b->z/CELLSIZE, pick_rm_func, pd);
+    if (pd->result) return pd->result;
+    pd->result = 0;
+    return pd->result;
+}
+
+static int light_vfc_proc(int x, int y, cell_t* cell, void* data)
+{
+    int* flag = data;
+    if (cell->flags & CF_OCCLUDER) {
+        *flag = 0;
+        return 0;
+    }
+    return 1;
+}
+
+static int light_visible_from_cell(light_t* l, int cx, int cy)
+{
+    int r = 1;
+    ray_march(((int)l->x)/CELLSIZE, ((int)l->z)/CELLSIZE, cx, cy, light_vfc_proc, &r);
+    return r;
 }
 
 static void calc_lightmap_for_cell_at(float* or, float* og, float* ob, int mx, int my)
@@ -249,8 +336,10 @@ static void calc_lightmap_for_cell_at(float* or, float* og, float* ob, int mx, i
 
     for (le=lights->first; le; le=le->next) {
         light_t* l = le->ptr;
-        float dist = sqrt(SQR(cx - l->x) + SQR(cz - l->z));
+        float dist;
+        dist = sqrt(SQR(cx - l->x) + SQR(cz - l->z));
         if (dist < l->rad) {
+            if (!light_visible_from_cell(l, mx, my)) continue;
             if (dist < l->rad*0.65f) {
                 r += l->r;
                 g += l->g;
@@ -331,6 +420,7 @@ void lmap_update(void)
     glBindTexture(GL_TEXTURE_2D, lmaptex);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, map_width, map_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, lightmap);
     printf("%s\n", gluErrorString(glGetError()));
+    lmap_needs_update = 0;
 }
 
 light_t* light_new(float x, float y, float z, float r, float g, float b, float rad)
@@ -344,6 +434,7 @@ light_t* light_new(float x, float y, float z, float r, float g, float b, float r
     light->b = b;
     light->rad = rad;
     list_add(lights, light);
+    lmap_needs_update = 1;
     return light;
 }
 
@@ -351,6 +442,7 @@ void light_free(light_t* light)
 {
     list_remove(lights, light, 0);
     free(light);
+    lmap_needs_update = 1;
 }
 
 entity_t* ent_new(void)

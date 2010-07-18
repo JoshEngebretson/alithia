@@ -118,6 +118,9 @@ void do_layout(uicontrol_t* win)
 
 void gui_init(void)
 {
+    uiroot = uiroot_new();
+    uiroot_set(uiroot);
+    /*
     uicontrol_t* win;
     uicontrol_t* lbl;
     uicontrol_t* btn;
@@ -143,6 +146,7 @@ void gui_init(void)
     ted = uieditor_new(win, 0.02*hw_ratio, 0.02, win->w - 0.04*hw_ratio, win->h - FONTSIZE*1.3 - 0.04);
     win->layout = do_layout;
     win->userdata = ted;
+    */
 }
 
 void gui_render(void)
@@ -363,6 +367,21 @@ void uictl_mouse_position(uicontrol_t* ctl, float* x, float* y)
     *y = mouse_y;
     uictl_screen_to_local(ctl, x, y);
 }
+
+/* Root */
+uicontrol_t* uiroot_new(void)
+{
+    return uictl_new(NULL);
+}
+
+uicontrol_t* uiroot_set(uicontrol_t* newroot)
+{
+    uicontrol_t* prev = uiroot;
+    uiroot = newroot;
+    uictl_place(uiroot, -1, -1, 2, 2);
+    return prev;
+}
+
 
 /* Top-level windows */
 #define WINF_MOVING 0x0001

@@ -31,6 +31,10 @@
 #define CF_OCCLUDER 0x00000001
 #define CF_HEIGHTMAP 0x00000002
 
+#define PICK_NOTHING 0
+#define PICK_WORLD 1
+#define PICK_ENTITY 2
+
 typedef struct _light_t
 {
     float x, y, z;
@@ -71,7 +75,8 @@ typedef struct _cluster_t
     int visible;
     clusterpart_t* part;
     int parts;
-    int vertices;
+    triangle_t* tri;
+    size_t tris;
     list_t* ents;
     float x1, y1, z1, x2, y2, z2;
 } cluster_t;
@@ -80,6 +85,23 @@ typedef struct _lmap_texel_t
 {
     unsigned char r, g, b, x;
 } lmap_texel_t;
+
+typedef struct _pickdata_t
+{
+    vector_t ip; /* interection point */
+    int result; /* one of PICK_xxx */
+    entity_t* entity; /* picked entity for PICK_ENTITY */
+    int cluster_x, cluster_y; /* cluster coords where picking was done */
+    cluster_t* cluster; /* cluster at the above coords */
+    cell_t* cell; /* cell for PICK_WORLD */
+    int cellx, celly; /* coords for above */
+    triangle_t tri; /* triangle for PICK_WORLD */
+    vector_t* a; /* passed in pick */
+    vector_t* b; /* passed in pick */
+    int nopick;
+    cluster_t* lastcluster;
+    float ipad; /* ip-to-a distance (squared) */
+} pickdata_t;
 
 extern cell_t* cell;
 extern char* ocmap;
@@ -92,12 +114,14 @@ extern int cluster_width;
 extern int cluster_height;
 extern lmap_texel_t* lightmap;
 extern GLuint lmaptex;
+extern int lmap_needs_update;
 
 void map_init(int width, int height);
 void map_free(void);
 void map_update_cell(int x, int y);
 
 void ray_march(int x1, int y1, int x2, int y2, int (*func)(int x, int y, cell_t* cell, void* data), void* data);
+int pick(vector_t* a, vector_t* b, pickdata_t* pd);
 
 void lmap_update(void);
 

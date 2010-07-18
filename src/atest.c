@@ -64,16 +64,18 @@ int statlen = 0;
 int millis = 0;
 uint32_t mark;
 uint32_t frames = 0;
-uint32_t calls = 0;
-uint32_t vertices = 0;
 int key[1024];
+int button[16];
 int pntx[MAX_POINTS], pnty[MAX_POINTS];
 int pntc = 0;
 int camx = 0, camy = 0;
 int down = 0;
+int edit_mode = 0;
 int gui_mode = 0;
 float mouse_x = 0;
 float mouse_y = 0;
+int mouse_sx = 0;
+int mouse_sy = 0;
 int draw_wire = 0;
 float plx, ply, plz, pla, pll;
 texture_t* tex_bricks;
@@ -87,6 +89,8 @@ float frustum[6][4];
 float proj[16];
 float modl[16];
 float clip[16];
+vector_t centeraya, centerayb;
+screen_t* gamescreen;
 
 static void process_events(void)
 {
@@ -96,44 +100,32 @@ static void process_events(void)
         case SDL_MOUSEMOTION:
             mouse_x = ((float)ev.motion.x/(float)vid_width)*2.0 - 1.0;
             mouse_y = 1.0 - ((float)ev.motion.y/(float)vid_height)*2.0;
-            if (!gui_mode) {
-                pla -= ev.motion.xrel/10.0;
-                pll -= ev.motion.yrel/10.0;
-                if (pll > 60) pll = 60;
-                if (pll < -60) pll = -60;
-            }
-            break;
-        case SDL_MOUSEBUTTONDOWN:
-            down = 1;
-            break;
-        case SDL_MOUSEBUTTONUP:
-            down = 0;
+            mouse_sx = ev.motion.x;
+            mouse_sy = ev.motion.y;
             break;
         case SDL_KEYDOWN:
-            if (ev.key.keysym.sym == SDLK_F11) {
-                SDL_WM_GrabInput(SDL_GRAB_OFF);
-            }
             if (ev.key.keysym.sym == SDLK_F10) running = 0;
-            if (ev.key.keysym.sym == SDLK_ESCAPE) {
-                gui_mode = !gui_mode;
-                if (gui_mode)
-                    SDL_WM_GrabInput(SDL_GRAB_OFF);
-                else
-                    SDL_WM_GrabInput(SDL_GRAB_ON);
-            }
-            if (!gui_mode) {
-                if (ev.key.keysym.sym == SDLK_q) draw_wire = !draw_wire;
+            if (ev.key.keysym.sym < 1024)
                 key[ev.key.keysym.sym] = 1;
-            }
             break;
         case SDL_KEYUP:
-            if (!gui_mode) key[ev.key.keysym.sym] = 0;
+            if (ev.key.keysym.sym < 1024)
+                key[ev.key.keysym.sym] = 0;
+            break;
+        case SDL_MOUSEBUTTONDOWN:
+            if (ev.button.button < 16)
+                button[ev.button.button] = 1;
+            break;
+        case SDL_MOUSEBUTTONUP:
+            if (ev.button.button < 16)
+                button[ev.button.button] = 0;
             break;
         case SDL_QUIT:
             running = 0;
             break;
         }
-        if (gui_mode)
+        screen_send(active_screen, SMS_SDL_EVENT, &ev);
+        if (active_screen->draw_gui)
             gui_handle_event(&ev);
     }
 }
@@ -232,7 +224,7 @@ static void ray_march_for_vis(int x1, int y1, int x2, int y2)
                 if (!proc_map(y, x)) return;
                 error -= dy;
                 if (error < 0) {
-                    y += ystep;
+                    y -= ystep;
                     error += dx;
                 }
             }
@@ -241,7 +233,7 @@ static void ray_march_for_vis(int x1, int y1, int x2, int y2)
                 if (!proc_map(x, y)) return;
                 error -= dy;
                 if (error < 0) {
-                    y += ystep;
+                    y -= ystep;
                     error += dx;
                 }
             }
@@ -274,8 +266,7 @@ static void ray_march_for_vis(int x1, int y1, int x2, int y2)
     }
 }
 
-static void cell_vertices(cell_t* c, int x, int y, float* vx, float* vy,
-    float* vz, int floor)
+void cell_vertices(cell_t* c, int x, int y, float* vx, float* vy, float* vz, int floor)
 {
     vx[0] = x * CELLSIZE;
     vy[0] = floor ? c->floorz : c->ceilz;
@@ -416,7 +407,7 @@ static void draw_cell(cell_t* c, int cx, int cy)
     }
 }
 
-static void plane_from_three_points(float x1, float y1, float z1, float x2,
+static void plane_from_three_points2(float x1, float y1, float z1, float x2,
     float y2, float z2, float x3, float y3, float z3, float* nx, float* ny,
     float* nz, float* d)
 {
@@ -443,8 +434,8 @@ static int same_plane(geoquad_t* a, geoquad_t* b)
 {
     float nx1, ny1, nz1, d1;
     float nx2, ny2, nz2, d2;
-    plane_from_three_points(a->x[0], a->y[0], a->z[0], a->x[1], a->y[1], a->z[1], a->x[2], a->y[2], a->z[2], &nx1, &ny1, &nz1, &d1);
-    plane_from_three_points(b->x[0], b->y[0], b->z[0], b->x[1], b->y[1], b->z[1], b->x[2], b->y[2], b->z[2], &nx2, &ny2, &nz2, &d2);
+    plane_from_three_points2(a->x[0], a->y[0], a->z[0], a->x[1], a->y[1], a->z[1], a->x[2], a->y[2], a->z[2], &nx1, &ny1, &nz1, &d1);
+    plane_from_three_points2(b->x[0], b->y[0], b->z[0], b->x[1], b->y[1], b->z[1], b->x[2], b->y[2], b->z[2], &nx2, &ny2, &nz2, &d2);
     return (nx1 == nx2) && (ny1 == ny2) && (nz1 == nz2) && (d1 == d2);
 }
 
@@ -729,14 +720,16 @@ static int box_in_frustum(float x1, float y1, float z1, float x2, float y2,
     return 1;
 }
 
-static void update(void)
+static void render_world(void)
 {
     static int init_frames = 10;
     int x, y, i;
     entity_t* e[1024];
     int ec = 0;
-    float pmtx[16];
-    float vmtx[16];
+    GLint vport[4];
+    double pmtx[16];
+    double vmtx[16];
+    double winx, winy, objx1, objy1, objz1, objx2, objy2, objz2;
     float pos[] = { 0, 1, 0, 0 };
     float amb[] = { 0.9, 0.9, 0.9, 1.0 };
     float col[] = { 0.9, 0.9, 0.9, 1.0 };
@@ -751,19 +744,20 @@ static void update(void)
 
     if (init_frames)
         init_frames--;
-#if 1
+
     /* prepare for rendering the perspective from camera */
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     gluPerspective(60.0, wh_ratio, 1.0, 65536.0);
-    glGetFloatv(GL_PROJECTION_MATRIX, pmtx);
+    glGetDoublev(GL_PROJECTION_MATRIX, pmtx);
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
     glRotatef(-pll, 1, 0, 0);
     glRotatef(-pla, 0, 1, 0);
     glTranslatef(-plx, -ply-goffy*1.5, -plz);
-    glGetFloatv(GL_MODELVIEW_MATRIX, vmtx);
+    glGetDoublev(GL_MODELVIEW_MATRIX, vmtx);
     glColor3f(1, 1, 1);
+    glGetIntegerv(GL_VIEWPORT, vport);
 
     camx = plx/CELLSIZE;
     camy = plz/CELLSIZE;
@@ -785,8 +779,6 @@ static void update(void)
 
     if (draw_wire)
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-
-    calls += 10;
 
     /* fill the buckets with the world geometry */
     for (y = 0; y < cluster_height; y++) {
@@ -820,11 +812,14 @@ static void update(void)
                     }
                     optimize_parts();
                     if (pb) {
+                        free(cls->tri);
+                        cls->tri = NULL;
+                        cls->tris = 0;
                         cls->part = malloc0(sizeof(clusterpart_t) * pbc);
                         cls->parts = pbc;
-                        cls->vertices = 0;
                         for (i = 0; i < pbc; i++) {
                             int j;
+                            cls->tri = realloc(cls->tri, sizeof(triangle_t)*(cls->tris + pb[i].qc*2));
                             cls->part[i].dl = glGenLists(1);
                             cls->part[i].tex = pb[i].tex;
                             glNewList(cls->part[i].dl, GL_COMPILE);
@@ -834,18 +829,37 @@ static void update(void)
                                 int v;
                                 if (q->ignore) continue;
 
-                                cls->vertices += 4;
-
                                 for (v=0; v<4; v++) {
                                     glMultiTexCoord2f(GL_TEXTURE0, q->u[v], q->v[v]);
                                     glMultiTexCoord2f(GL_TEXTURE1, q->x[v]/(float)map_width/CELLSIZE, q->z[v]/(float)map_height/CELLSIZE);
                                     glVertex3f(q->x[v], q->y[v], q->z[v]);
-                                    calls += 3;
+
                                 }
+
+                                cls->tri[cls->tris].v[0].x = q->x[0];
+                                cls->tri[cls->tris].v[0].y = q->y[0];
+                                cls->tri[cls->tris].v[0].z = q->z[0];
+                                cls->tri[cls->tris].v[1].x = q->x[1];
+                                cls->tri[cls->tris].v[1].y = q->y[1];
+                                cls->tri[cls->tris].v[1].z = q->z[1];
+                                cls->tri[cls->tris].v[2].x = q->x[2];
+                                cls->tri[cls->tris].v[2].y = q->y[2];
+                                cls->tri[cls->tris].v[2].z = q->z[2];
+                                cls->tris++;
+                                cls->tri[cls->tris].v[0].x = q->x[0];
+                                cls->tri[cls->tris].v[0].y = q->y[0];
+                                cls->tri[cls->tris].v[0].z = q->z[0];
+                                cls->tri[cls->tris].v[1].x = q->x[2];
+                                cls->tri[cls->tris].v[1].y = q->y[2];
+                                cls->tri[cls->tris].v[1].z = q->z[2];
+                                cls->tri[cls->tris].v[2].x = q->x[3];
+                                cls->tri[cls->tris].v[2].y = q->y[3];
+                                cls->tri[cls->tris].v[2].z = q->z[3];
+                                cls->tris++;
                             }
                             glEnd();
                             glEndList();
-                            calls += 4;
+
                             free(pb[i].q);
                         }
                         free(pb);
@@ -853,7 +867,6 @@ static void update(void)
                 }
                 for (i = 0; i < cls->parts; i++)
                     add_list_to_bucket(cls->part[i].tex, cls->part[i].dl, NULL);
-                vertices += cls->vertices;
 
                 if (cls->ents->first) {
                     listitem_t* item;
@@ -861,11 +874,10 @@ static void update(void)
                         entity_t* en = item->ptr;
                         if (en->mdl) { /* TODO: use a separate list for models only */
                             e[ec++] = en;
-                            vertices += en->mdl->fc*3*2;
                         }
                     }
                 }
-                cls->visible = 0;
+                //cls->visible = 0;
             }
         }
     }
@@ -919,22 +931,16 @@ static void update(void)
     }
 
     glEnable(GL_LIGHT0);
-    calls++;
     glLightfv(GL_LIGHT0, GL_POSITION, pos);
-    calls++;
 
     /* render buckets */
     glActiveTexture(GL_TEXTURE1);
     glEnable(GL_TEXTURE_2D);
-    calls++;
     glBindTexture(GL_TEXTURE_2D, lmaptex);
-    calls++;
     glActiveTexture(GL_TEXTURE0);
-    calls++;
     for (i = 0; i < buckets; i++)
         if (bucket[i].dlc) {
             int j;
-            calls++;
             glBindTexture(GL_TEXTURE_2D, bucket[i].tex->name);
             for (j = 0; j < bucket[i].dlc; j++) {
                 if (bucket[i].dlmtx[j]) {
@@ -961,19 +967,92 @@ static void update(void)
                     glActiveTexture(GL_TEXTURE1);
                     glEnable(GL_TEXTURE_2D);
                     glActiveTexture(GL_TEXTURE0);
-                    calls += 14;
                 } else {
                     glCallList(bucket[i].dl[j]);
-                    calls++;
                 }
             }
             bucket[i].dlc = 0;
         }
     glActiveTexture(GL_TEXTURE0);
-    calls++;
 
     if (draw_wire)
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
+    /* calculate picking ray */
+    if (active_screen->draw_gui || active_screen->draw_mouse) {
+        winx = mouse_sx;
+        winy = vport[3] - mouse_sy;
+    } else {
+        winx = vport[2] / 2;
+        winy = vport[3] / 2;
+    }
+    gluUnProject(winx, winy, 0, vmtx, pmtx, vport, &objx1, &objy1, &objz1);
+    gluUnProject(winx, winy, 1, vmtx, pmtx, vport, &objx2, &objy2, &objz2);
+    centerayb.x = objx2 - objx1;
+    centerayb.y = objy2 - objy1;
+    centerayb.z = objz2 - objz1;
+    vec_normalize(&centerayb);
+    centerayb.x *= 10000;
+    centerayb.y *= 10000;
+    centerayb.z *= 10000;
+    centeraya.x = plx;
+    centeraya.y = ply;
+    centeraya.z = plz;
+    centerayb.x += plx;
+    centerayb.y += ply;
+    centerayb.z += plz;
+#ifdef DEBUG_DRAW_PICK_DATA
+    glColor3f(0.6,0.6,0.6);
+    glActiveTexture(GL_TEXTURE0);
+    glDisable(GL_TEXTURE_2D);
+    glActiveTexture(GL_TEXTURE1);
+    glDisable(GL_TEXTURE_2D);
+    glDisable(GL_CULL_FACE);
+    glClear(GL_DEPTH_BUFFER_BIT);
+    {
+        pickdata_t pd;
+        if (pick(&centeraya, &centerayb, &pd)) {
+            glColor3f(0.2, 1, 0.2);
+            glBegin(GL_TRIANGLES);
+            glVertex3fv(&pd.tri.v[0].x);
+            glVertex3fv(&pd.tri.v[1].x);
+            glVertex3fv(&pd.tri.v[2].x);
+            glEnd();
+            glColor3f(1, 0.2, 0.2);
+            glBegin(GL_QUADS);
+            glVertex3f(pd.ip.x - 5, pd.ip.y - 5, pd.ip.z);
+            glVertex3f(pd.ip.x + 5, pd.ip.y - 5, pd.ip.z);
+            glVertex3f(pd.ip.x + 5, pd.ip.y + 5, pd.ip.z);
+            glVertex3f(pd.ip.x - 5, pd.ip.y + 5, pd.ip.z);
+            glVertex3f(pd.ip.x, pd.ip.y - 5, pd.ip.z - 5);
+            glVertex3f(pd.ip.x, pd.ip.y - 5, pd.ip.z + 5);
+            glVertex3f(pd.ip.x, pd.ip.y + 5, pd.ip.z + 5);
+            glVertex3f(pd.ip.x, pd.ip.y + 5, pd.ip.z - 5);
+            glEnd();
+        }
+    }
+    glColor3f(1, 1, 1);
+    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
+    glBegin(GL_TRIANGLES);
+    for (y = 0; y < cluster_height; y++) {
+        for (x = 0; x < cluster_width; x++) {
+            cluster_t* cls = cluster + y * cluster_width + x;
+            /* inside */
+            if (cls->visible || init_frames > 0) {
+                size_t i;
+                for (i=0; i<cls->tris; i++) {
+                    glVertex3fv(&cls->tri[i].v[0].x);
+                    glVertex3fv(&cls->tri[i].v[1].x);
+                    glVertex3fv(&cls->tri[i].v[2].x);
+                }
+                cls->visible = 0;
+            }
+        }
+    }
+    glEnd();
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+#endif
 
     /* render shadows in the stencil buffer */
     glDisable(GL_LIGHTING);
@@ -985,7 +1064,6 @@ static void update(void)
     glEnable(GL_STENCIL_TEST);
     glStencilFunc(GL_ALWAYS, 1, 1);
     glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
-    calls += 9;
 
     for (i = 0; i < ec; i++) {
         entity_t* ent = e[i];
@@ -995,13 +1073,14 @@ static void update(void)
         glTranslatef((float) ent->x / 32.0, shadow_y, (float) ent->z / 32.0);
         glCallList(ent->mdl->dlshadow);
         glPopMatrix();
-        calls += 4;
     }
 
     /* draw fullscreen quad using the stencil buffer to affect only shadows */
     glMatrixMode(GL_PROJECTION);
+    glPushMatrix();
     glLoadIdentity();
     glMatrixMode(GL_MODELVIEW);
+    glPushMatrix();
     glLoadIdentity();
 
     glColorMask(1, 1, 1, 1);
@@ -1019,68 +1098,26 @@ static void update(void)
     glVertex2d(1, 1);
     glVertex2d(-1, 1);
     glEnd();
-    vertices += 4;
 
     glDisable(GL_BLEND);
     glDepthMask(1);
     glDisable(GL_STENCIL_TEST);
     glDisable(GL_POLYGON_OFFSET_FILL);
 
-    {
-        float xx = camx*CELLSIZE;
-        float yy = -CELLSIZE*20;
-        float zz = camy*CELLSIZE;
-        glColor4f(1, 1, 1, 1);
-        glDisable(GL_CULL_FACE);
-        glDisable(GL_DEPTH_TEST);
-        glActiveTexture(GL_TEXTURE1);
-        glDisable(GL_TEXTURE_2D);
-        glActiveTexture(GL_TEXTURE0);
-        glDisable(GL_TEXTURE_2D);
-        glBegin(GL_QUADS);
-        glVertex3d(xx, yy, zz);
-        glVertex3d(xx, yy, zz + CELLSIZE);
-        glVertex3d(xx + CELLSIZE, yy, zz + CELLSIZE);
-        glVertex3d(xx + CELLSIZE, yy, zz);
-        glEnd();
-//        printf("%0.3f %0.3f %0.3f \n", xx, yy, zz);
-    }
-
-    calls += 20;
-
-    /* draw the gun */
-    glClear(GL_DEPTH_BUFFER_BIT);
     glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-    gluPerspective(60.0, wh_ratio, 1.0, 65536.0);
+    glPopMatrix();
     glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity();
-    glRotatef(180, 0, 1, 0);
-    glRotatef(pll/23, 1, 0, 0);
-    glTranslatef(-13+goffx, -23+pll/20-3+goffy, 38);
+    glPopMatrix();
+}
 
-    glActiveTexture(GL_TEXTURE1);
-    glDisable(GL_TEXTURE_2D);
-    glActiveTexture(GL_TEXTURE0);
-    glEnable(GL_TEXTURE_2D);
-    glEnable(GL_DEPTH_TEST);
-    glBindTexture(GL_TEXTURE_2D, mdl_gun->tex->name);
-    glColor3f((float)lightmap[camy*map_width + camx].r/255.0 + 0.2 + 0.1*sin(pla*PI/90),
-        (float)lightmap[camy*map_width + camx].g/255.0 + 0.2 + 0.1*sin(pla*PI/90),
-        (float)lightmap[camy*map_width + camx].b/255.0 + 0.2 + 0.1*sin(pla*PI/90));
-    if (mdl_gun->dl)  glCallList(mdl_gun->dl);
-    calls += 18;
-
+static void render_hud(void)
+{
     /* reset transformations */
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
-#else
-    glClear(GL_COLOR_BUFFER_BIT);
-    gui_mode = 1;
-#endif
-    /* hud */
+
     glActiveTexture(GL_TEXTURE1);
     glDisable(GL_TEXTURE_2D);
     glActiveTexture(GL_TEXTURE0);
@@ -1091,8 +1128,9 @@ static void update(void)
     font_render(font_normal, -1, 1 - 0.06, status, statlen, 0.06);
 
     /* overlay gui */
-    if (gui_mode) {
-        gui_render();
+    if (active_screen->draw_mouse || active_screen->draw_gui) {
+        if (active_screen->draw_gui)
+            gui_render();
 
         glColor4f(1, 1, 1, 1);
         glEnable(GL_BLEND);
@@ -1110,22 +1148,27 @@ static void update(void)
         glEnd();
         glDisable(GL_BLEND);
     }
+}
+
+static void render(void)
+{
+    if (active_screen->draw_world)
+        render_world();
+    screen_send(active_screen, SMS_RENDER, NULL);
+    render_hud();
 
     /* present the backbuffer to the screen */
     SDL_GL_SwapBuffers();
-    calls++;
 
     /* FPS calculation */
     if (++frames == 10) {
         uint32_t ticks = SDL_GetTicks();
         double diff = ((double) (ticks - mark)) / 10.0;
-        sprintf(status, "%0.2f FPS (%0.2f ms/frame)\n%i calls %i vertices", (float) (1000.0
-            / diff), diff, calls / 10, vertices / 10);
+        sprintf(status, "%0.2f FPS (%0.2f ms/frame)", (float) (1000.0
+            / diff), diff);
         statlen = strlen(status);
         mark = SDL_GetTicks();
         frames = 0;
-        calls = 0;
-        vertices = 0;
     }
 
     ((entity_t*) ents->last->ptr)->yrot = SDL_GetTicks() * 15;
@@ -1147,7 +1190,7 @@ static int collides(void)
     return 0;
 }
 
-static void move_towards(float ix, float iy, float iz)
+void move_towards(float ix, float iy, float iz)
 {
     plx += ix;
     if (collides()) plx -= ix;
@@ -1158,6 +1201,12 @@ static void move_towards(float ix, float iy, float iz)
 }
 
 static void update_game(float ms)
+{
+    screen_send(active_screen, SMS_UPDATE, &ms);
+}
+
+/* Game screen */
+static void gamescreen_update(float ms)
 {
     float floorz = cell[camy*map_width + camx].floorz;
     int goffup = 0;
@@ -1186,6 +1235,17 @@ static void update_game(float ms)
         goffv = 0;
     }
 
+    if (ply - 48 > floorz) {
+        ply -= ms*0.5;
+        if (ply - 48 < floorz)
+            ply = floorz + 48;
+    }
+    if (ply - 48 < floorz) {
+        ply += ms;
+        if (ply - 48 > floorz)
+            ply = floorz + 48;
+    }
+    /*
     if (floorz > ply + 48) {
         ply += ms*4;
         if (ply > floorz + 48) ply = floorz + 48;
@@ -1193,7 +1253,73 @@ static void update_game(float ms)
     if (floorz < ply + 48) {
         ply -= ms;
         if (ply < floorz + 48) ply = floorz + 48;
+    }*/
+}
+
+static void gamescreen_sdl_event(SDL_Event ev)
+{
+    switch (ev.type) {
+    case SDL_MOUSEMOTION:
+        pla -= ev.motion.xrel/10.0;
+        pll -= ev.motion.yrel/10.0;
+        if (pll > 60) pll = 60;
+        if (pll < -60) pll = -60;
+        break;
+    case SDL_KEYDOWN:
+        if (ev.key.keysym.sym == SDLK_q) draw_wire = !draw_wire;
+        if (ev.key.keysym.sym == SDLK_e) {
+            screen_set(editorscreen);
+            break;
+        }
+        break;
     }
+}
+
+static void gamescreen_render(void)
+{
+    /* draw the gun */
+    glClear(GL_DEPTH_BUFFER_BIT);
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+    glRotatef(180, 0, 1, 0);
+    glRotatef(pll/23, 1, 0, 0);
+    glTranslatef(-13+goffx, -23+pll/20-3+goffy, 38);
+
+    glActiveTexture(GL_TEXTURE1);
+    glDisable(GL_TEXTURE_2D);
+    glActiveTexture(GL_TEXTURE0);
+    glEnable(GL_TEXTURE_2D);
+    glEnable(GL_DEPTH_TEST);
+    glBindTexture(GL_TEXTURE_2D, mdl_gun->tex->name);
+    glColor3f((float)lightmap[camy*map_width + camx].r/255.0 + 0.2 + 0.1*sin(pla*PI/90),
+        (float)lightmap[camy*map_width + camx].g/255.0 + 0.2 + 0.1*sin(pla*PI/90),
+        (float)lightmap[camy*map_width + camx].b/255.0 + 0.2 + 0.1*sin(pla*PI/90));
+    if (mdl_gun->dl)  glCallList(mdl_gun->dl);
+}
+
+static int gamescreen_proc(screen_t* scr, int msg, void* data)
+{
+    switch (msg) {
+    case SMS_INIT:
+        scr->draw_world = 1;
+        break;
+    case SMS_SDL_EVENT:
+        gamescreen_sdl_event(*((SDL_Event*)data));
+        break;
+    case SMS_UPDATE:
+        gamescreen_update(*((float*)data));
+        break;
+    case SMS_RENDER:
+        gamescreen_render();
+        break;
+    }
+    return 0;
+}
+
+static void gamescreen_init(void)
+{
+    gamescreen = screen_new(gamescreen_proc, NULL);
+    screen_set(gamescreen);
 }
 
 static void run(void)
@@ -1224,6 +1350,8 @@ static void run(void)
     ply = -128+48;
     plz = (map_width*CELLSIZE)*0.5;
 
+    gamescreen_init();
+
     mark = SDL_GetTicks();
     millis = mark;
     while (running) {
@@ -1240,7 +1368,7 @@ static void run(void)
         }
         if (error != GL_NONE) printf("GL error: %s\n", gluErrorString(error));
         process_events();
-        update();
+        render();
     }
 }
 
@@ -1252,9 +1380,12 @@ int main(int _argc, char *_argv[])
     if (!vid_init()) return 1;
     font_init();
     gui_init();
+    editor_init();
 
     run();
 
+    editor_shutdown();
+    screen_free(gamescreen);
     gui_shutdown();
     font_shutdown();
     vid_shutdown();

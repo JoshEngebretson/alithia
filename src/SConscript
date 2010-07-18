@@ -1,8 +1,8 @@
 Import('*')
 
 env.Append(LIBS = ['m'])
-env.Append(CFLAGS = ['-Wall', '-O3', '-fomit-frame-pointer', '-ffast-math'])
-#env.Append(CFLAGS = ['-Wall', '-g3'])
+#env.Append(CFLAGS = ['-Wall', '-O3', '-fomit-frame-pointer', '-ffast-math'])
+env.Append(CFLAGS = ['-Wall', '-g3'])
 
 if target == 'win32':
     env.Append(LIBS = ['SDL', 'opengl32', 'glu32', 'gdi32'])

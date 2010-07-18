@@ -80,6 +80,10 @@ void uictl_screen_to_local(uicontrol_t* ctl, float* x, float* y);
 void uictl_local_to_screen(uicontrol_t* ctl, float* x, float* y);
 void uictl_mouse_position(uicontrol_t* ctl, float* x, float* y);
 
+/* Root */
+uicontrol_t* uiroot_new(void);
+uicontrol_t* uiroot_set(uicontrol_t* newroot);
+
 /* Top-level windows */
 uicontrol_t* uiwin_new(float x, float y, float w, float h, const char* title);
 void uiwin_raise(uicontrol_t* win);

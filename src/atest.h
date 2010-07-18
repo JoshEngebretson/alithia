@@ -41,15 +41,9 @@
 #endif
 #include <SDL/SDL.h>
 
-
-extern int running;
-extern int argc;
-extern char** argv;
-extern float mouse_x;
-extern float mouse_y;
-
 #include "defines.h"
 #include "utils.h"
+#include "mathstuff.h"
 #include "argparse.h"
 #include "vidmode.h"
 #include "textures.h"
@@ -57,5 +51,33 @@ extern float mouse_y;
 #include "gui.h"
 #include "models.h"
 #include "world.h"
+#include "screens.h"
+#include "editor.h"
+
+extern int running;
+extern int argc;
+extern char** argv;
+extern int key[];
+extern int button[];
+extern float mouse_x;
+extern float mouse_y;
+extern screen_t* gamescreen;
+extern int camx, camy;
+extern int down;
+extern float mouse_x;
+extern float mouse_y;
+extern int mouse_sx;
+extern int mouse_sy;
+extern float plx, ply, plz, pla, pll;
+extern float frustum[6][4];
+extern float proj[16];
+extern float modl[16];
+extern float clip[16];
+extern vector_t centeraya, centerayb;
+
+void cell_vertices(cell_t* c, int x, int y, float* vx, float* vy, float* vz, int floor);
+void map_update_cell(int x, int y);
+
+void move_towards(float ix, float iy, float iz);
 
 #endif
