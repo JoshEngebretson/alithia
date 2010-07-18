@@ -271,7 +271,7 @@ static int pick_rm_func(int x, int y, cell_t* cell, void* data)
     if (cls == pd->lastcluster) return 1;
     pd->lastcluster = cls;
     for (i=0; i<cls->tris; i++) {
-        if (ray_tri_intersection(cls->tri + i, pd->a, pd->b, &ip)) {
+        if (ray_tri_intersection(cls->tri + i, pd->a, pd->b, &ip, 0)) {
             ipad = vec_distsq(pd->a, &ip);
             if (pd->nopick || ipad < pd->ipad) {
                 pd->nopick = 0;

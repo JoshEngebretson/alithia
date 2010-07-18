@@ -49,6 +49,6 @@ float vec_distsq(vector_t* a, vector_t* b);
 float vec_dist(vector_t* a, vector_t* b);
 int plane_from_three_points(plane_t* p, vector_t* a, vector_t* b, vector_t* c);
 int ray_plane_intersection(plane_t* p, vector_t* a, vector_t* b, vector_t* ip);
-int ray_tri_intersection(triangle_t* t, vector_t* a, vector_t* b, vector_t* ip);
+int ray_tri_intersection(triangle_t* t, vector_t* a, vector_t* b, vector_t* ip, int dualface);
 
 #endif

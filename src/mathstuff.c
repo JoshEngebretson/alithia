@@ -101,7 +101,7 @@ int ray_plane_intersection(plane_t* p, vector_t* a, vector_t* b, vector_t* ip)
     return 1;
 }
 
-int ray_tri_intersection(triangle_t* t, vector_t* a, vector_t* b, vector_t* ip)
+int ray_tri_intersection(triangle_t* t, vector_t* a, vector_t* b, vector_t* ip, int doublesided)
 {
     plane_t p;
     float abx = t->v[1].x - t->v[0].x;
@@ -122,6 +122,11 @@ int ray_tri_intersection(triangle_t* t, vector_t* a, vector_t* b, vector_t* ip)
     } else return 0;
     p.d = t->v[0].x*p.nx + t->v[0].y*p.ny + t->v[0].z*p.nz;
     if (!ray_plane_intersection(&p, a, b, ip)) return 0;
+    if (!doublesided) {
+        vector_t ab;
+        vec_makedir(&ab, b, a);
+        if ((p.nx*ab.x + p.ny*ab.y + p.nz*ab.z) < 0) return 0;
+    }
     uu = abx*abx + aby*aby + abz*abz;
     uv = abx*acx + aby*acy + abz*acz;
     vv = acx*acx + acy*acy + acz*acz;
