@@ -368,28 +368,28 @@ static void draw_cell(cell_t* c, int cx, int cy)
     /* up cap */
     if (cy > 0 && cu->floorz < c->floorz) {
         cell_vertices(cu, cx, cy - 1, avx, avy, avz, 1);
-        do_quad(cu->lowetex, vx[3], vy[3], vz[3], avx[2], avy[2], avz[2],
+        do_quad(c->lowetex, vx[3], vy[3], vz[3], avx[2], avy[2], avz[2],
             avx[1], avy[1], avz[1], vx[0], vy[0], vz[0], -1, 0, 0, 0, -1, 0,
             cell_has_offsets(c) || cell_has_offsets(cu));
     }
     /* down cap */
     if (cy < map_height - 1 && cd->floorz < c->floorz) {
         cell_vertices(cd, cx, cy + 1, avx, avy, avz, 1);
-        do_quad(cd->lowetex, vx[1], vy[1], vz[1], avx[0], avy[0], avz[0],
+        do_quad(c->lowetex, vx[1], vy[1], vz[1], avx[0], avy[0], avz[0],
             avx[3], avy[3], avz[3], vx[2], vy[2], vz[2], 1, 0, 0, 0, -1, 0,
             cell_has_offsets(c) || cell_has_offsets(cd));
     }
     /* left cap */
     if (cx > 0 && cl->floorz < c->floorz) {
         cell_vertices(cl, cx - 1, cy, avx, avy, avz, 1);
-        do_quad(cl->lowetex, vx[0], vy[0], vz[0], avx[3], avy[3], avz[3],
+        do_quad(c->lowetex, vx[0], vy[0], vz[0], avx[3], avy[3], avz[3],
             avx[2], avy[2], avz[2], vx[1], vy[1], vz[1], 0, 0, 1, 0, -1, 0,
             cell_has_offsets(c) || cell_has_offsets(cl));
     }
     /* right cap */
     if (cx < map_width - 1 && cr->floorz < c->floorz) {
         cell_vertices(cr, cx + 1, cy, avx, avy, avz, 1);
-        do_quad(cr->lowetex, vx[2], vy[2], vz[2], avx[1], avy[1], avz[1],
+        do_quad(c->lowetex, vx[2], vy[2], vz[2], avx[1], avy[1], avz[1],
             avx[0], avy[0], avz[0], vx[3], vy[3], vz[3], 0, 0, -1, 0, -1, 0,
             cell_has_offsets(c) || cell_has_offsets(cr));
     }
