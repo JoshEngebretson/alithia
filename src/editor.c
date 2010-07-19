@@ -466,7 +466,7 @@ static int texture_browser_ctl_handle_event(uicontrol_t* ctl, SDL_Event* ev)
             y2 = ctl->y + ctl->h - 0.04*hw_ratio + texture_browser_scroll - (idx + 1)*(ctl->w + 0.06) + 0.02;
             if (my < y2) return 1;
             mdata.part = (int)(((my - y1)/(y2 - y1))/0.25f);
-            mdata.tex = texbank_item[idx]->tex;
+            mdata.tex = (SDL_GetModState()&KMOD_CTRL)?NULL:texbank_item[idx]->tex;
             editor_apply_cell_modifier(editor_setcelltexture_modifier, &mdata);
             return 1;
         } else if (ev->button.button == 4) {
