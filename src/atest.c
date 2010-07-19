@@ -935,16 +935,9 @@ static void render_world(void)
                     int cx, cy;
                     pb = NULL;
                     pbc = 0;
-                    for (cy = y1; cy < y2; cy++) {
-                        for (cx = x1; cx < x2; cx++) {
-                            cell_t* c = cell + cy * map_width + cx;
-                            if ((cy == y1 && cx == x1) || (cls->y1 > c->floorz)) cls->y1
-                                = c->floorz;
-                            if ((cy == y1 && cx == x1) || (cls->y2 < c->ceilz)) cls->y2
-                                = c->ceilz;
-                            draw_cell(c, cx, cy);
-                        }
-                    }
+                    for (cy = y1; cy < y2; cy++)
+                        for (cx = x1; cx < x2; cx++)
+                            draw_cell(cell + cy * map_width + cx, cx, cy);
                     optimize_parts();
                     if (pb) {
                         free(cls->tri);
@@ -996,6 +989,15 @@ static void render_world(void)
                             glEndList();
 
                             free(pb[i].q);
+                        }
+                        for (i=0; i<cls->tris; i++) {
+                            size_t j;
+                            for (j=0; j<3; j++) {
+                                if ((!i && !j) || cls->tri[i].v[j].y < cls->y1)
+                                    cls->y1 = cls->tri[i].v[j].y;
+                                if ((!i && !j) || cls->tri[i].v[j].y > cls->y2)
+                                    cls->y2 = cls->tri[i].v[j].y;
+                            }
                         }
                         free(pb);
                     }
