@@ -24,6 +24,8 @@
 #ifndef __GUI_H_INCLUDED__
 #define __GUI_H_INCLUDED__
 
+#define FONTSIZE 0.05
+
 #define CB_DESTROYED 0
 #define CB_ACTIVATED 1
 #define CB_CHANGED 2
@@ -58,9 +60,13 @@ extern uicontrol_t* uiroot;
 void gui_init(void);
 void gui_render(void);
 void gui_shutdown(void);
-void gui_handle_event(SDL_Event* ev);
+int gui_handle_event(SDL_Event* ev);
 void gui_capture(uicontrol_t* ctl);
 void gui_focus(uicontrol_t* ctl);
+
+/* Drawing helpers */
+void gui_color(float r, float g, float b, float a);
+void gui_bar(float x, float y, float w, float h);
 
 /* Generic controls functions */
 uicontrol_t* uictl_new(uicontrol_t* parent);

@@ -132,9 +132,10 @@ static void process_events(void)
             running = 0;
             break;
         }
-        screen_send(active_screen, SMS_SDL_EVENT, &ev);
         if (active_screen->draw_gui)
-            gui_handle_event(&ev);
+            if (gui_handle_event(&ev))
+                continue;
+        screen_send(active_screen, SMS_SDL_EVENT, &ev);
     }
 }
 
@@ -1473,10 +1474,10 @@ static void run(void)
 {
     int x, y;
     entity_t* ent;
-    tex_bricks = tex_load("data/textures/bricks.bmp");
-    tex_floor = tex_load("data/textures/floor.bmp");
-    tex_stuff = tex_load("data/textures/stuff.bmp");
-    tex_wtf = tex_load("data/textures/wtf.bmp");
+    tex_bricks = texbank_get("bricks");
+    tex_floor = texbank_get("floor");
+    tex_stuff = texbank_get("stuff");
+    tex_wtf = texbank_get("wtf");
     pointer_cursor = tex_load("data/other/pointer_cursor.bmp");
     tex_load_skybox("data/textures/skybox.bmp", &skybox_left, &skybox_back, &skybox_right, &skybox_bottom, &skybox_top, &skybox_front);
 /*    skybox_left = tex_load("data/textures/skybox_left.bmp");
@@ -1544,6 +1545,7 @@ int main(int _argc, char *_argv[])
     argv = _argv;
     if (!vid_init()) return 1;
     font_init();
+    texbank_init();
     gui_init();
     editor_init();
 
@@ -1552,6 +1554,7 @@ int main(int _argc, char *_argv[])
     editor_shutdown();
     screen_free(gamescreen);
     gui_shutdown();
+    texbank_shutdown();
     font_shutdown();
     vid_shutdown();
     return 0;

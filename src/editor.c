@@ -23,10 +23,6 @@
 
 #include "atest.h"
 
-typedef void (*modifier_proc_t)(int cx, int cy, cell_t* cell, void* data);
-
-screen_t* editorscreen;
-
 static int selx1, sely1, selx2, sely2;
 static int drag_selection, has_selection;
 static int dsel_x1, dsel_y1;
@@ -34,6 +30,13 @@ static int cur_x1, cur_y1;
 static int points_to_floor;
 static int camera_mode = 1;
 static float last_cell_y;
+
+static uicontrol_t* editoruiroot;
+static uicontrol_t* texture_browser;
+static uicontrol_t* texture_browser_ctl;
+static float texture_browser_scroll;
+
+screen_t* editorscreen;
 
 void editor_raisefloor_modifier(int cx, int cy, cell_t* cell, void* data)
 {
@@ -80,6 +83,17 @@ void editor_adjustceilingoffs_modifier(int cx, int cy, cell_t* cell, void* data)
 {
     int32_t di = *((int32_t*)data);
     cell->zcoffs[di&0x0F] += di>>4;
+}
+
+void editor_setcelltexture_modifier(int cx, int cy, cell_t* cell, void* data)
+{
+    setcelltexture_modifier_data_t* mdata = data;
+    switch (mdata->part) {
+    case 0: cell->toptex = mdata->tex; break;
+    case 1: cell->uppertex = mdata->tex; break;
+    case 2: cell->lowetex = mdata->tex; break;
+    case 3: cell->bottomtex = mdata->tex; break;
+    }
 }
 
 void editor_apply_cell_modifier(modifier_proc_t proc, void* data)
@@ -269,7 +283,7 @@ static void fill_cell(int cx, int cy, int floor)
     float vx[4], vy[4], vz[4];
     cell_vertices(cell + (cy*map_width) + cx, cx, cy, vx, vy, vz, floor);
     for (i=0; i<4; i++)
-        glVertex3f(vx[i], vy[i] + (floor?1:-1), vz[i]);
+        glVertex3f(vx[i], vy[i] + (floor?0.1:-0.1), vz[i]);
 }
 
 static void draw_cell_cursor(int cx, int cy, int floor)
@@ -277,7 +291,7 @@ static void draw_cell_cursor(int cx, int cy, int floor)
     int i;
     float vx[4], vy[4], vz[4];
     cell_vertices(cell + (cy*map_width) + cx, cx, cy, vx, vy, vz, floor);
-    for (i=0; i<4; i++) vy[i] += floor?1:-1;
+    for (i=0; i<4; i++) vy[i] += floor?0.1:-0.1;
 
     if (!(cx&15)) glColor3f(0.5, 1.0, 0.5);
     else glColor3f(0.6, 0.6, 0.7);
@@ -379,13 +393,12 @@ static int editorscreen_proc(screen_t* scr, int msg, void* data)
 {
     switch (msg) {
     case SMS_INIT:
-        scr->draw_mouse = 1;
         scr->draw_world = 1;
         scr->do_clear = 1;
         break;
     case SMS_UPDATE:
         editorscreen_update(*((float*)data));
-        scr->draw_mouse = !(button[2] || camera_mode);
+        scr->draw_gui = !(button[2] || camera_mode);
         break;
     case SMS_SDL_EVENT:
         editorscreen_sdl_event(*((SDL_Event*)data));
@@ -393,16 +406,110 @@ static int editorscreen_proc(screen_t* scr, int msg, void* data)
     case SMS_RENDER:
         editorscreen_render();
         break;
+    case SMS_ENTER:
+        uiroot_set(editoruiroot);
+        break;
     }
     return 0;
+}
+
+static void texture_browser_ctl_render(uicontrol_t* tb)
+{
+    float x, y, adv;
+    size_t i;
+
+    x = tb->x + 0.02;
+    adv = tb->w + 0.04;
+    glEnable(GL_TEXTURE_2D);
+    for (i=0; i<texbank_items; i++) {
+        y = tb->y + tb->h - 0.04*hw_ratio + texture_browser_scroll - i*(tb->w + 0.06);
+        glColor4f(1, 1, 1, 1);
+        glBindTexture(GL_TEXTURE_2D, texbank_item[i]->tex->name);
+        glBegin(GL_QUADS);
+        glTexCoord2f(0, 0);
+        glVertex2f(x, y);
+        glTexCoord2f(0, 1);
+        glVertex2f(x, y - adv);
+        glTexCoord2f(1, 1);
+        glVertex2f(x + tb->w - 0.04, y - adv);
+        glTexCoord2f(1, 0);
+        glVertex2f(x + tb->w - 0.04, y);
+        glEnd();
+        glBindTexture(GL_TEXTURE_2D, 0);
+        glColor4f(1, 0, 0, 1);
+        glBegin(GL_LINES);
+        glVertex2f(x, y - adv/4.0);
+        glVertex2f(x + tb->w - 0.04, y - adv/4.0);
+        glVertex2f(x, y - (adv/4.0)*2.0);
+        glVertex2f(x + tb->w - 0.04, y - (adv/4.0)*2.0);
+        glVertex2f(x, y - (adv/4.0)*3.0);
+        glVertex2f(x + tb->w - 0.04, y - (adv/4.0)*3.0);
+        glEnd();
+        y -= (tb->w + 0.06);
+    }
+    glDisable(GL_TEXTURE_2D);
+}
+
+static int texture_browser_ctl_handle_event(uicontrol_t* ctl, SDL_Event* ev)
+{
+    float mx, my;
+    uictl_mouse_position(ctl, &mx, &my);
+
+    switch (ev->type) {
+    case SDL_MOUSEBUTTONDOWN:
+        if (ev->button.button == 1) {
+            setcelltexture_modifier_data_t mdata;
+            int idx = -(int)((my - ctl->y - ctl->h + 0.04*hw_ratio - texture_browser_scroll)/(ctl->w + 0.06));
+            float y1, y2;
+            if (idx < 0 || idx >= texbank_items) return 1;
+            y1 = ctl->y + ctl->h - 0.04*hw_ratio + texture_browser_scroll - idx*(ctl->w + 0.06);
+            y2 = ctl->y + ctl->h - 0.04*hw_ratio + texture_browser_scroll - (idx + 1)*(ctl->w + 0.06) + 0.02;
+            if (my < y2) return 1;
+            mdata.part = (int)(((my - y1)/(y2 - y1))/0.25f);
+            mdata.tex = texbank_item[idx]->tex;
+            editor_apply_cell_modifier(editor_setcelltexture_modifier, &mdata);
+            return 1;
+        } else if (ev->button.button == 4) {
+            texture_browser_scroll -= 0.3;
+            if (texture_browser_scroll < 0)
+                texture_browser_scroll = 0;
+            return 1;
+        } else if (ev->button.button == 5) {
+            texture_browser_scroll += 0.3;
+            return 1;
+        }
+        return 0;
+    }
+    return 0;
+}
+
+static void texture_browser_layout(uicontrol_t* win)
+{
+    uictl_place(texture_browser_ctl, 0, 0, win->w, win->h - FONTSIZE*1.3);
+}
+
+static void create_texture_browser(void)
+{
+    texture_browser = uiwin_new(1.7, 0, 0.3, 2, "Texture Browser");
+    uiwin_set_resizeable(texture_browser, 1);
+    texture_browser_ctl = uictl_new(texture_browser);
+    texture_browser_ctl->render = texture_browser_ctl_render;
+    texture_browser_ctl->handle_event = texture_browser_ctl_handle_event;
+
+    texture_browser->layout = texture_browser_layout;
+    texture_browser_layout(texture_browser);
 }
 
 void editor_init(void)
 {
     editorscreen = screen_new(editorscreen_proc, NULL);
+    editoruiroot = uiroot_new();
+    uiroot_set(editoruiroot);
+    create_texture_browser();
 }
 
 void editor_shutdown(void)
 {
+    uictl_free(editoruiroot);
     screen_free(editorscreen);
 }

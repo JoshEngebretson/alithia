@@ -23,6 +23,9 @@
 
 #include "atest.h"
 
+texbankitem_t** texbank_item;
+size_t texbank_items;
+
 texture_t* tex_load(const char* filename)
 {
     texture_t* tex = new(texture_t);
@@ -134,4 +137,66 @@ void tex_free(texture_t* tex)
     glTexImage2D(GL_TEXTURE_2D, 0, 3, 0, 0, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
     glDeleteTextures(1, &tex->name);
     free(tex);
+}
+
+void texbank_init(void)
+{
+    struct dirent* de;
+    DIR* dir;
+
+    texbank_item = NULL;
+    texbank_items = 0;
+
+    dir = opendir("data/textures");
+    while ((de = readdir(dir))) {
+        if (strstr(de->d_name, ".bmp")) {
+            char* tmp = strdup(de->d_name);
+            char* tmpfilename = malloc(strlen(de->d_name) + 16);
+            int i;
+            for (i=strlen(tmp)-1; i>=0; i--)
+                if (tmp[i] == '.') {
+                    tmp[i] = 0;
+                    break;
+                }
+            sprintf(tmpfilename, "data/textures/%s", de->d_name);
+            texbank_add(tmp, tmpfilename);
+            free(tmpfilename);
+            free(tmp);
+        }
+    }
+    closedir(dir);
+}
+
+void texbank_shutdown(void)
+{
+    size_t i;
+    for (i=0; i<texbank_items; i++) {
+        tex_free(texbank_item[i]->tex);
+        free(texbank_item[i]->name);
+        free(texbank_item[i]);
+    }
+    free(texbank_item);
+    texbank_item = NULL;
+    texbank_items = 0;
+}
+
+texture_t* texbank_add(const char* name, const char* filename)
+{
+    texture_t* tex = tex_load(filename);
+    if (!tex) return NULL;
+    texbank_item = realloc(texbank_item, sizeof(texbankitem_t*)*(texbank_items + 1));
+    texbank_item[texbank_items] = new(texbankitem_t);
+    texbank_item[texbank_items]->name = strdup(name);
+    texbank_item[texbank_items]->tex = tex;
+    texbank_items++;
+    return tex;
+}
+
+texture_t* texbank_get(const char* name)
+{
+    size_t i;
+    for (i=0; i<texbank_items; i++)
+        if (!strcmp(texbank_item[i]->name, name))
+            return texbank_item[i]->tex;
+    return NULL;
 }

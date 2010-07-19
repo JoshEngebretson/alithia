@@ -30,8 +30,22 @@ typedef struct _texture_t
     int bucket;
 } texture_t;
 
+typedef struct _texbankitem_t
+{
+    char* name;
+    texture_t* tex;
+} texbankitem_t;
+
+extern texbankitem_t** texbank_item;
+extern size_t texbank_items;
+
 texture_t* tex_load(const char* filename);
 void tex_load_skybox(const char* filename, texture_t** left, texture_t** back, texture_t** right, texture_t** bottom, texture_t** top, texture_t** front);
 void tex_free(texture_t* tex);
+
+void texbank_init(void);
+void texbank_shutdown(void);
+texture_t* texbank_add(const char* name, const char* filename);
+texture_t* texbank_get(const char* name);
 
 #endif

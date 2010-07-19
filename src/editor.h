@@ -24,6 +24,14 @@
 #ifndef __EDITOR_H_INCLUDED__
 #define __EDITOR_H_INCLUDED__
 
+typedef void (*modifier_proc_t)(int cx, int cy, cell_t* cell, void* data);
+
+typedef struct _setcelltexture_modifier_data_t
+{
+    int part;
+    texture_t* tex;
+} setcelltexture_modifier_data_t;
+
 extern screen_t* editorscreen;
 
 void editor_init(void);

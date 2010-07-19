@@ -24,7 +24,6 @@
 #include "atest.h"
 
 #define MAX_CLIPS 256
-#define FONTSIZE 0.05
 
 typedef struct _clipbox_t
 {
@@ -88,7 +87,7 @@ static void close_clip(void)
     set_clip(clipbox[clipboxhead - 1].x1, clipbox[clipboxhead - 1].y1, clipbox[clipboxhead - 1].x2, clipbox[clipboxhead - 1].y2);
 }
 
-static void color(float r, float g, float b, float a)
+void gui_color(float r, float g, float b, float a)
 {
     if (a < 1.0) {
         glEnable(GL_BLEND);
@@ -99,7 +98,7 @@ static void color(float r, float g, float b, float a)
     glColor4f(r, g, b, a);
 }
 
-static void bar(float x, float y, float w, float h)
+void gui_bar(float x, float y, float w, float h)
 {
     glBegin(GL_QUADS);
     glVertex2f(x, y);
@@ -118,8 +117,6 @@ void do_layout(uicontrol_t* win)
 
 void gui_init(void)
 {
-    uiroot = uiroot_new();
-    uiroot_set(uiroot);
     /*
     uicontrol_t* win;
     uicontrol_t* lbl;
@@ -172,7 +169,7 @@ void gui_render(void)
     glEnable(GL_SCISSOR_TEST);
     clipboxhead = 0;
 
-    uictl_render(uiroot);
+    if (uiroot) uictl_render(uiroot);
 
     glPopMatrix();
     glMatrixMode(GL_PROJECTION);
@@ -185,19 +182,21 @@ void gui_render(void)
 
 void gui_shutdown(void)
 {
-    uictl_free(uiroot);
     list_free(checkboxes);
 }
 
-void gui_handle_event(SDL_Event* ev)
+int gui_handle_event(SDL_Event* ev)
 {
     uicontrol_t* target = capture;
+    if (!uiroot) return 0;
     if (!target && (ev->type == SDL_KEYDOWN || ev->type == SDL_KEYUP) && focus) target = focus;
     if (!target) target = uictl_child_at(uiroot, mouse_x + 1.0, mouse_y + 1.0);
     while (target) {
-        if (target->handle_event && target->handle_event(target, ev)) break;
+        if (target->handle_event && target->handle_event(target, ev))
+            return 1;
         target = target->parent;
     }
+    return 0;
 }
 
 void gui_capture(uicontrol_t* ctl)
@@ -390,23 +389,23 @@ uicontrol_t* uiroot_set(uicontrol_t* newroot)
 
 static void win_render(uicontrol_t* win)
 {
-    color(0.0, 0.0, 0.0, 0.5);
+    gui_color(0.0, 0.0, 0.0, 0.5);
     glDisable(GL_SCISSOR_TEST);
-    bar(win->x + 0.03*hw_ratio, win->y - 0.03, win->w, win->h);
-    bar(win->x - pixelw, win->y - pixelh, win->w + pixelw*1, win->h + pixelh*1);
+    gui_bar(win->x + 0.03*hw_ratio, win->y - 0.03, win->w, win->h);
+    gui_bar(win->x - pixelw, win->y - pixelh, win->w + pixelw*1, win->h + pixelh*1);
     glEnable(GL_SCISSOR_TEST);
-    color(0.3, 0.35, 0.37, 1.0);
-    bar(win->x, win->y, win->w, win->h - FONTSIZE*1.3);
+    gui_color(0.3, 0.35, 0.37, 1.0);
+    gui_bar(win->x, win->y, win->w, win->h - FONTSIZE*1.3);
 
     uictl_render_children(win);
 
     if (win->ctlflags & WINF_RESIZEABLE) {
-        color(0.4, 0.45, 0.47, 1.0);
-        bar(win->x + win->w - 0.04*hw_ratio - pixelw, win->y, 0.04*hw_ratio, 0.04);
+        gui_color(0.4, 0.45, 0.47, 1.0);
+        gui_bar(win->x + win->w - 0.04*hw_ratio - pixelw, win->y, 0.04*hw_ratio, 0.04);
     }
-    color(0.4, 0.45, 0.47, 1.0);
-    bar(win->x, win->y + win->h - FONTSIZE*1.3, win->w, FONTSIZE*1.3);
-    color(0.0, 0.0, 0.0, 1.0);
+    gui_color(0.4, 0.45, 0.47, 1.0);
+    gui_bar(win->x, win->y + win->h - FONTSIZE*1.3, win->w, FONTSIZE*1.3);
+    gui_color(0.0, 0.0, 0.0, 1.0);
     font_render(font_normal, win->x + FONTSIZE*0.15*hw_ratio, win->y + win->h - FONTSIZE*1.15, win->text, win->textlen, FONTSIZE);
 }
 
@@ -442,7 +441,7 @@ static int win_handle_event(uicontrol_t* win, SDL_Event* ev)
                 return 1;
             }
         }
-        return 0;
+        return 1;
     case SDL_MOUSEBUTTONUP:
         if (win->ctlflags & WINF_MOVING) {
             win->ctlflags &= ~WINF_MOVING;
@@ -454,7 +453,7 @@ static int win_handle_event(uicontrol_t* win, SDL_Event* ev)
             gui_capture(NULL);
             return 1;
         }
-        return 0;
+        return 1;
     case SDL_MOUSEMOTION:
         if (win->ctlflags & WINF_MOVING) {
             uictl_place(win, win->x - (save_x - mouse_x), win->y - (save_y - mouse_y), win->w, win->h);
@@ -513,7 +512,7 @@ int uiwin_is_resizeable(uicontrol_t* win)
 /* Label controls */
 static void label_render(uicontrol_t* lbl)
 {
-    color(0.0, 0.0, 0.0, 1.0);
+    gui_color(0.0, 0.0, 0.0, 1.0);
     font_render(font_normal, lbl->x, lbl->y, lbl->text, lbl->textlen, FONTSIZE);
 }
 
@@ -540,18 +539,18 @@ uicontrol_t* uilabel_new(uicontrol_t* parent, float x, float y, const char* text
 static void button_render(uicontrol_t* btn)
 {
     if ((btn->ctlflags & BTNF_DOWN) && (btn->ctlflags & BTNF_OVER)) {
-        color(0.4, 0.45, 0.47, 1.0);
-        bar(btn->x + 0.01*hw_ratio, btn->y - 0.01, btn->w, btn->h);
-        color(0.0, 0.0, 0.0, 1.0);
+        gui_color(0.4, 0.45, 0.47, 1.0);
+        gui_bar(btn->x + 0.01*hw_ratio, btn->y - 0.01, btn->w, btn->h);
+        gui_color(0.0, 0.0, 0.0, 1.0);
         font_render(font_normal, btn->x + FONTSIZE*0.15 + 0.01*hw_ratio, btn->y + FONTSIZE*0.1 - 0.01, btn->text, btn->textlen, FONTSIZE);
     } else {
         glDisable(GL_SCISSOR_TEST);
-        color(0.0, 0.0, 0.0, 0.5);
-        bar(btn->x + 0.02*hw_ratio, btn->y - 0.02, btn->w, btn->h);
+        gui_color(0.0, 0.0, 0.0, 0.5);
+        gui_bar(btn->x + 0.02*hw_ratio, btn->y - 0.02, btn->w, btn->h);
         glEnable(GL_SCISSOR_TEST);
-        color(0.4, 0.45, 0.47, 1.0);
-        bar(btn->x, btn->y, btn->w, btn->h);
-        color(0.0, 0.0, 0.0, 1.0);
+        gui_color(0.4, 0.45, 0.47, 1.0);
+        gui_bar(btn->x, btn->y, btn->w, btn->h);
+        gui_color(0.0, 0.0, 0.0, 1.0);
         font_render(font_normal, btn->x + FONTSIZE*0.15, btn->y + FONTSIZE*0.1, btn->text, btn->textlen, FONTSIZE);
     }
 }
@@ -625,21 +624,21 @@ static void field_render(uicontrol_t* fld)
 {
     uifield_data_t* data = fld->ctldata;
     if (focus == fld)
-        color(0.22, 0.27, 0.29, 1.0);
+        gui_color(0.22, 0.27, 0.29, 1.0);
     else
-        color(0.20, 0.25, 0.27, 1.0);
-    bar(fld->x, fld->y, fld->w, fld->h);
+        gui_color(0.20, 0.25, 0.27, 1.0);
+    gui_bar(fld->x, fld->y, fld->w, fld->h);
     if (focus == fld)
-        color(0.27, 0.32, 0.35, 1.0);
+        gui_color(0.27, 0.32, 0.35, 1.0);
     else
-        color(0.25, 0.3, 0.33, 1.0);
-    bar(fld->x + 0.01*hw_ratio, fld->y, fld->w - 0.01*hw_ratio, fld->h - 0.01 - pixelh);
-    color(0.0, 0.0, 0.0, 1.0);
+        gui_color(0.25, 0.3, 0.33, 1.0);
+    gui_bar(fld->x + 0.01*hw_ratio, fld->y, fld->w - 0.01*hw_ratio, fld->h - 0.01 - pixelh);
+    gui_color(0.0, 0.0, 0.0, 1.0);
     font_render(font_normal, fld->x + FONTSIZE*0.15*hw_ratio - data->xscroll, fld->y + FONTSIZE*0.15, fld->text, fld->textlen, FONTSIZE);
     if (focus == fld) {
         float w = font_width(font_normal, fld->text, data->cursor, FONTSIZE);
-        color(0.5, 0.2, 0.1, 1.0);
-        bar(fld->x + FONTSIZE*0.15*hw_ratio + w - data->xscroll, fld->y + 0.005, 3*pixelw, fld->h - 0.01);
+        gui_color(0.5, 0.2, 0.1, 1.0);
+        gui_bar(fld->x + FONTSIZE*0.15*hw_ratio + w - data->xscroll, fld->y + 0.005, 3*pixelw, fld->h - 0.01);
     }
 }
 
@@ -748,18 +747,18 @@ typedef struct _checkbox_data_t
 static void checkbox_render(uicontrol_t* chk)
 {
     checkbox_data_t* data = chk->ctldata;
-    color(0.4, 0.45, 0.47, 1.0);
-    bar(chk->x + FONTSIZE*0.1*hw_ratio, chk->y + FONTSIZE*0.2, chk->h*hw_ratio - FONTSIZE*0.4*hw_ratio, chk->h - FONTSIZE*0.4);
-    color(0.3, 0.35, 0.37, 1.0);
-    bar(chk->x + FONTSIZE*0.1*hw_ratio + pixelw*2, chk->y + FONTSIZE*0.2 + pixelh*2.0, chk->h*hw_ratio - FONTSIZE*0.4*hw_ratio - pixelw*4.0, chk->h - FONTSIZE*0.4 - pixelh*4.0);
+    gui_color(0.4, 0.45, 0.47, 1.0);
+    gui_bar(chk->x + FONTSIZE*0.1*hw_ratio, chk->y + FONTSIZE*0.2, chk->h*hw_ratio - FONTSIZE*0.4*hw_ratio, chk->h - FONTSIZE*0.4);
+    gui_color(0.3, 0.35, 0.37, 1.0);
+    gui_bar(chk->x + FONTSIZE*0.1*hw_ratio + pixelw*2, chk->y + FONTSIZE*0.2 + pixelh*2.0, chk->h*hw_ratio - FONTSIZE*0.4*hw_ratio - pixelw*4.0, chk->h - FONTSIZE*0.4 - pixelh*4.0);
     if (data->checked) {
-        color(0.4, 0.45, 0.47, 1.0);
+        gui_color(0.4, 0.45, 0.47, 1.0);
         if (data->group)
-            bar(chk->x + FONTSIZE*0.1*hw_ratio + pixelw*5, chk->y + FONTSIZE*0.2 + pixelh*5.0, chk->h*hw_ratio - FONTSIZE*0.4*hw_ratio - pixelw*10.0, chk->h - FONTSIZE*0.4 - pixelh*10.0);
+            gui_bar(chk->x + FONTSIZE*0.1*hw_ratio + pixelw*5, chk->y + FONTSIZE*0.2 + pixelh*5.0, chk->h*hw_ratio - FONTSIZE*0.4*hw_ratio - pixelw*10.0, chk->h - FONTSIZE*0.4 - pixelh*10.0);
         else
-            bar(chk->x + FONTSIZE*0.1*hw_ratio + pixelw*4, chk->y + FONTSIZE*0.2 + pixelh*4.0, chk->h*hw_ratio - FONTSIZE*0.4*hw_ratio - pixelw*8.0, chk->h - FONTSIZE*0.4 - pixelh*8.0);
+            gui_bar(chk->x + FONTSIZE*0.1*hw_ratio + pixelw*4, chk->y + FONTSIZE*0.2 + pixelh*4.0, chk->h*hw_ratio - FONTSIZE*0.4*hw_ratio - pixelw*8.0, chk->h - FONTSIZE*0.4 - pixelh*8.0);
     }
-    color(0.0, 0.0, 0.0, 1.0);
+    gui_color(0.0, 0.0, 0.0, 1.0);
     font_render(font_normal, chk->x + FONTSIZE*1.15*hw_ratio, chk->y + FONTSIZE*0.1, chk->text, chk->textlen, FONTSIZE);
 }
 
@@ -904,11 +903,11 @@ static void editor_render_text(uicontrol_t* ted, editor_data_t* data)
     for (liline = data->lines->first; liline; liline=liline->next) {
         editline_t* line = liline->ptr;
         if (ted == focus && linecnt == data->row) {
-            color(0.32, 0.31, 0.33, 1.0);
-            bar(0, y, 10, FONTSIZE);
-            color(0.27, 0.26, 0.28, 1.0);
-            bar(ted->x, y, 0.01*hw_ratio, FONTSIZE);
-            color(0, 0, 0, 1);
+            gui_color(0.32, 0.31, 0.33, 1.0);
+            gui_bar(0, y, 10, FONTSIZE);
+            gui_color(0.27, 0.26, 0.28, 1.0);
+            gui_bar(ted->x, y, 0.01*hw_ratio, FONTSIZE);
+            gui_color(0, 0, 0, 1);
         }
         font_render(font_normal, x, y, line->text, line->textlen, FONTSIZE);
         if (linecnt == data->row) {
@@ -920,11 +919,11 @@ static void editor_render_text(uicontrol_t* ted, editor_data_t* data)
     }
     if (linecnt == data->row) {
         if (ted == focus) {
-            color(0.32, 0.31, 0.33, 1.0);
-            bar(0, y, 10, FONTSIZE);
-            color(0.27, 0.26, 0.28, 1.0);
-            bar(ted->x, y, 0.01*hw_ratio, FONTSIZE);
-            color(0, 0, 0, 1);
+            gui_color(0.32, 0.31, 0.33, 1.0);
+            gui_bar(0, y, 10, FONTSIZE);
+            gui_color(0.27, 0.26, 0.28, 1.0);
+            gui_bar(ted->x, y, 0.01*hw_ratio, FONTSIZE);
+            gui_color(0, 0, 0, 1);
         }
         data->xcursor = ted->x + 0.15*FONTSIZE*hw_ratio;
         data->ycursor = y;
@@ -935,20 +934,20 @@ static void editor_render(uicontrol_t* ted)
 {
     editor_data_t* data = ted->ctldata;
     if (focus == ted)
-        color(0.22, 0.27, 0.29, 1.0);
+        gui_color(0.22, 0.27, 0.29, 1.0);
     else
-        color(0.20, 0.25, 0.27, 1.0);
-    bar(ted->x, ted->y, ted->w, ted->h);
+        gui_color(0.20, 0.25, 0.27, 1.0);
+    gui_bar(ted->x, ted->y, ted->w, ted->h);
     if (focus == ted)
-        color(0.27, 0.32, 0.35, 1.0);
+        gui_color(0.27, 0.32, 0.35, 1.0);
     else
-        color(0.25, 0.3, 0.33, 1.0);
-    bar(ted->x + 0.01*hw_ratio, ted->y, ted->w - 0.01*hw_ratio, ted->h - 0.01);
-    color(0.0, 0.0, 0.0, 1.0);
+        gui_color(0.25, 0.3, 0.33, 1.0);
+    gui_bar(ted->x + 0.01*hw_ratio, ted->y, ted->w - 0.01*hw_ratio, ted->h - 0.01);
+    gui_color(0.0, 0.0, 0.0, 1.0);
     editor_render_text(ted, data);
     if (focus == ted) {
-        color(0.5, 0.2, 0.1, 1.0);
-        bar(data->xcursor, data->ycursor, 3*pixelw, FONTSIZE + 0.005);
+        gui_color(0.5, 0.2, 0.1, 1.0);
+        gui_bar(data->xcursor, data->ycursor, 3*pixelw, FONTSIZE + 0.005);
     }
 }
 
