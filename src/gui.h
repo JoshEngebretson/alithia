@@ -30,6 +30,9 @@
 #define CB_ACTIVATED 1
 #define CB_CHANGED 2
 
+#define MI_SELECT 1
+#define MI_HIGHLIGHT 2
+
 typedef struct _uicontrol_t
 {
     struct _uicontrol_t* parent;
@@ -53,6 +56,29 @@ typedef struct _uicontrol_t
     int (*handle_event)(struct _uicontrol_t* ctl, SDL_Event* ev);
     int (*block_child_at)(struct _uicontrol_t* ctl, float x, float y);
 } uicontrol_t;
+
+typedef struct _menuitem_t
+{
+    struct _menu_t* menu;
+    struct _menu_t* root;
+    struct _menu_t* submenu;
+    char* title;
+    void* callback_data;
+    void* callback;
+} menuitem_t;
+
+typedef void (*menuitem_callback_t)(int action, struct _menuitem_t* item, void* data);
+
+typedef struct _menu_t
+{
+    struct _menu_t* root;
+    struct _menu_t* submenu_visible;
+    struct _menu_t* parent;
+    uicontrol_t* ctrl;
+    menuitem_t* item;
+    size_t items, index, submenu_visible_index;
+    void (*closed)(struct _menu_t* menu);
+} menu_t;
 
 extern uicontrol_t* uiroot;
 
@@ -89,6 +115,13 @@ void uictl_mouse_position(uicontrol_t* ctl, float* x, float* y);
 /* Root */
 uicontrol_t* uiroot_new(void);
 uicontrol_t* uiroot_set(uicontrol_t* newroot);
+
+/* Popup menus */
+menu_t* uimenu_new(void);
+void uimenu_free(menu_t* menu);
+void uimenu_add(menu_t* menu, const char* title, menu_t* submenu, menuitem_callback_t callback, void* cbdata);
+void uimenu_show(menu_t* menu, float x, float y);
+void uimenu_hide(menu_t* menu);
 
 /* Top-level windows */
 uicontrol_t* uiwin_new(float x, float y, float w, float h, const char* title);

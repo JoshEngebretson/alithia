@@ -43,7 +43,11 @@ static uicontrol_t* texture_browser;
 static uicontrol_t* texture_browser_ctl;
 static float texture_browser_scroll;
 
+static menu_t* editormenu;
+
 screen_t* editorscreen;
+
+static void editormenu_closed(menu_t* menu);
 
 void editor_raisefloor_modifier(int cx, int cy, cell_t* cell, void* data)
 {
@@ -220,6 +224,12 @@ static void editorscreen_sdl_event(SDL_Event ev)
                 dsel_x1 = cur_x1;
                 dsel_y1 = cur_y1;
                 has_selection = 1;
+            }
+        }
+        if (ev.button.button == 3) {
+            if (!camera_mode) {
+                /* popup menu */
+                uimenu_show(editormenu, mouse_x + 1, mouse_y + 1);
             }
         }
         if (ev.button.button == 4) { /* scroll wheel up */
@@ -549,6 +559,7 @@ static void editorscreen_render(void)
     for (li=lights->first; li; li=li->next) {
         light = li->ptr;
         if (pd.result == PICK_LIGHT && pd.light == light) {
+            glColor3f(1, 1, 1);
             draw_sphere_outline(&light->p, 16);
             if (dragging_light) {
                 glBegin(GL_LINES);
@@ -749,16 +760,57 @@ static void create_texture_browser(void)
     texture_browser_layout(texture_browser);
 }
 
+static void editormenu_exit(int action, struct _menuitem_t* item, void* data)
+{
+    if (action == MI_SELECT)
+        running = 0;
+}
+
+static void editormenu_create_light(int action, struct _menuitem_t* item, void* data)
+{
+    if (action == MI_SELECT) {
+        light_new(cur_x1*CELLSIZE + CELLSIZE*0.5, cell[cur_y1*map_width + cur_x1].floorz + 16, cur_y1*CELLSIZE + CELLSIZE*0.5, 0.5, 0.5, 0.5, 32);
+    }
+}
+
+static void editormenu_closed(menu_t* menu)
+{
+}
+
+static void create_editormenu(void)
+{
+    menu_t* create_menu;
+
+    /* Create menu */
+    create_menu = uimenu_new();
+    uimenu_add(create_menu, "Entity", NULL, NULL, NULL);
+    uimenu_add(create_menu, "Light", NULL, editormenu_create_light, NULL);
+
+    /* Main editor menu */
+    editormenu = uimenu_new();
+    uimenu_add(editormenu, "Create", create_menu, NULL, NULL);
+    uimenu_add(editormenu, "-", NULL, NULL, NULL);
+    uimenu_add(editormenu, "Scripting", NULL, NULL, NULL);
+    uimenu_add(editormenu, "-", NULL, NULL, NULL);
+    uimenu_add(editormenu, "Save...", NULL, NULL, NULL);
+    uimenu_add(editormenu, "Open...", NULL, NULL, NULL);
+    uimenu_add(editormenu, "Clear...", NULL, NULL, NULL);
+    uimenu_add(editormenu, "-", NULL, NULL, NULL);
+    uimenu_add(editormenu, "Exit", NULL, editormenu_exit, NULL);
+}
+
 void editor_init(void)
 {
     editorscreen = screen_new(editorscreen_proc, NULL);
     editoruiroot = uiroot_new();
     uiroot_set(editoruiroot);
+    create_editormenu();
     create_texture_browser();
 }
 
 void editor_shutdown(void)
 {
+    uimenu_free(editormenu);
     uictl_free(editoruiroot);
     screen_free(editorscreen);
 }

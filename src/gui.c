@@ -223,10 +223,16 @@ void uictl_free(uicontrol_t* ctl)
     if (!ctl) return;
     uictl_callback(ctl, CB_DESTROYED, NULL);
     if (capture == ctl) capture = NULL;
+    if (ctl->parent) uictl_remove(ctl->parent, ctl);
     if (ctl->dispose) ctl->dispose(ctl);
     if (ctl->ctldata) free(ctl->ctldata);
     if (ctl->text) free(ctl->text);
-    if (ctl->children) list_free(ctl->children);
+    if (ctl->children) {
+        listitem_t* itchild;
+        for (itchild=ctl->children->first; itchild; itchild=itchild->next)
+            ((uicontrol_t*)itchild->ptr)->parent = NULL;
+        list_free(ctl->children);
+    }
     free(ctl);
 }
 
@@ -381,6 +387,158 @@ uicontrol_t* uiroot_set(uicontrol_t* newroot)
     return prev;
 }
 
+/* Popup menus */
+menu_t* uimenu_new(void)
+{
+    menu_t* menu = new(menu_t);
+    menu->root = menu;
+    return menu;
+}
+
+void uimenu_free(menu_t* menu)
+{
+    size_t i;
+    if (!menu) return;
+    for (i=0; i<menu->items; i++) {
+        free(menu->item[i].title);
+        uimenu_free(menu->item[i].submenu);
+    }
+    free(menu->item);
+    if (menu->ctrl)
+        uictl_free(menu->ctrl);
+    free(menu);
+}
+
+void uimenu_add(menu_t* menu, const char* title, menu_t* submenu, menuitem_callback_t callback, void* cbdata)
+{
+    menu->item = realloc(menu->item, sizeof(menuitem_t)*(menu->items + 1));
+    menu->item[menu->items].callback = callback;
+    menu->item[menu->items].callback_data = cbdata;
+    menu->item[menu->items].menu = menu;
+    menu->item[menu->items].root = menu->root;
+    menu->item[menu->items].submenu = submenu;
+    menu->item[menu->items].title = strdup(title);
+    if (submenu) submenu->root = menu->root;
+    menu->items++;
+    menu->index = menu->items;
+}
+
+static void uimenu_ctl_render(uicontrol_t* ctl)
+{
+    menu_t* menu = ctl->userdata;
+    size_t i;
+    gui_color(0.0, 0.0, 0.0, 0.5);
+    glDisable(GL_SCISSOR_TEST);
+    gui_bar(ctl->x + 0.02*hw_ratio, ctl->y - 0.02, ctl->w, ctl->h);
+    glEnable(GL_SCISSOR_TEST);
+    gui_color(0.3, 0.35, 0.37, 1.0);
+    gui_bar(ctl->x, ctl->y, ctl->w, ctl->h);
+    gui_color(0.0, 0.0, 0.0, 1.0);
+    for (i=0; i<menu->items; i++) {
+        if ((i == menu->index || (menu->submenu_visible && i == menu->submenu_visible_index)) && menu->item[i].title[0] != '-') {
+            gui_color(0.2, 0.25, 0.27, 1.0);
+            gui_bar(ctl->x, ctl->y + ctl->h - i*FONTSIZE*1.3 - FONTSIZE*1.3, ctl->w, FONTSIZE*1.3);
+            gui_color(0.0, 0.0, 0.0, 1.0);
+        }
+        if (menu->item[i].title[0] == '-') {
+            gui_bar(ctl->x, ctl->y + ctl->h - i*FONTSIZE*1.3 - FONTSIZE*1.3*0.5, ctl->w, pixelh);
+        } else {
+            font_render(font_normal, ctl->x + 0.01*hw_ratio, ctl->y + ctl->h - i*FONTSIZE*1.3 - FONTSIZE*1.3, menu->item[i].title, -1, FONTSIZE);
+        }
+    }
+}
+
+static int uimenu_ctl_handle_event(uicontrol_t* ctl, SDL_Event* ev)
+{
+    float mx, my;
+    int idx, retval = 0;
+    menu_t* menu = ctl->userdata;
+    uictl_mouse_position(ctl, &mx, &my);
+
+    switch (ev->type) {
+    case SDL_MOUSEBUTTONDOWN:
+        if (!menu->submenu_visible && (mx < 0 || my < 0 || mx > ctl->w || my > ctl->h)) {
+            uimenu_hide(menu->root);
+            return 1;
+        }
+        if (menu->index < menu->items) {
+            if (menu->item[menu->index].callback) {
+                ((menuitem_callback_t)menu->item[menu->index].callback)(MI_SELECT, menu->item + menu->index, menu->item[menu->index].callback_data);
+                uimenu_hide(menu->root);
+                return 1;
+            }
+        }
+        retval = 1;
+        break;
+    case SDL_MOUSEMOTION:
+        if (mx < 0 || mx > ctl->w)
+            idx = -1;
+        else
+            idx = (ctl->h - my)/(FONTSIZE*1.3);
+        if (idx < 0 || idx > (int)menu->items)
+            idx = menu->items;
+        if (idx != (int)menu->index) {
+            menu->index = idx;
+            if (menu->index != menu->items) {
+                if (menu->submenu_visible) {
+                    uimenu_hide(menu->submenu_visible);
+                    menu->submenu_visible = NULL;
+                    gui_capture(menu->ctrl);
+                }
+                if (menu->item[menu->index].callback)
+                    ((menuitem_callback_t)menu->item[menu->index].callback)(MI_HIGHLIGHT, menu->item + menu->index, menu->item[menu->index].callback_data);
+                if (menu->item[menu->index].submenu) {
+                    uimenu_show(menu->item[menu->index].submenu, menu->ctrl->x + menu->ctrl->w,
+                        menu->ctrl->y + menu->ctrl->h - FONTSIZE*1.3*menu->index);
+                    menu->submenu_visible = menu->item[menu->index].submenu;
+                    menu->item[menu->index].submenu->parent = menu;
+                    menu->item[menu->index].submenu->root = menu->root;
+                    menu->submenu_visible_index = menu->index;
+                }
+            }
+        }
+        retval = 1;
+        break;
+    }
+
+    if (menu->parent && menu->parent->ctrl)
+        return uimenu_ctl_handle_event(menu->parent->ctrl, ev);
+
+    return retval;
+}
+
+void uimenu_show(menu_t* menu, float x, float y)
+{
+    size_t i;
+    float maxw = 0;
+    if (menu->ctrl) uimenu_hide(menu);
+    menu->ctrl = uictl_new(uiroot);
+    menu->ctrl->userdata = menu;
+    menu->ctrl->render = uimenu_ctl_render;
+    menu->ctrl->handle_event = uimenu_ctl_handle_event;
+    menu->submenu_visible = NULL;
+    for (i=0; i<menu->items; i++) {
+        float itw = font_width(font_normal, menu->item[i].title, -1, FONTSIZE);
+        if (itw > maxw) maxw = itw;
+    }
+    y = y - FONTSIZE*1.3*menu->items;
+    if (y < 0) y = 0;
+    uictl_place(menu->ctrl, x, y, maxw + 0.02*hw_ratio, FONTSIZE*1.3*menu->items);
+    gui_capture(menu->ctrl);
+}
+
+void uimenu_hide(menu_t* menu)
+{
+    if (!menu->ctrl) return;
+    if (menu->submenu_visible) {
+        uimenu_hide(menu->submenu_visible);
+        menu->submenu_visible = NULL;
+    }
+    uictl_free(menu->ctrl);
+    menu->ctrl = NULL;
+    gui_capture(NULL);
+    if (menu->closed) menu->closed(menu);
+}
 
 /* Top-level windows */
 #define WINF_MOVING 0x0001
