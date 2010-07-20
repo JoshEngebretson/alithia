@@ -34,6 +34,12 @@ typedef struct _triangle_t
     vector_t v[3];
 } triangle_t;
 
+typedef struct _aabb_t
+{
+    vector_t min;
+    vector_t max;
+} aabb_t;
+
 typedef struct _plane_t
 {
     float nx, ny, nz, d;
@@ -48,7 +54,11 @@ void vec_makedir(vector_t* d, vector_t* a, vector_t* b);
 float vec_distsq(vector_t* a, vector_t* b);
 float vec_dist(vector_t* a, vector_t* b);
 int plane_from_three_points(plane_t* p, vector_t* a, vector_t* b, vector_t* c);
+void plane_from_point_and_normal(plane_t* p, vector_t* v, vector_t* n);
+void plane_project(plane_t* p, vector_t* v);
 int ray_plane_intersection(plane_t* p, vector_t* a, vector_t* b, vector_t* ip);
 int ray_tri_intersection(triangle_t* t, vector_t* a, vector_t* b, vector_t* ip, int dualface);
+int ray_sphere_intersection(vector_t* sc, float sr, vector_t* a, vector_t* b, vector_t* ip);
+
 
 #endif

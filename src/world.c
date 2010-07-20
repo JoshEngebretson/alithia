@@ -34,7 +34,6 @@ int cluster_width;
 int cluster_height;
 lmap_texel_t* lightmap;
 GLuint lmaptex;
-int lmap_needs_update;
 int lmap_quality = 2;
 
 model_t* mdl_vytio;
@@ -179,8 +178,6 @@ void map_update_cell(int x, int y)
     if (y > 0 && (y - 1)/CLUSTERSIZE != cy) invalidate_cluster(cx, cy - 1);
     if (x < map_width - 1 && (x + 1)/CLUSTERSIZE != cx) invalidate_cluster(cx + 1, cy);
     if (y < map_height - 1 && (y + 1)/CLUSTERSIZE != cy) invalidate_cluster(cx, cy + 1);
-
-    lmap_needs_update = 1;
 }
 
 void ray_march(int x1, int y1, int x2, int y2, int (*func)(int x, int y, cell_t* cell, void* data), void* data)
@@ -291,12 +288,13 @@ static int pick_rm_func(int x, int y, cell_t* cell, void* data)
     return 1;
 }
 
-int pick(vector_t* a, vector_t* b, pickdata_t* pd)
+int pick(vector_t* a, vector_t* b, pickdata_t* pd, int flags)
 {
     pd->a = a;
     pd->b = b;
     pd->nopick = 1;
     pd->lastcluster = NULL;
+    pd->pickflags = flags;
     /*{
         int x, y;
         for (y=0; y<map_height; y++)
@@ -304,6 +302,22 @@ int pick(vector_t* a, vector_t* b, pickdata_t* pd)
                 pick_rm_func(x, y, &cell[y*map_width + x], pd);
     }*/
     ray_march(a->x/CELLSIZE, a->z/CELLSIZE, b->x/CELLSIZE, b->z/CELLSIZE, pick_rm_func, pd);
+    if (flags & PICKFLAG_PICK_LIGHTS) {
+        listitem_t* li;
+        for (li=lights->first; li; li=li->next) {
+            light_t* l = li->ptr;
+            vector_t ip;
+            if (ray_sphere_intersection(&l->p, 16, a, b, &ip)) {
+                float ipad = vec_distsq(a, &ip);
+                if (ipad < pd->ipad) {
+                    pd->result = PICK_LIGHT;
+                    pd->light = l;
+                    pd->ip = ip;
+                    pd->ipad = vec_distsq(a, &ip);
+                }
+            }
+        }
+    }
     if (pd->result) return pd->result;
     pd->result = 0;
     return pd->result;
@@ -322,7 +336,7 @@ static int light_vfc_proc(int x, int y, cell_t* cell, void* data)
 static int light_visible_from_cell(light_t* l, int cx, int cy)
 {
     int r = 1;
-    ray_march(((int)l->x)/CELLSIZE, ((int)l->z)/CELLSIZE, cx, cy, light_vfc_proc, &r);
+    ray_march(((int)l->p.x)/CELLSIZE, ((int)l->p.z)/CELLSIZE, cx, cy, light_vfc_proc, &r);
     return r;
 }
 
@@ -338,7 +352,7 @@ static void calc_lightmap_for_cell_at(float* or, float* og, float* ob, int mx, i
     for (le=lights->first; le; le=le->next) {
         light_t* l = le->ptr;
         float dist;
-        dist = sqrt(SQR(cx - l->x) + SQR(cz - l->z));
+        dist = sqrt(SQR(cx - l->p.x) + SQR(cz - l->p.z));
         if (dist < l->rad) {
             if (!light_visible_from_cell(l, mx, my)) continue;
             if (dist < l->rad*0.65f) {
@@ -427,22 +441,19 @@ void lmap_update(void)
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, lmaptex);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, map_width, map_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, lightmap);
-    printf("%s\n", gluErrorString(glGetError()));
-    lmap_needs_update = 0;
 }
 
 light_t* light_new(float x, float y, float z, float r, float g, float b, float rad)
 {
     light_t* light = new(light_t);
-    light->x = x;
-    light->y = y;
-    light->z = z;
+    light->p.x = x;
+    light->p.y = y;
+    light->p.z = z;
     light->r = r;
     light->g = g;
     light->b = b;
     light->rad = rad;
     list_add(lights, light);
-    lmap_needs_update = 1;
     return light;
 }
 
@@ -450,7 +461,6 @@ void light_free(light_t* light)
 {
     list_remove(lights, light, 0);
     free(light);
-    lmap_needs_update = 1;
 }
 
 entity_t* ent_new(void)

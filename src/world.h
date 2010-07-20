@@ -34,10 +34,14 @@
 #define PICK_NOTHING 0
 #define PICK_WORLD 1
 #define PICK_ENTITY 2
+#define PICK_LIGHT 3
+
+#define PICKFLAG_NOFLAGS 0
+#define PICKFLAG_PICK_LIGHTS 0x0001
 
 typedef struct _light_t
 {
-    float x, y, z;
+    vector_t p;
     float r, g, b;
     float rad;
 } light_t;
@@ -102,6 +106,8 @@ typedef struct _pickdata_t
     int nopick;
     cluster_t* lastcluster;
     float ipad; /* ip-to-a distance (squared) */
+    int pickflags; /* picking flags */
+    light_t* light; /* picked light for PICK_LIGHT */
 } pickdata_t;
 
 extern cell_t* cell;
@@ -115,14 +121,13 @@ extern int cluster_width;
 extern int cluster_height;
 extern lmap_texel_t* lightmap;
 extern GLuint lmaptex;
-extern int lmap_needs_update;
 
 void map_init(int width, int height);
 void map_free(void);
 void map_update_cell(int x, int y);
 
 void ray_march(int x1, int y1, int x2, int y2, int (*func)(int x, int y, cell_t* cell, void* data), void* data);
-int pick(vector_t* a, vector_t* b, pickdata_t* pd);
+int pick(vector_t* a, vector_t* b, pickdata_t* pd, int flags);
 
 void lmap_update(void);
 

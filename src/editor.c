@@ -30,6 +30,10 @@ static int cur_x1, cur_y1;
 static int points_to_floor;
 static int camera_mode = 1;
 static float last_cell_y;
+static pickdata_t pd;
+static int draging_light;
+static light_t* drag_light;
+static plane_t drag_light_plane;
 
 static uicontrol_t* editoruiroot;
 static uicontrol_t* texture_browser;
@@ -158,8 +162,7 @@ static void key_down(SDL_Event ev)
         editor_apply_cell_modifier(editor_makecolumn_modifier, NULL);
         break;
     case SDLK_l:
-        if (lmap_needs_update)
-            lmap_update();
+        lmap_update();
         break;
     default: ;
     }
@@ -183,47 +186,106 @@ static void editorscreen_update(float ms)
 
 static void editorscreen_sdl_event(SDL_Event ev)
 {
-    pickdata_t pd;
-
     switch (ev.type) {
     case SDL_MOUSEBUTTONDOWN:
         if (ev.button.button == 1) {
-            drag_selection = 1;
-            dsel_x1 = cur_x1;
-            dsel_y1 = cur_y1;
-            has_selection = 1;
+            if (pd.result == PICK_LIGHT) { /* pointing at light: start dragging/cloning it */
+                vector_t n;
+                vec_makedir(&n, &centerayb, &centeraya);
+                draging_light = 1;
+                if (SDL_GetModState() & KMOD_SHIFT) {
+                    drag_light = light_new(pd.light->p.x, pd.light->p.y, pd.light->p.z, pd.light->r, pd.light->g, pd.light->b, pd.light->rad);
+                } else {
+                    drag_light = pd.light;
+                }
+                plane_from_point_and_normal(&drag_light_plane, &drag_light->p, &n);
+            } else { /* pointing at world */
+                drag_selection = 1;
+                dsel_x1 = cur_x1;
+                dsel_y1 = cur_y1;
+                has_selection = 1;
+            }
         }
         if (ev.button.button == 4) { /* scroll wheel up */
-            int offs = -1;
-            if (key[SDLK_i]) offs = 0;
-            else if (key[SDLK_o]) offs = 1;
-            else if (key[SDLK_k]) offs = 2;
-            else if (key[SDLK_j]) offs = 3;
-            else {
-                offs = 4;
-                editor_apply_cell_modifier(points_to_floor ? editor_raisefloor_modifier : editor_raiseceiling_modifier, &offs);
-                return;
+            if (pd.result == PICK_LIGHT) { /* pointing at light: change light radius/color or move it */
+                if (draging_light) {
+                    vector_t n;
+                    vec_makedir(&n, &centerayb, &centeraya);
+                    pd.light->p.x -= n.x*16;
+                    pd.light->p.y -= n.y*16;
+                    pd.light->p.z -= n.z*16;
+                    plane_from_point_and_normal(&drag_light_plane, &drag_light->p, &n);
+                } else {
+                    if (key[SDLK_r])
+                        pd.light->r += 0.015625;
+                    else if (key[SDLK_g])
+                        pd.light->g += 0.015625;
+                    else if (key[SDLK_b])
+                        pd.light->b += 0.015625;
+                    else if (key[SDLK_v]) {
+                        pd.light->r += 0.015625;
+                        pd.light->g += 0.015625;
+                        pd.light->b += 0.015625;
+                    } else pd.light->rad += 4;
+                }
+            } else { /* pointing at world */
+                int offs = -1;
+                if (key[SDLK_i]) offs = 0;
+                else if (key[SDLK_o]) offs = 1;
+                else if (key[SDLK_k]) offs = 2;
+                else if (key[SDLK_j]) offs = 3;
+                else {
+                    offs = 4;
+                    editor_apply_cell_modifier(points_to_floor ? editor_raisefloor_modifier : editor_raiseceiling_modifier, &offs);
+                    return;
+                }
+                offs |= (1<<4);
+                editor_apply_cell_modifier(points_to_floor ? editor_adjustflooroffs_modifier : editor_adjustceilingoffs_modifier, &offs);
             }
-            offs |= (1<<4);
-            editor_apply_cell_modifier(points_to_floor ? editor_adjustflooroffs_modifier : editor_adjustceilingoffs_modifier, &offs);
         } else if (ev.button.button == 5) { /* scroll wheel down */
-            int offs = -1;
-            if (key[SDLK_i]) offs = 0;
-            else if (key[SDLK_o]) offs = 1;
-            else if (key[SDLK_k]) offs = 2;
-            else if (key[SDLK_j]) offs = 3;
-            else {
-                offs = 4;
-                editor_apply_cell_modifier(points_to_floor ? editor_lowerfloor_modifier : editor_lowerceiling_modifier, &offs);
-                return;
+            if (pd.result == PICK_LIGHT) { /* pointing at light: change light radius/color or move it */
+                if (draging_light) {
+                    vector_t n;
+                    vec_makedir(&n, &centerayb, &centeraya);
+                    pd.light->p.x += n.x*16;
+                    pd.light->p.y += n.y*16;
+                    pd.light->p.z += n.z*16;
+                    plane_from_point_and_normal(&drag_light_plane, &drag_light->p, &n);
+                } else {
+                    if (key[SDLK_r])
+                        pd.light->r -= 0.015625;
+                    else if (key[SDLK_g])
+                        pd.light->g -= 0.015625;
+                    else if (key[SDLK_b])
+                        pd.light->b -= 0.015625;
+                    else if (key[SDLK_v]) {
+                        pd.light->r -= 0.015625;
+                        pd.light->g -= 0.015625;
+                        pd.light->b -= 0.015625;
+                    } else pd.light->rad -= 4;
+                    if (pd.light->rad < 0)
+                        pd.light->rad = 0;
+                }
+            } else { /* pointing at world */
+                int offs = -1;
+                if (key[SDLK_i]) offs = 0;
+                else if (key[SDLK_o]) offs = 1;
+                else if (key[SDLK_k]) offs = 2;
+                else if (key[SDLK_j]) offs = 3;
+                else {
+                    offs = 4;
+                    editor_apply_cell_modifier(points_to_floor ? editor_lowerfloor_modifier : editor_lowerceiling_modifier, &offs);
+                    return;
+                }
+                offs |= -(1<<4);
+                editor_apply_cell_modifier(points_to_floor ? editor_adjustflooroffs_modifier : editor_adjustceilingoffs_modifier, &offs);
             }
-            offs |= -(1<<4);
-            editor_apply_cell_modifier(points_to_floor ? editor_adjustflooroffs_modifier : editor_adjustceilingoffs_modifier, &offs);
         }
         break;
     case SDL_MOUSEBUTTONUP:
         if (ev.button.button == 1) {
             drag_selection = 0;
+            draging_light = 0;
             if (cur_x1 == dsel_x1 && cur_y1 == dsel_y1) {
                 has_selection = 0;
             }
@@ -237,7 +299,15 @@ static void editorscreen_sdl_event(SDL_Event ev)
             if (pll < -90) pll = -90;
         }
 
-        if (pick(&centeraya, &centerayb, &pd)) {
+        if (draging_light) {
+            vector_t ip;
+            if (!ray_plane_intersection(&drag_light_plane, &centeraya, &centerayb, &ip))
+                break;
+            drag_light->p = ip;
+            break;
+        }
+
+        if (pick(&centeraya, &centerayb, &pd, PICKFLAG_PICK_LIGHTS)) {
             switch (pd.result) {
             case PICK_WORLD:
                 cur_x1 = ((int)pd.ip.x)/CELLSIZE;
@@ -340,8 +410,30 @@ static void fill_selection(int floor)
     }
 }
 
+static void draw_sphere_outline(vector_t* c, float rad)
+{
+    float r;
+    glBegin(GL_LINE_STRIP);
+    for (r=0; r<=16; r++) {
+        glVertex3f(c->x + sin(r*PI/8.0)*rad, c->y + cos(r*PI/8.0)*rad, c->z);
+    }
+    glEnd();
+    glBegin(GL_LINE_STRIP);
+    for (r=0; r<=16; r++) {
+        glVertex3f(c->x + sin(r*PI/8.0)*rad, c->y, c->z + cos(r*PI/8.0)*rad);
+    }
+    glEnd();
+    glBegin(GL_LINE_STRIP);
+    for (r=0; r<=16; r++) {
+        glVertex3f(c->x, c->y + cos(r*PI/8.0)*rad, c->z + sin(r*PI/8.0)*rad);
+    }
+    glEnd();
+}
+
 static void editorscreen_render(void)
 {
+    listitem_t* li;
+    light_t* light;
     glPushAttrib(GL_ALL_ATTRIB_BITS);
     glPushClientAttrib(GL_CLIENT_ALL_ATTRIB_BITS);
     glActiveTexture(GL_TEXTURE0);
@@ -351,6 +443,39 @@ static void editorscreen_render(void)
     glDisable(GL_CULL_FACE);
 
     points_to_floor = centeraya.y > centerayb.y;
+
+    /* Draw lights */
+    glPointSize(4);
+    glBegin(GL_POINTS);
+    for (li=lights->first; li; li=li->next) {
+        light = li->ptr;
+        glColor3f(light->r, light->g, light->b);
+        glVertex3fv(&light->p.x);
+    }
+    glEnd();
+    glPointSize(1);
+    for (li=lights->first; li; li=li->next) {
+        light = li->ptr;
+        if (pd.result == PICK_LIGHT && pd.light == light) {
+            glColor3f(1, 1, 1);
+            draw_sphere_outline(&light->p, 16);
+            if (draging_light) {
+                glBegin(GL_LINES);
+                glVertex3f(light->p.x, light->p.y - 10000, light->p.z);
+                glVertex3f(light->p.x, light->p.y + 10000, light->p.z);
+                glVertex3f(light->p.x - 10000, light->p.y, light->p.z);
+                glVertex3f(light->p.x + 10000, light->p.y, light->p.z);
+                glVertex3f(light->p.x, light->p.y, light->p.z - 10000);
+                glVertex3f(light->p.x, light->p.y, light->p.z + 10000);
+                glEnd();
+            }
+            glColor3f(light->r, light->g, light->b);
+            draw_sphere_outline(&light->p, light->rad);
+        } else {
+            glColor3f(light->r, light->g, light->b);
+            draw_sphere_outline(&light->p, 16);
+        }
+    }
 
     /* Draw grid around cursor */
     glLineWidth(2);

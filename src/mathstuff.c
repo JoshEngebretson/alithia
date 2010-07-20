@@ -79,6 +79,22 @@ int plane_from_three_points(plane_t* p, vector_t* a, vector_t* b, vector_t* c)
     return 1;
 }
 
+void plane_from_point_and_normal(plane_t* p, vector_t* v, vector_t* n)
+{
+    p->nx = n->x;
+    p->ny = n->y;
+    p->nz = n->z;
+    p->d = v->x*n->x + v->y*n->y + v->z*n->z;
+}
+
+void plane_project(plane_t* p, vector_t* v)
+{
+    double sd = (v->x - p->nx*p->d)*p->nx + (v->y - p->ny*p->d)*p->ny + (v->z - p->nz*p->d)*p->nz;
+    v->x -= p->nx*sd;
+    v->y -= p->ny*sd;
+    v->z -= p->nz*sd;
+}
+
 int ray_plane_intersection(plane_t* p, vector_t* a, vector_t* b, vector_t* ip)
 {
     float pax = p->nx*p->d - a->x;
@@ -141,5 +157,23 @@ int ray_tri_intersection(triangle_t* t, vector_t* a, vector_t* b, vector_t* ip, 
     if (sv < 0.0 || sv > 1.0) return 0;
     tv = (uv*wu - uu*wv)/d;
     if (tv < 0.0 || (sv + tv) > 1.0) return 0;
+    return 1;
+}
+
+int ray_sphere_intersection(vector_t* sc, float sr, vector_t* a, vector_t* b, vector_t* ip)
+{
+    vector_t d, dst;
+    float bb, cc, dd, u;
+    vec_makedir(&d, a, b);
+    dst = *a;
+    vec_sub(&dst, sc);
+    bb = vec_dot(&dst, &d);
+    cc = vec_dot(&dst, &dst) - sr*sr;
+    dd = bb*bb - cc;
+    if (dd < 0.000001) return 0;
+    u = -bb - sqrt(dd);
+    ip->x = a->x + u*d.x;
+    ip->y = a->y + u*d.y;
+    ip->z = a->z + u*d.z;
     return 1;
 }
