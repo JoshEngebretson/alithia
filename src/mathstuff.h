@@ -54,11 +54,17 @@ void vec_makedir(vector_t* d, vector_t* a, vector_t* b);
 float vec_distsq(vector_t* a, vector_t* b);
 float vec_dist(vector_t* a, vector_t* b);
 int plane_from_three_points(plane_t* p, vector_t* a, vector_t* b, vector_t* c);
+int plane_from_three_points_xyz(plane_t* p, float ax, float ay, float az, float bx, float by, float bz, float cx, float cy, float cz);
 void plane_from_point_and_normal(plane_t* p, vector_t* v, vector_t* n);
 void plane_project(plane_t* p, vector_t* v);
+float plane_signdist(plane_t* p, vector_t* v);
+void aabb_zero(aabb_t* aabb);
+void aabb_consider(aabb_t* aabb, vector_t* v);
+void aabb_consider_xyz(aabb_t* aabb, float x, float y, float z);
+void aabb_copytrans(aabb_t* tgt, aabb_t* src, float tx, float ty, float tz);
 int ray_plane_intersection(plane_t* p, vector_t* a, vector_t* b, vector_t* ip);
 int ray_tri_intersection(triangle_t* t, vector_t* a, vector_t* b, vector_t* ip, int dualface);
 int ray_sphere_intersection(vector_t* sc, float sr, vector_t* a, vector_t* b, vector_t* ip);
-
+int ray_aabb_intersection(aabb_t* aabb, vector_t* a, vector_t* b, vector_t* ip);
 
 #endif

@@ -79,6 +79,28 @@ int plane_from_three_points(plane_t* p, vector_t* a, vector_t* b, vector_t* c)
     return 1;
 }
 
+int plane_from_three_points_xyz(plane_t* p, float ax, float ay, float az, float bx, float by, float bz, float cx, float cy, float cz)
+{
+    float abx = bx - ax;
+    float aby = by - ay;
+    float abz = bz - az;
+    float acx = cx - ax;
+    float acy = cy - ay;
+    float acz = cz - az;
+    float len;
+    p->nx = aby*acz - acy*abz;
+    p->ny = abz*acx - acz*abx;
+    p->nz = abx*acy - acx*aby;
+    len = sqrtf(p->nx*p->nx + p->ny*p->ny + p->nz*p->nz);
+    if (len > 0.0) {
+        p->nx /= len;
+        p->ny /= len;
+        p->nz /= len;
+    } else return 0;
+    p->d = ax*p->nx + ay*p->ny + az*p->nz;
+    return 1;
+}
+
 void plane_from_point_and_normal(plane_t* p, vector_t* v, vector_t* n)
 {
     p->nx = n->x;
@@ -93,6 +115,46 @@ void plane_project(plane_t* p, vector_t* v)
     v->x -= p->nx*sd;
     v->y -= p->ny*sd;
     v->z -= p->nz*sd;
+}
+
+float plane_signdist(plane_t* p, vector_t* v)
+{
+    return (v->x - p->nx*p->d)*p->nx + (v->y - p->ny*p->d)*p->ny + (v->z - p->nz*p->d)*p->nz;
+}
+
+void aabb_zero(aabb_t* aabb)
+{
+    aabb->min.x = aabb->min.y = aabb->min.z = aabb->max.x = aabb->max.y = aabb->max.z = 0.0f;
+}
+
+void aabb_consider(aabb_t* aabb, vector_t* v)
+{
+    if (v->x < aabb->min.x) aabb->min.x = v->x;
+    if (v->y < aabb->min.y) aabb->min.y = v->y;
+    if (v->z < aabb->min.z) aabb->min.z = v->z;
+    if (v->x > aabb->max.x) aabb->max.x = v->x;
+    if (v->y > aabb->max.y) aabb->max.y = v->y;
+    if (v->z > aabb->max.z) aabb->max.z = v->z;
+}
+
+void aabb_consider_xyz(aabb_t* aabb, float x, float y, float z)
+{
+    if (x < aabb->min.x) aabb->min.x = x;
+    if (y < aabb->min.y) aabb->min.y = y;
+    if (z < aabb->min.z) aabb->min.z = z;
+    if (x > aabb->max.x) aabb->max.x = x;
+    if (y > aabb->max.y) aabb->max.y = y;
+    if (z > aabb->max.z) aabb->max.z = z;
+}
+
+void aabb_copytrans(aabb_t* tgt, aabb_t* src, float tx, float ty, float tz)
+{
+    tgt->min.x = src->min.x + tx;
+    tgt->min.y = src->min.y + ty;
+    tgt->min.z = src->min.z + tz;
+    tgt->max.x = src->max.x + tx;
+    tgt->max.y = src->max.y + ty;
+    tgt->max.z = src->max.z + tz;
 }
 
 int ray_plane_intersection(plane_t* p, vector_t* a, vector_t* b, vector_t* ip)
@@ -176,4 +238,39 @@ int ray_sphere_intersection(vector_t* sc, float sr, vector_t* a, vector_t* b, ve
     ip->y = a->y + u*d.y;
     ip->z = a->z + u*d.z;
     return 1;
+}
+
+int ray_aabb_intersection(aabb_t* aabb, vector_t* a, vector_t* b, vector_t* ip)
+{
+    /* TODO: find some faster way */
+    plane_t planes[6];
+    int i, j, ipfound = 0;
+    vector_t lip;
+    float ipad;
+    plane_from_three_points_xyz(planes + 0, aabb->min.x, aabb->max.y, aabb->min.z, aabb->min.x, aabb->max.y, aabb->max.z, aabb->max.x, aabb->max.y, aabb->min.z);
+    plane_from_three_points_xyz(planes + 1, aabb->min.x, aabb->max.y, aabb->max.z, aabb->min.x, aabb->min.y, aabb->max.z, aabb->max.x, aabb->max.y, aabb->max.z);
+    plane_from_three_points_xyz(planes + 2, aabb->min.x, aabb->min.y, aabb->max.z, aabb->min.x, aabb->min.y, aabb->min.z, aabb->max.x, aabb->min.y, aabb->max.z);
+    plane_from_three_points_xyz(planes + 3, aabb->max.x, aabb->max.y, aabb->min.z, aabb->max.x, aabb->min.y, aabb->min.z, aabb->min.x, aabb->max.y, aabb->min.z);
+    plane_from_three_points_xyz(planes + 4, aabb->min.x, aabb->max.y, aabb->min.z, aabb->min.x, aabb->min.y, aabb->min.z, aabb->min.x, aabb->min.y, aabb->max.z);
+    plane_from_three_points_xyz(planes + 5, aabb->max.x, aabb->max.y, aabb->min.z, aabb->max.x, aabb->max.y, aabb->max.z, aabb->max.x, aabb->min.y, aabb->min.z);
+    for (i=0; i<6; i++) {
+        if (ray_plane_intersection(planes + i, a, b, &lip)) {
+            int inside = 1;
+            for (j=0; j<6; j++) {
+                if (i != j && plane_signdist(planes + j, &lip) > 0.0) {
+                    inside = 0;
+                    break;
+                }
+            }
+            if (inside) {
+                float pipad = vec_distsq(&lip, a);
+                if (!ipfound || pipad < ipad) {
+                    ipad = pipad;
+                    ipfound = 1;
+                    *ip = lip;
+                }
+            }
+        }
+    }
+    return ipfound;
 }

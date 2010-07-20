@@ -49,11 +49,12 @@ typedef struct _light_t
 typedef struct _entity_t
 {
     model_t* mdl;
-    int x, y, z;
+    vector_t p;
     float xoff, yoff, zoff;
     int yrot;
     float mtx[16];
     struct _cluster_t* clus;
+    aabb_t aabb;
 } entity_t;
 
 typedef struct _cell_t
@@ -83,7 +84,7 @@ typedef struct _cluster_t
     triangle_t* tri;
     size_t tris;
     list_t* ents;
-    float x1, y1, z1, x2, y2, z2;
+    aabb_t aabb;
 } cluster_t;
 
 typedef struct _lmap_texel_t
@@ -138,6 +139,6 @@ entity_t* ent_new(void);
 void ent_free(entity_t* ent);
 void ent_update(entity_t* ent);
 void ent_set_model(entity_t* ent, model_t* mdl);
-void ent_move(entity_t* ent, int x, int y, int z);
+void ent_move(entity_t* ent, float x, float y, float z);
 
 #endif

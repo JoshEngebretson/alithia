@@ -733,27 +733,18 @@ static void calc_frustum_planes(void)
     return 1;
 }*/
 
-static int box_in_frustum(float x1, float y1, float z1, float x2, float y2,
-    float z2)
+static int box_in_frustum(aabb_t* aabb)
 {
     int i;
     for (i = 0; i < 6; i++) {
-        if (frustum[i][0] * x1 + frustum[i][1] * y1 + frustum[i][2] * z1
-            + frustum[i][3] > 0.0f) continue;
-        if (frustum[i][0] * x2 + frustum[i][1] * y1 + frustum[i][2] * z1
-            + frustum[i][3] > 0.0f) continue;
-        if (frustum[i][0] * x1 + frustum[i][1] * y1 + frustum[i][2] * z2
-            + frustum[i][3] > 0.0f) continue;
-        if (frustum[i][0] * x2 + frustum[i][1] * y1 + frustum[i][2] * z2
-            + frustum[i][3] > 0.0f) continue;
-        if (frustum[i][0] * x1 + frustum[i][1] * y2 + frustum[i][2] * z1
-            + frustum[i][3] > 0.0f) continue;
-        if (frustum[i][0] * x2 + frustum[i][1] * y2 + frustum[i][2] * z1
-            + frustum[i][3] > 0.0f) continue;
-        if (frustum[i][0] * x1 + frustum[i][1] * y2 + frustum[i][2] * z2
-            + frustum[i][3] > 0.0f) continue;
-        if (frustum[i][0] * x2 + frustum[i][1] * y2 + frustum[i][2] * z2
-            + frustum[i][3] > 0.0f) continue;
+        if (frustum[i][0] * aabb->min.x + frustum[i][1] * aabb->min.y + frustum[i][2] * aabb->min.z + frustum[i][3] > 0.0f) continue;
+        if (frustum[i][0] * aabb->max.x + frustum[i][1] * aabb->min.y + frustum[i][2] * aabb->min.z + frustum[i][3] > 0.0f) continue;
+        if (frustum[i][0] * aabb->min.x + frustum[i][1] * aabb->min.y + frustum[i][2] * aabb->max.z + frustum[i][3] > 0.0f) continue;
+        if (frustum[i][0] * aabb->max.x + frustum[i][1] * aabb->min.y + frustum[i][2] * aabb->max.z + frustum[i][3] > 0.0f) continue;
+        if (frustum[i][0] * aabb->min.x + frustum[i][1] * aabb->max.y + frustum[i][2] * aabb->min.z + frustum[i][3] > 0.0f) continue;
+        if (frustum[i][0] * aabb->max.x + frustum[i][1] * aabb->max.y + frustum[i][2] * aabb->min.z + frustum[i][3] > 0.0f) continue;
+        if (frustum[i][0] * aabb->min.x + frustum[i][1] * aabb->max.y + frustum[i][2] * aabb->max.z + frustum[i][3] > 0.0f) continue;
+        if (frustum[i][0] * aabb->max.x + frustum[i][1] * aabb->max.y + frustum[i][2] * aabb->max.z + frustum[i][3] > 0.0f) continue;
         return 0;
     }
     return 1;
@@ -921,8 +912,7 @@ static void render_world(void)
             cluster_t* cls = cluster + y * cluster_width + x;
             /* test if the cluster is inside the frustum */
             if (cls->visible) {
-                cls->visible = box_in_frustum(cls->x1, cls->y1, cls->z1,
-                    cls->x2, cls->y2, cls->z2);
+                cls->visible = box_in_frustum(&cls->aabb);
             }
             /* inside */
             if (cls->visible || init_frames > 0) {
@@ -993,10 +983,10 @@ static void render_world(void)
                         for (i=0; i<cls->tris; i++) {
                             size_t j;
                             for (j=0; j<3; j++) {
-                                if ((!i && !j) || cls->tri[i].v[j].y < cls->y1)
-                                    cls->y1 = cls->tri[i].v[j].y;
-                                if ((!i && !j) || cls->tri[i].v[j].y > cls->y2)
-                                    cls->y2 = cls->tri[i].v[j].y;
+                                if ((!i && !j) || cls->tri[i].v[j].y < cls->aabb.min.y)
+                                    cls->aabb.min.y = cls->tri[i].v[j].y;
+                                if ((!i && !j) || cls->tri[i].v[j].y > cls->aabb.max.y)
+                                    cls->aabb.max.y = cls->tri[i].v[j].y;
                             }
                         }
                         free(pb);
@@ -1217,10 +1207,9 @@ static void render_world(void)
 
     for (i = 0; i < ec; i++) {
         entity_t* ent = e[i];
-        int shadow_y = cell[((ent->z >> 5) / CELLSIZE) * map_width + ((ent->x
-            >> 5) / CELLSIZE)].floorz;
+        int shadow_y = cell[((int)ent->p.z / CELLSIZE) * map_width + (((int)ent->p.x) / CELLSIZE)].floorz;
         glPushMatrix();
-        glTranslatef((float) ent->x / 32.0, shadow_y, (float) ent->z / 32.0);
+        glTranslatef(ent->p.x, shadow_y, ent->p.z);
         glCallList(ent->mdl->dlshadow);
         glPopMatrix();
     }
@@ -1510,7 +1499,7 @@ static void run(void)
 
     ent = ent_new();
     ent_set_model(ent, mdl_gun);
-    ent_move(ent, 26*CELLSIZE*32.0, -128*32.0, 10*CELLSIZE*32.0);
+    ent_move(ent, 26*CELLSIZE, -128, 10*CELLSIZE);
 
     calc_campoints(sqrt(256*256 + 256*256));
     lmap_update();

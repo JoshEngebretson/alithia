@@ -63,10 +63,10 @@ void map_init(int width, int height)
     for (y=0; y<cluster_height; y++) {
         for (x=0; x<cluster_width; x++) {
             cluster[i].ents = list_new();
-            cluster[i].x1 = x*CELLSIZE*CLUSTERSIZE;
-            cluster[i].z1 = y*CELLSIZE*CLUSTERSIZE;
-            cluster[i].x2 = (x + 1)*CELLSIZE*CLUSTERSIZE;
-            cluster[i].z2 = (y + 1)*CELLSIZE*CLUSTERSIZE;
+            cluster[i].aabb.min.x = x*CELLSIZE*CLUSTERSIZE;
+            cluster[i].aabb.min.z = y*CELLSIZE*CLUSTERSIZE;
+            cluster[i].aabb.max.x = (x + 1)*CELLSIZE*CLUSTERSIZE;
+            cluster[i].aabb.max.z = (y + 1)*CELLSIZE*CLUSTERSIZE;
             i++;
         }
     }
@@ -101,11 +101,11 @@ void map_init(int width, int height)
 
     ent = ent_new();
     ent_set_model(ent, mdl_vytio);
-    ent_move(ent, 10*CELLSIZE*32.0, -128*32.0, 10*CELLSIZE*32.0);
+    ent_move(ent, 10*CELLSIZE, -128, 10*CELLSIZE);
 
     ent = ent_new();
     ent_set_model(ent, mdl_armor);
-    ent_move(ent, 18*CELLSIZE*32.0, -128*32.0, 10*CELLSIZE*32.0);
+    ent_move(ent, 18*CELLSIZE, -128, 10*CELLSIZE);
 
     light_new(14*CELLSIZE, 0, 10*CELLSIZE, 0.7, 0.2, 0.1, 150);
     light_new(14*CELLSIZE, 0, 10*CELLSIZE, 0.1, 0.1, 0.2, 150000);
@@ -251,6 +251,7 @@ static int pick_rm_func(int x, int y, cell_t* cell, void* data)
     int cx, cy;
     cluster_t* cls;
     vector_t ip;
+    listitem_t* li;
     float ipad;
     if (x < 0 || y < 0 || x >= map_width || y >= map_height) return 0;
     cx = x/CLUSTERSIZE;
@@ -267,6 +268,7 @@ static int pick_rm_func(int x, int y, cell_t* cell, void* data)
 #endif
     if (cls == pd->lastcluster) return 1;
     pd->lastcluster = cls;
+    /* check world triangles */
     for (i=0; i<cls->tris; i++) {
         if (ray_tri_intersection(cls->tri + i, pd->a, pd->b, &ip, 0)) {
             ipad = vec_distsq(pd->a, &ip);
@@ -282,6 +284,26 @@ static int pick_rm_func(int x, int y, cell_t* cell, void* data)
                 pd->celly = y;
                 pd->result = PICK_WORLD;
                 pd->tri = cls->tri[i];
+            }
+        }
+    }
+    /* check entities */
+    for (li=cls->ents->first; li; li=li->next) {
+        entity_t* ent = li->ptr;
+        if (ray_aabb_intersection(&ent->aabb, pd->a, pd->b, &ip)) {
+            ipad = vec_distsq(pd->a, &ip);
+            if (pd->nopick || ipad < pd->ipad) {
+                pd->nopick = 0;
+                pd->ip = ip;
+                pd->ipad = ipad;
+                pd->cluster_x = cx;
+                pd->cluster_y = cy;
+                pd->cluster = cls;
+                pd->cell = &cell[y*map_width + x];
+                pd->cellx = x;
+                pd->celly = y;
+                pd->result = PICK_ENTITY;
+                pd->entity = ent;
             }
         }
     }
@@ -301,7 +323,9 @@ int pick(vector_t* a, vector_t* b, pickdata_t* pd, int flags)
             for (x=0; x<map_width; x++)
                 pick_rm_func(x, y, &cell[y*map_width + x], pd);
     }*/
+    /* check world and entities */
     ray_march(a->x/CELLSIZE, a->z/CELLSIZE, b->x/CELLSIZE, b->z/CELLSIZE, pick_rm_func, pd);
+    /* check lights */
     if (flags & PICKFLAG_PICK_LIGHTS) {
         listitem_t* li;
         for (li=lights->first; li; li=li->next) {
@@ -478,8 +502,8 @@ void ent_free(entity_t* ent)
 
 void ent_update(entity_t* ent)
 {
-    int cc = (ent->x >> 5)/(CLUSTERSIZE*CELLSIZE);
-    int cr = (ent->z >> 5)/(CLUSTERSIZE*CELLSIZE);
+    int cc = ((int)ent->p.x)/(CLUSTERSIZE*CELLSIZE);
+    int cr = ((int)ent->p.z)/(CLUSTERSIZE*CELLSIZE);
     cluster_t* clus = cluster + cr*cluster_width + cc;
     float* mtx = ent->mtx;
 
@@ -489,9 +513,11 @@ void ent_update(entity_t* ent)
         ent->clus = clus;
     }
 
-    mtx[0] = 1; mtx[4] = 0; mtx[8] = 0; mtx[12] = ((float)ent->x)/32.0;
-    mtx[1] = 0; mtx[5] = 1; mtx[9] = 0; mtx[13] = ((float)ent->y)/32.0;
-    mtx[2] = 0; mtx[6] = 0; mtx[10]= 1; mtx[14] = ((float)ent->z)/32.0;
+    aabb_copytrans(&ent->aabb, &ent->mdl->aabb, ent->p.x, ent->p.y, ent->p.z);
+
+    mtx[0] = 1; mtx[4] = 0; mtx[8] = 0; mtx[12] = ent->p.x;
+    mtx[1] = 0; mtx[5] = 1; mtx[9] = 0; mtx[13] = ent->p.y;
+    mtx[2] = 0; mtx[6] = 0; mtx[10]= 1; mtx[14] = ent->p.z;
     mtx[3] = 0; mtx[7] = 0; mtx[11]= 0; mtx[15] = 1;
 }
 
@@ -501,10 +527,12 @@ void ent_set_model(entity_t* ent, model_t* mdl)
     ent_update(ent);
 }
 
-void ent_move(entity_t* ent, int x, int y, int z)
+void ent_move(entity_t* ent, float x, float y, float z)
 {
-    ent->x = x;
-    ent->y = y;
-    ent->z = z;
+    if (x < 0) x = 0; else if (x > (map_width - 1)*CELLSIZE) x = (map_width - 1)*CELLSIZE;
+    if (z < 0) z = 0; else if (z > (map_height - 1)*CELLSIZE) z = (map_height - 1)*CELLSIZE;
+    ent->p.x = x;
+    ent->p.y = y;
+    ent->p.z = z;
     ent_update(ent);
 }

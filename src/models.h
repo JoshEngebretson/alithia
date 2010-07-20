@@ -33,6 +33,7 @@ typedef struct _model_t
     texture_t* tex;
     GLuint dl;
     GLuint dlshadow;
+    aabb_t aabb;
 } model_t;
 
 model_t* mdl_load(const char* geofile, const char* texfile);

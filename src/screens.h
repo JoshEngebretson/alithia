@@ -47,7 +47,7 @@ extern screen_t* active_screen;
 
 screen_t* screen_new(screenproc_t proc, void* data);
 void screen_free(screen_t* scr);
-void screen_set(screen_t* scr);
+screen_t* screen_set(screen_t* scr);
 void screen_send(screen_t* scr, int msg, void* data);
 
 #endif

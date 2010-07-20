@@ -39,13 +39,14 @@ void screen_free(screen_t* scr)
     free(scr);
 }
 
-void screen_set(screen_t* scr)
+screen_t* screen_set(screen_t* scr)
 {
     screen_t* prev = active_screen;
     if (active_screen)
         screen_send(active_screen, SMS_EXIT, NULL);
     active_screen = scr;
     screen_send(scr, SMS_ENTER, NULL);
+    return prev;
 }
 
 void screen_send(screen_t* scr, int msg, void* data)

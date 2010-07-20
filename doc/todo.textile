@@ -14,11 +14,19 @@ h2. Source
 
 h2. World
 
-* Add ray picking against world geometry and entities
+* Add particle emitting entities
 
 h2. Editing
 
-* Start working on world editor. Needs ray picking above.
+* Add "snap to grid" key for lights and entities
+* Add "drop to ground" key for entities
+* Add entity and light delete key
+* Add "fullbright lightmap" key
+* Add "Create" menu. Needs popup menus from below.
+** Add "Create light" command
+** Add "Create entity" popup with available entities
+* Add copy/paste functionality
+* Add save/load clipboard functionality for prefabbing (needs copy/paste)
 
 h2. Models
 
@@ -33,10 +41,11 @@ h2. Resources
 h2. GUI
 
 * Add popup menus
+* Add listbox control
 
 h2. Scripting
 
-* Add Minimal to Alithia Engine
+* Add LIL to Alithia Engine
 * Add two separate 'libraries' for functions and a common one.
 ** One library for the game
 ** And another for the editor
@@ -56,4 +65,4 @@ h2. Exporter and models
 
 * Add animation export for the Blender 2.5 exporter
 * Write an OBJ to ALM converter for non-Blender users (low priority)
-** The converter should be able to use multitple OBJ files for multiple frames
+** The converter should be able to use multiple OBJ files for multiple frames

@@ -42,8 +42,6 @@ model_t* mdl_load(const char* geofile, const char* texfile)
     if (fread(&mdl->fc, 1, 4, f) != 4) goto fail;
     if (fread(&frames, 1, 4, f) != 4) goto fail;
 
-    printf("vc=%i fc=%i\n", mdl->vc, mdl->fc);
-
     mdl->v = malloc0(sizeof(float)*mdl->vc*8);
     mdl->f = malloc0(sizeof(int)*mdl->fc*3);
     fidx = malloc0(2*mdl->fc*3);
@@ -59,6 +57,9 @@ model_t* mdl_load(const char* geofile, const char* texfile)
 
     mdl->tex = tex_load(texfile);
     if (!mdl->tex) goto fail;
+
+    for (i=0; i<mdl->vc; i++)
+        aabb_consider_xyz(&mdl->aabb, mdl->v[i*8], mdl->v[i*8 + 1], mdl->v[i*8 + 2]);
 
     return mdl;
 

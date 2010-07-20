@@ -31,9 +31,12 @@ static int points_to_floor;
 static int camera_mode = 1;
 static float last_cell_y;
 static pickdata_t pd;
-static int draging_light;
+static int dragging_light;
 static light_t* drag_light;
-static plane_t drag_light_plane;
+static int dragging_entity;
+static entity_t* drag_entity;
+static plane_t drag_plane;
+static vector_t drag_diff;
 
 static uicontrol_t* editoruiroot;
 static uicontrol_t* texture_browser;
@@ -192,13 +195,26 @@ static void editorscreen_sdl_event(SDL_Event ev)
             if (pd.result == PICK_LIGHT) { /* pointing at light: start dragging/cloning it */
                 vector_t n;
                 vec_makedir(&n, &centerayb, &centeraya);
-                draging_light = 1;
+                dragging_light = 1;
                 if (SDL_GetModState() & KMOD_SHIFT) {
-                    drag_light = light_new(pd.light->p.x, pd.light->p.y, pd.light->p.z, pd.light->r, pd.light->g, pd.light->b, pd.light->rad);
+                    pd.light = drag_light = light_new(pd.light->p.x, pd.light->p.y, pd.light->p.z, pd.light->r, pd.light->g, pd.light->b, pd.light->rad);
                 } else {
                     drag_light = pd.light;
                 }
-                plane_from_point_and_normal(&drag_light_plane, &drag_light->p, &n);
+                plane_from_point_and_normal(&drag_plane, &drag_light->p, &n);
+            } else if (pd.result == PICK_ENTITY) { /* pointing at entity: start dragging/cloning it */
+                vector_t n;
+                vec_makedir(&n, &centerayb, &centeraya);
+                dragging_entity = 1;
+                if (SDL_GetModState() & KMOD_SHIFT) {
+                    // TODO: this
+                } else {
+                    drag_entity = pd.entity;
+                }
+                drag_diff.x = drag_entity->p.x - pd.ip.x;
+                drag_diff.y = drag_entity->p.y - pd.ip.y;
+                drag_diff.z = drag_entity->p.z - pd.ip.z;
+                plane_from_point_and_normal(&drag_plane, &pd.ip, &n);
             } else { /* pointing at world */
                 drag_selection = 1;
                 dsel_x1 = cur_x1;
@@ -208,13 +224,15 @@ static void editorscreen_sdl_event(SDL_Event ev)
         }
         if (ev.button.button == 4) { /* scroll wheel up */
             if (pd.result == PICK_LIGHT) { /* pointing at light: change light radius/color or move it */
-                if (draging_light) {
+                if (dragging_light) {
                     vector_t n;
                     vec_makedir(&n, &centerayb, &centeraya);
-                    pd.light->p.x -= n.x*16;
+                    if (!(SDL_GetModState()*KMOD_ALT)) pd.light->p.x -= n.x*16;
                     pd.light->p.y -= n.y*16;
-                    pd.light->p.z -= n.z*16;
-                    plane_from_point_and_normal(&drag_light_plane, &drag_light->p, &n);
+                    if (!(SDL_GetModState()*KMOD_ALT)) pd.light->p.z -= n.z*16;
+                    plane_from_point_and_normal(&drag_plane, &drag_light->p, &n);
+                    cur_x1 = pd.light->p.x/CELLSIZE;
+                    cur_y1 = pd.light->p.z/CELLSIZE;
                 } else {
                     if (key[SDLK_r])
                         pd.light->r += 0.015625;
@@ -227,6 +245,19 @@ static void editorscreen_sdl_event(SDL_Event ev)
                         pd.light->g += 0.015625;
                         pd.light->b += 0.015625;
                     } else pd.light->rad += 4;
+                }
+            } else if (pd.result == PICK_ENTITY) { /* pointing at entity: change rotation or move it */
+                if (dragging_entity) {
+                    vector_t n, dp;
+                    vec_makedir(&n, &centerayb, &centeraya);
+                    if (SDL_GetModState()*KMOD_ALT) { n.x = n.z = 0; n.y = -0.25; }
+                    ent_move(pd.entity, pd.entity->p.x - n.x*16, pd.entity->p.y - n.y*16, pd.entity->p.z - n.z*16);
+                    dp.x = pd.entity->p.x - drag_diff.x;
+                    dp.y = pd.entity->p.y - drag_diff.y;
+                    dp.z = pd.entity->p.z - drag_diff.z;
+                    plane_from_point_and_normal(&drag_plane, &dp, &n);
+                    cur_x1 = pd.entity->p.x/CELLSIZE;
+                    cur_y1 = pd.entity->p.z/CELLSIZE;
                 }
             } else { /* pointing at world */
                 int offs = -1;
@@ -244,13 +275,15 @@ static void editorscreen_sdl_event(SDL_Event ev)
             }
         } else if (ev.button.button == 5) { /* scroll wheel down */
             if (pd.result == PICK_LIGHT) { /* pointing at light: change light radius/color or move it */
-                if (draging_light) {
+                if (dragging_light) {
                     vector_t n;
                     vec_makedir(&n, &centerayb, &centeraya);
-                    pd.light->p.x += n.x*16;
+                    if (!(SDL_GetModState()*KMOD_ALT)) pd.light->p.x += n.x*16;
                     pd.light->p.y += n.y*16;
-                    pd.light->p.z += n.z*16;
-                    plane_from_point_and_normal(&drag_light_plane, &drag_light->p, &n);
+                    if (!(SDL_GetModState()*KMOD_ALT)) pd.light->p.z += n.z*16;
+                    plane_from_point_and_normal(&drag_plane, &drag_light->p, &n);
+                    cur_x1 = pd.light->p.x/CELLSIZE;
+                    cur_y1 = pd.light->p.z/CELLSIZE;
                 } else {
                     if (key[SDLK_r])
                         pd.light->r -= 0.015625;
@@ -265,6 +298,19 @@ static void editorscreen_sdl_event(SDL_Event ev)
                     } else pd.light->rad -= 4;
                     if (pd.light->rad < 0)
                         pd.light->rad = 0;
+                }
+            } else if (pd.result == PICK_ENTITY) { /* pointing at entity: change rotation */
+                if (dragging_entity) {
+                    vector_t n, dp;
+                    vec_makedir(&n, &centerayb, &centeraya);
+                    if (SDL_GetModState()*KMOD_ALT) { n.x = n.z = 0; n.y = -0.25; }
+                    ent_move(pd.entity, pd.entity->p.x + n.x*16, pd.entity->p.y + n.y*16, pd.entity->p.z + n.z*16);
+                    dp.x = pd.entity->p.x - drag_diff.x;
+                    dp.y = pd.entity->p.y - drag_diff.y;
+                    dp.z = pd.entity->p.z - drag_diff.z;
+                    plane_from_point_and_normal(&drag_plane, &dp, &n);
+                    cur_x1 = pd.entity->p.x/CELLSIZE;
+                    cur_y1 = pd.entity->p.z/CELLSIZE;
                 }
             } else { /* pointing at world */
                 int offs = -1;
@@ -285,7 +331,8 @@ static void editorscreen_sdl_event(SDL_Event ev)
     case SDL_MOUSEBUTTONUP:
         if (ev.button.button == 1) {
             drag_selection = 0;
-            draging_light = 0;
+            dragging_light = 0;
+            dragging_entity = 0;
             if (cur_x1 == dsel_x1 && cur_y1 == dsel_y1) {
                 has_selection = 0;
             }
@@ -299,11 +346,23 @@ static void editorscreen_sdl_event(SDL_Event ev)
             if (pll < -90) pll = -90;
         }
 
-        if (draging_light) {
+        if (dragging_light) {
             vector_t ip;
-            if (!ray_plane_intersection(&drag_light_plane, &centeraya, &centerayb, &ip))
+            if (!ray_plane_intersection(&drag_plane, &centeraya, &centerayb, &ip))
                 break;
             drag_light->p = ip;
+            cur_x1 = pd.light->p.x/CELLSIZE;
+            cur_y1 = pd.light->p.z/CELLSIZE;
+            break;
+        }
+
+        if (dragging_entity) {
+            vector_t ip;
+            if (!ray_plane_intersection(&drag_plane, &centeraya, &centerayb, &ip))
+                break;
+            ent_move(drag_entity, ip.x + drag_diff.x, ip.y + drag_diff.y, ip.z + drag_diff.z);
+            cur_x1 = pd.entity->p.x/CELLSIZE;
+            cur_y1 = pd.entity->p.z/CELLSIZE;
             break;
         }
 
@@ -430,10 +489,43 @@ static void draw_sphere_outline(vector_t* c, float rad)
     glEnd();
 }
 
+static void draw_aabb_outline(aabb_t* aabb)
+{
+    glBegin(GL_LINE_STRIP);
+    glVertex3f(aabb->min.x, aabb->min.y, aabb->min.z);
+    glVertex3f(aabb->max.x, aabb->min.y, aabb->min.z);
+    glVertex3f(aabb->max.x, aabb->min.y, aabb->max.z);
+    glVertex3f(aabb->min.x, aabb->min.y, aabb->max.z);
+    glVertex3f(aabb->min.x, aabb->min.y, aabb->min.z);
+    glEnd();
+    glBegin(GL_LINE_STRIP);
+    glVertex3f(aabb->min.x, aabb->max.y, aabb->min.z);
+    glVertex3f(aabb->max.x, aabb->max.y, aabb->min.z);
+    glVertex3f(aabb->max.x, aabb->max.y, aabb->max.z);
+    glVertex3f(aabb->min.x, aabb->max.y, aabb->max.z);
+    glVertex3f(aabb->min.x, aabb->max.y, aabb->min.z);
+    glEnd();
+    glBegin(GL_LINE_STRIP);
+    glVertex3f(aabb->min.x, aabb->min.y, aabb->min.z);
+    glVertex3f(aabb->min.x, aabb->min.y, aabb->max.z);
+    glVertex3f(aabb->min.x, aabb->max.y, aabb->max.z);
+    glVertex3f(aabb->min.x, aabb->max.y, aabb->min.z);
+    glVertex3f(aabb->min.x, aabb->min.y, aabb->min.z);
+    glEnd();
+    glBegin(GL_LINE_STRIP);
+    glVertex3f(aabb->max.x, aabb->min.y, aabb->min.z);
+    glVertex3f(aabb->max.x, aabb->min.y, aabb->max.z);
+    glVertex3f(aabb->max.x, aabb->max.y, aabb->max.z);
+    glVertex3f(aabb->max.x, aabb->max.y, aabb->min.z);
+    glVertex3f(aabb->max.x, aabb->min.y, aabb->min.z);
+    glEnd();
+}
+
 static void editorscreen_render(void)
 {
     listitem_t* li;
     light_t* light;
+    entity_t* ent;
     glPushAttrib(GL_ALL_ATTRIB_BITS);
     glPushClientAttrib(GL_CLIENT_ALL_ATTRIB_BITS);
     glActiveTexture(GL_TEXTURE0);
@@ -457,14 +549,16 @@ static void editorscreen_render(void)
     for (li=lights->first; li; li=li->next) {
         light = li->ptr;
         if (pd.result == PICK_LIGHT && pd.light == light) {
-            glColor3f(1, 1, 1);
             draw_sphere_outline(&light->p, 16);
-            if (draging_light) {
+            if (dragging_light) {
                 glBegin(GL_LINES);
+                glColor3f(0, 1, 0);
                 glVertex3f(light->p.x, light->p.y - 10000, light->p.z);
                 glVertex3f(light->p.x, light->p.y + 10000, light->p.z);
+                glColor3f(1, 0, 0);
                 glVertex3f(light->p.x - 10000, light->p.y, light->p.z);
                 glVertex3f(light->p.x + 10000, light->p.y, light->p.z);
+                glColor3f(0.2, 0.2, 1);
                 glVertex3f(light->p.x, light->p.y, light->p.z - 10000);
                 glVertex3f(light->p.x, light->p.y, light->p.z + 10000);
                 glEnd();
@@ -475,6 +569,36 @@ static void editorscreen_render(void)
             glColor3f(light->r, light->g, light->b);
             draw_sphere_outline(&light->p, 16);
         }
+    }
+
+    /* Draw entities */
+    for (li=ents->first; li; li=li->next) {
+        ent = li->ptr;
+        if (pd.result == PICK_ENTITY && pd.entity == ent) {
+            if (dragging_entity) {
+                aabb_t tmp = ent->aabb;
+                tmp.min.x = -10000;
+                tmp.max.x = 10000;
+                glColor3f(1, 0, 0);
+                draw_aabb_outline(&tmp);
+                tmp = ent->aabb;
+                tmp.min.y = -10000;
+                tmp.max.y = 10000;
+                glColor3f(0, 1, 0);
+                draw_aabb_outline(&tmp);
+                tmp = ent->aabb;
+                tmp.min.z = -10000;
+                tmp.max.z = 10000;
+                glColor3f(0.2, 0.2, 1);
+                draw_aabb_outline(&tmp);
+                glLineWidth(2);
+            }
+            glColor3f(1, 1, 1);
+        } else {
+            glColor3f(0.2, 0.2, 0.8);
+        }
+        draw_aabb_outline(&ent->aabb);
+        if (dragging_entity) glLineWidth(1);
     }
 
     /* Draw grid around cursor */
