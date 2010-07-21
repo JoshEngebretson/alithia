@@ -75,6 +75,7 @@ struct _lil_t
 	lil_value_t empty;
 	int breakrun;
 	lil_value_t retval;
+	lil_callback_proc_t cbproc;
 };
 
 typedef struct _expreval_t
@@ -97,6 +98,25 @@ static char* strclone(const char* s)
 	if (!ns) return NULL;
 	memcpy(ns, s, len);
 	return ns;
+}
+
+static void callback(lil_t lil, int cbtype, const void* data)
+{
+    if (lil->cbproc) {
+        lil->cbproc(lil, cbtype, data);
+        return;
+    }
+    switch (cbtype) {
+    case LIL_CB_ERROR:
+        fprintf(stderr, "LIL Error: %s\n", (char*)data);
+        return;
+    case LIL_CB_PRINT:
+        printf("%s\n", (char*)data);
+        return;
+    case LIL_CB_WRITE:
+        printf("%s", (char*)data);
+        return;
+    }
 }
 
 static lil_value_t alloc_value(const char* str)
@@ -298,6 +318,11 @@ static lil_func_t add_func(lil_t lil, const char* name)
 	lil->cmd = ncmd;
 	ncmd[lil->cmds++] = cmd;
 	return cmd;
+}
+
+void lil_callback(lil_t lil, lil_callback_proc_t proc)
+{
+    lil->cbproc = proc;
 }
 
 int lil_register(lil_t lil, const char* name, lil_func_proc_t proc)
@@ -563,7 +588,9 @@ lil_value_t lil_parse(lil_t lil, const char* code, size_t codelen, int funclevel
 		if (words->c) {
 			lil_func_t cmd = find_cmd(lil, lil_to_string(words->v[0]));
 			if (!cmd) {
-				printf("unknown function %s\n", lil_to_string(words->v[0]));
+			    char tmp[256];
+			    snprintf(tmp, 255, "unknown function %s\n", lil_to_string(words->v[0]));
+			    callback(lil, LIL_CB_ERROR, tmp);
 				goto cleanup;
 			}
 			if (cmd->proc) {
@@ -1803,8 +1830,8 @@ static lil_value_t fnc_write(lil_t lil, size_t argc, lil_value_t* argv)
 {
 	size_t i;
 	for (i=0; i<argc; i++) {
-		if (i) printf(" ");
-		printf("%s", lil_to_string(argv[i]));
+		if (i) callback(lil, LIL_CB_WRITE, " ");
+		callback(lil, LIL_CB_WRITE, lil_to_string(argv[i]));
 	}
 	return NULL;
 }
@@ -1812,7 +1839,7 @@ static lil_value_t fnc_write(lil_t lil, size_t argc, lil_value_t* argv)
 static lil_value_t fnc_print(lil_t lil, size_t argc, lil_value_t* argv)
 {
 	lil_value_t r = fnc_write(lil, argc, argv);
-	printf("\n");
+	callback(lil, LIL_CB_PRINT, "");
 	return r;
 }
 
@@ -2030,7 +2057,9 @@ static lil_value_t fnc_if(lil_t lil, size_t argc, lil_value_t* argv)
     if (argc < (size_t)base + 2) return NULL;
     val = lil_eval_expr(lil, argv[base]);
     if (!val) {
-        printf("expression error - '%s'\n", lil_to_string(argv[base]));
+        char tmp[256];
+        snprintf(tmp, 255, "expression error - '%s'\n", lil_to_string(argv[base]));
+        callback(lil, LIL_CB_ERROR, tmp);
         return NULL;
     }
     v = lil_to_boolean(val);
@@ -2054,7 +2083,9 @@ static lil_value_t fnc_while(lil_t lil, size_t argc, lil_value_t* argv)
     while (1) {
         val = lil_eval_expr(lil, argv[base]);
         if (!val) {
-            printf("expression error - '%s'\n", lil_to_string(argv[base]));
+            char tmp[256];
+            snprintf(tmp, 255, "expression error - '%s'\n", lil_to_string(argv[base]));
+            callback(lil, LIL_CB_ERROR, tmp);
             return NULL;
         }
         v = lil_to_boolean(val);
@@ -2078,7 +2109,9 @@ static lil_value_t fnc_for(lil_t lil, size_t argc, lil_value_t* argv)
     while (1) {
         val = lil_eval_expr(lil, argv[1]);
         if (!val) {
-            printf("expression error - '%s'\n", lil_to_string(argv[1]));
+            char tmp[256];
+            snprintf(tmp, 255, "expression error - '%s'\n", lil_to_string(argv[1]));
+            callback(lil, LIL_CB_ERROR, tmp);
             return NULL;
         }
         if (!lil_to_boolean(val)) {

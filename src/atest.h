@@ -54,6 +54,7 @@
 #include "world.h"
 #include "screens.h"
 #include "editor.h"
+#include "script.h"
 
 extern int running;
 extern int argc;
@@ -76,6 +77,10 @@ extern float modl[16];
 extern float clip[16];
 extern vector_t centeraya, centerayb;
 extern int disable_occlusion;
+
+void console_clear(void);
+void console_write(const char* txt);
+void console_newline(void);
 
 void cell_vertices(cell_t* c, int x, int y, float* vx, float* vy, float* vz, int floor);
 void map_update_cell(int x, int y);

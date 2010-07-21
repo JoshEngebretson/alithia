@@ -30,6 +30,10 @@
 #define LIL_SETVAR_LOCAL 1
 #define LIL_SETVAR_LOCAL_NEW 2
 
+#define LIL_CB_ERROR 0
+#define LIL_CB_PRINT 1
+#define LIL_CB_WRITE 2
+
 typedef struct _lil_value_t* lil_value_t;
 typedef struct _lil_func_t* lil_func_t;
 typedef struct _lil_var_t* lil_var_t;
@@ -37,9 +41,12 @@ typedef struct _lil_env_t* lil_env_t;
 typedef struct _lil_list_t* lil_list_t;
 typedef struct _lil_t* lil_t;
 typedef lil_value_t (*lil_func_proc_t)(lil_t lil, size_t argc, lil_value_t* argv);
+typedef void (*lil_callback_proc_t)(lil_t lil, int type, const void* data);
 
 lil_t lil_new(void);
 void lil_free(lil_t lil);
+
+void lil_callback(lil_t lil, lil_callback_proc_t proc);
 
 int lil_register(lil_t lil, const char* name, lil_func_proc_t proc);
 

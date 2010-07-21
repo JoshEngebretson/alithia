@@ -99,6 +99,66 @@ vector_t centeraya, centerayb;
 screen_t* gamescreen;
 int disable_occlusion;
 int skybox_bucket = -1;
+int console_mode;
+char console_command[256];
+int console_command_len;
+struct {
+    char text[256];
+    size_t len;
+} console_line[8];
+int console_curline;
+
+void console_clear(void)
+{
+    size_t i;
+    for (i=0; i<8; i++) {
+        console_line[i].text[0] = 0;
+        console_line[i].len = 0;
+    }
+}
+
+void console_write(const char* txt)
+{
+    size_t txtlen = strlen(txt);
+    if (txtlen + console_line[console_curline].len > 255)
+        txtlen = 255 - console_line[console_curline].len;
+    memcpy(console_line[console_curline].text + console_line[console_curline].len, txt, txtlen);
+    console_line[console_curline].len += txtlen;
+    console_line[console_curline].text[console_line[console_curline].len] = 0;
+}
+
+void console_newline(void)
+{
+    console_curline++;
+    if (console_curline == 8) {
+        size_t i;
+        console_curline = 7;
+        for (i=0; i<7; i++)
+            console_line[i] = console_line[i + 1];
+        console_line[7].text[0] = 0;
+        console_line[7].len = 0;
+    }
+}
+
+static void console_handle_keydown(SDL_Event* ev)
+{
+    if (ev->key.keysym.sym == SDLK_BACKSPACE) {
+        if (!console_command_len) return;
+        console_command[--console_command_len] = 0;
+    } else if (ev->key.keysym.sym == SDLK_ESCAPE) {
+        console_command[0] = 0;
+        console_command_len = 0;
+        console_mode = 0;
+    } else if (ev->key.keysym.sym == SDLK_RETURN) {
+        script_eval(console_command);
+        console_command[0] = 0;
+        console_command_len = 0;
+        console_mode = 0;
+    } else if (!(ev->key.keysym.unicode & 0xFF80) && ev->key.keysym.unicode > 31) {
+        console_command[console_command_len++] = ev->key.keysym.unicode;
+        console_command[console_command_len] = 0;
+    }
+}
 
 static void process_events(void)
 {
@@ -112,7 +172,14 @@ static void process_events(void)
             mouse_sy = ev.motion.y;
             break;
         case SDL_KEYDOWN:
+            if (console_mode) {
+                console_handle_keydown(&ev);
+                return;
+            }
             if (ev.key.keysym.sym == SDLK_F10) running = 0;
+            if (ev.key.keysym.sym == SDLK_BACKQUOTE) {
+                console_mode = 1;
+            }
             if (ev.key.keysym.sym < 1024)
                 key[ev.key.keysym.sym] = 1;
             break;
@@ -1251,6 +1318,7 @@ static void render_world(void)
 
 static void render_hud(void)
 {
+    size_t i;
     /* reset transformations */
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
@@ -1265,6 +1333,17 @@ static void render_hud(void)
 
     glColor4f(1, 1, 1, 1);
     font_render(font_normal, -1, 1 - 0.06, status, statlen, 0.06);
+
+    /* console */
+    for (i=0; i<8; i++) {
+        if (console_line[i].len)
+            font_render(font_normal, -1, 1 - 0.12 - 0.06*i, console_line[i].text, console_line[i].len, 0.06);
+    }
+    if (console_mode) {
+        char tmp[258];
+        sprintf(tmp, "> %s", console_command);
+        font_render(font_normal, -1 + 0.06, -1 + 0.06, tmp, -1, 0.06);
+    }
 
     /* overlay gui */
     if (active_screen->draw_mouse || active_screen->draw_gui) {
@@ -1539,9 +1618,11 @@ int main(int _argc, char *_argv[])
     texbank_init();
     gui_init();
     editor_init();
+    script_init();
 
     run();
 
+    script_shutdown();
     editor_shutdown();
     screen_free(gamescreen);
     gui_shutdown();

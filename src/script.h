@@ -21,25 +21,15 @@
  * Kostas Michalopoulos <badsector@runtimeterror.com>
  */
 
-#ifndef __EDITOR_H_INCLUDED__
-#define __EDITOR_H_INCLUDED__
+#ifndef __SCRIPT_H_INCLUDED__
+#define __SCRIPT_H_INCLUDED__
 
-typedef void (*modifier_proc_t)(int cx, int cy, cell_t* cell, void* data);
+#include "lil.h"
 
-typedef struct _setcelltexture_modifier_data_t
-{
-    int part;
-    texture_t* tex;
-} setcelltexture_modifier_data_t;
+extern lil_t lil;
 
-extern screen_t* editorscreen;
-
-void editor_init(void);
-void editor_shutdown(void);
-
-void editor_apply_cell_modifier(modifier_proc_t proc, void* data);
-void editor_set_selection(int x1, int y1, int x2, int y2);
-void editor_get_selection(int* x1, int* y1, int* x2, int* y2);
-void editor_get_cursor(int* x, int* y);
+void script_init(void);
+void script_shutdown(void);
+void script_eval(const char* code);
 
 #endif

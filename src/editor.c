@@ -141,6 +141,20 @@ void editor_set_selection(int x1, int y1, int x2, int y2)
     }
 }
 
+void editor_get_selection(int* x1, int* y1, int* x2, int* y2)
+{
+    *x1 = selx1;
+    *y1 = sely1;
+    *x2 = selx2;
+    *y2 = sely2;
+}
+
+void editor_get_cursor(int* x, int* y)
+{
+    *x = cur_x1;
+    *y = cur_y1;
+}
+
 void editor_move_towards(float ix, float iy, float iz)
 {
     plx += ix;
