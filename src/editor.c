@@ -788,6 +788,7 @@ static void create_editormenu(void)
 
     /* Main editor menu */
     editormenu = uimenu_new();
+    editormenu->closed = editormenu_closed;
     uimenu_add(editormenu, "Create", create_menu, NULL, NULL);
     uimenu_add(editormenu, "-", NULL, NULL, NULL);
     uimenu_add(editormenu, "Scripting", NULL, NULL, NULL);
