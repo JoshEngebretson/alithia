@@ -8,4 +8,5 @@ dist/
 *.dll
 *.pyc
 acer-alithia.bat
+atest.dSYM/
 
