@@ -163,46 +163,50 @@ static void console_handle_keydown(SDL_Event* ev)
 static void process_events(void)
 {
     SDL_Event ev;
+    memset(&ev, 0, sizeof(ev));
     while (SDL_PollEvent(&ev)) {
         switch (ev.type) {
-        case SDL_MOUSEMOTION:
-            mouse_x = ((float)ev.motion.x/(float)vid_width)*2.0 - 1.0;
-            mouse_y = 1.0 - ((float)ev.motion.y/(float)vid_height)*2.0;
-            mouse_sx = ev.motion.x;
-            mouse_sy = ev.motion.y;
-            break;
-        case SDL_KEYDOWN:
-            if (console_mode) {
-                console_handle_keydown(&ev);
-                return;
-            }
-            if (ev.key.keysym.sym == SDLK_F10) running = 0;
-            if (ev.key.keysym.sym == SDLK_BACKQUOTE) {
-                console_mode = 1;
-            }
-            if (ev.key.keysym.sym < 1024)
-                key[ev.key.keysym.sym] = 1;
-            break;
-        case SDL_KEYUP:
-            if (ev.key.keysym.sym < 1024)
-                key[ev.key.keysym.sym] = 0;
-            break;
-        case SDL_MOUSEBUTTONDOWN:
-            if (ev.button.button < 16)
-                button[ev.button.button] = 1;
-            break;
-        case SDL_MOUSEBUTTONUP:
-            if (ev.button.button < 16)
-                button[ev.button.button] = 0;
-            break;
-        case SDL_QUIT:
-            running = 0;
-            break;
+            case SDL_MOUSEMOTION:
+                mouse_x = ((float)ev.motion.x/(float)vid_width)*2.0 - 1.0;
+                mouse_y = 1.0 - ((float)ev.motion.y/(float)vid_height)*2.0;
+                mouse_sx = ev.motion.x;
+                mouse_sy = ev.motion.y;
+                break;
+            case SDL_QUIT:
+                running = 0;
+                break;
         }
         if (active_screen->draw_gui)
             if (gui_handle_event(&ev))
                 continue;
+        switch (ev.type) {
+            case SDL_KEYDOWN:
+                if (console_mode) {
+                    console_handle_keydown(&ev);
+                    return;
+                }
+                if (ev.key.keysym.sym == SDLK_F10) running = 0;
+                if (ev.key.keysym.sym == SDLK_BACKQUOTE) {
+                    console_mode = 1;
+                }
+                if (ev.key.keysym.sym < 1024)
+                    key[ev.key.keysym.sym] = 1;
+                break;
+            case SDL_KEYUP:
+                if (ev.key.keysym.sym < 1024)
+                    key[ev.key.keysym.sym] = 0;
+                break;
+            case SDL_MOUSEBUTTONDOWN:
+                if (ev.button.button < 16)
+                    button[ev.button.button] = 1;
+                break;
+            case SDL_MOUSEBUTTONUP:
+                if (ev.button.button < 16)
+                    button[ev.button.button] = 0;
+                break;
+            }
         screen_send(active_screen, SMS_SDL_EVENT, &ev);
+        memset(&ev, 0, sizeof(ev));
     }
 }
 

@@ -42,6 +42,8 @@ static uicontrol_t* editoruiroot;
 static uicontrol_t* texture_browser;
 static uicontrol_t* texture_browser_ctl;
 static float texture_browser_scroll;
+static uicontrol_t* evaluator;
+static uicontrol_t* evaluator_box;
 
 static menu_t* editormenu;
 
@@ -169,7 +171,7 @@ void editor_move_towards(float ix, float iy, float iz)
 static void key_down(SDL_Event ev)
 {
     switch (ev.key.keysym.sym) {
-    case SDLK_RETURN:
+    case SDLK_TAB:
         camera_mode = !camera_mode;
         break;
     case SDLK_o:
@@ -774,17 +776,51 @@ static void create_texture_browser(void)
     texture_browser_layout(texture_browser);
 }
 
-static void editormenu_exit(int action, struct _menuitem_t* item, void* data)
+static void editormenu_exit(int action, menuitem_t* item, void* data)
 {
     if (action == MI_SELECT)
         running = 0;
 }
 
-static void editormenu_create_light(int action, struct _menuitem_t* item, void* data)
+static void editormenu_create_light(int action,  menuitem_t* item, void* data)
 {
     if (action == MI_SELECT) {
         light_new(cur_x1*CELLSIZE + CELLSIZE*0.5, cell[cur_y1*map_width + cur_x1].floorz + 16, cur_y1*CELLSIZE + CELLSIZE*0.5, 0.5, 0.5, 0.5, 32);
     }
+}
+
+static void evaluator_layout(uicontrol_t* win)
+{
+    uictl_place(evaluator_box, 0.02*hw_ratio, evaluator_box->y, win->w - 0.04*hw_ratio, win->h - FONTSIZE*1.3 - evaluator_box->y - 0.02);
+}
+
+static void evaluator_evaluate_button_callback(struct _uicontrol_t* ctl, int cbtype, void* cbdata)
+{
+    if (cbtype == CB_ACTIVATED) {
+        char* code = uieditor_get_text(evaluator_box);
+        script_eval(code);
+        free(code);
+    }
+}
+
+static void editormenu_scripting_toggleevaluator(int action, menuitem_t* item, void* data)
+{
+    uicontrol_t* btn;
+
+    if (action != MI_SELECT) return;
+    if (evaluator) {
+        uictl_free(evaluator);
+        evaluator = NULL;
+        return;
+    }
+
+    evaluator = uiwin_new(0.8, 0.7, 1.5*hw_ratio, 0.75, "Script evaluator");
+    uiwin_set_resizeable(evaluator, 1);
+    btn = uibutton_new(evaluator, 0.02*hw_ratio, 0.04, "Evaluate");
+    btn->callback = evaluator_evaluate_button_callback;
+    evaluator_box = uieditor_new(evaluator, 0.02*hw_ratio, 0.06 + btn->h, evaluator->w - 0.04*hw_ratio, evaluator->h);
+    evaluator->layout = evaluator_layout;
+    evaluator_layout(evaluator);
 }
 
 static void editormenu_closed(menu_t* menu)
@@ -794,18 +830,23 @@ static void editormenu_closed(menu_t* menu)
 static void create_editormenu(void)
 {
     menu_t* create_menu;
+    menu_t* scripting_menu;
 
     /* Create menu */
     create_menu = uimenu_new();
     uimenu_add(create_menu, "Entity", NULL, NULL, NULL);
     uimenu_add(create_menu, "Light", NULL, editormenu_create_light, NULL);
 
+    /* Scripting menu */
+    scripting_menu = uimenu_new();
+    uimenu_add(scripting_menu, "Toggle evaluator", NULL, editormenu_scripting_toggleevaluator, NULL);
+
     /* Main editor menu */
     editormenu = uimenu_new();
     editormenu->closed = editormenu_closed;
     uimenu_add(editormenu, "Create", create_menu, NULL, NULL);
     uimenu_add(editormenu, "-", NULL, NULL, NULL);
-    uimenu_add(editormenu, "Scripting", NULL, NULL, NULL);
+    uimenu_add(editormenu, "Scripting", scripting_menu, NULL, NULL);
     uimenu_add(editormenu, "-", NULL, NULL, NULL);
     uimenu_add(editormenu, "Save...", NULL, NULL, NULL);
     uimenu_add(editormenu, "Open...", NULL, NULL, NULL);

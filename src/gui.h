@@ -89,6 +89,7 @@ void gui_shutdown(void);
 int gui_handle_event(SDL_Event* ev);
 void gui_capture(uicontrol_t* ctl);
 void gui_focus(uicontrol_t* ctl);
+uicontrol_t* gui_get_focused(void);
 
 /* Drawing helpers */
 void gui_color(float r, float g, float b, float a);
@@ -147,6 +148,7 @@ int uicheckbox_checked(uicontrol_t* chk);
 uicontrol_t* uieditor_new(uicontrol_t* parent, float x, float y, float w, float h);
 void uieditor_append(uicontrol_t* ted, const char* text);
 void uieditor_insert(uicontrol_t* ted, int index, const char* text);
+char* uieditor_get_text(uicontrol_t* ted);
 int uieditor_line_count(uicontrol_t* ted);
 const char* uieditor_get_line(uicontrol_t* ted, unsigned int index);
 void uieditor_set_line(uicontrol_t* ted, unsigned int index, const char* text);

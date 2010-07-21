@@ -209,6 +209,11 @@ void gui_focus(uicontrol_t* ctl)
     focus = ctl;
 }
 
+uicontrol_t* gui_get_focused(void)
+{
+    return focus;
+}
+
 /* Generic controls functions */
 uicontrol_t* uictl_new(uicontrol_t* parent)
 {
@@ -1132,7 +1137,6 @@ static int editor_handle_event(uicontrol_t* ted, SDL_Event* ev)
     case SDL_MOUSEBUTTONDOWN:
         if (ev->button.button == 1) {
             data->row = ((ted->h - my - FONTSIZE*0.15) + data->yscroll)/FONTSIZE;
-            printf("%i\n", data->row);
             if (data->row < 0) data->row = 0;
             else if (data->row > data->lines->count) data->row = data->lines->count;
             editor_check_cursor(ted);
@@ -1330,11 +1334,6 @@ uicontrol_t* uieditor_new(uicontrol_t* parent, float x, float y, float w, float 
     ((editor_data_t*)ted->ctldata)->lines = list_new();
     uictl_place(ted, x, y, w, h);
 
-    uieditor_append(ted, "First line");
-    uieditor_append(ted, "Second line");
-    uieditor_append(ted, "Third line");
-    uieditor_append(ted, "Stuff");
-
     return ted;
 }
 
@@ -1365,6 +1364,20 @@ void uieditor_insert(uicontrol_t* ted, int index, const char* text)
         data->row++;
         editor_check_cursor(ted);
     }
+}
+
+char* uieditor_get_text(uicontrol_t* ted)
+{
+    char* total = strdup("");
+    size_t tlen = 0, i, cnt = uieditor_line_count(ted);
+    for (i=0; i<cnt; i++) {
+        const char* line = uieditor_get_line(ted, i);
+        total = realloc(total, tlen + strlen(line) + 2);
+        strcat(total, line);
+        strcat(total, "\n");
+        tlen = strlen(total);
+    }
+    return total;
 }
 
 int uieditor_line_count(uicontrol_t* ted)
