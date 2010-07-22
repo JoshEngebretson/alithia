@@ -77,7 +77,7 @@ float mouse_y = 0;
 int mouse_sx = 0;
 int mouse_sy = 0;
 int draw_wire = 0;
-float plx, ply, plz, pla, pll;
+float pla, pll;
 texture_t* tex_bricks;
 texture_t* tex_floor;
 texture_t* tex_stuff;
@@ -107,6 +107,7 @@ struct {
     size_t len;
 } console_line[8];
 int console_curline;
+entity_t* camera_ent;
 
 void console_clear(void)
 {
@@ -942,13 +943,13 @@ static void render_world(void)
 
     render_skybox();
 
-    glTranslatef(-plx, -ply-goffy*1.5, -plz);
+    glTranslatef(-camera_ent->p.x, -camera_ent->p.y-goffy*1.5, -camera_ent->p.z);
     glGetDoublev(GL_MODELVIEW_MATRIX, vmtx);
     glColor3f(1, 1, 1);
     glGetIntegerv(GL_VIEWPORT, vport);
 
-    camx = plx/CELLSIZE;
-    camy = plz/CELLSIZE;
+    camx = camera_ent->p.x/CELLSIZE;
+    camy = camera_ent->p.z/CELLSIZE;
 
     /* calculate frustum planes */
     calc_frustum_planes();
@@ -1206,12 +1207,8 @@ static void render_world(void)
     centerayb.x *= 10000;
     centerayb.y *= 10000;
     centerayb.z *= 10000;
-    centeraya.x = plx;
-    centeraya.y = ply;
-    centeraya.z = plz;
-    centerayb.x += plx;
-    centerayb.y += ply;
-    centerayb.z += plz;
+    centeraya = camera_ent->p;
+    vec_add(&centerayb, &camera_ent->p);
 #ifdef DEBUG_DRAW_PICK_DATA
     glColor3f(0.6,0.6,0.6);
     glActiveTexture(GL_TEXTURE0);
@@ -1399,10 +1396,10 @@ static void render(void)
 static int collides(void)
 {
     int x, y, x1, y1, x2, y2;
-    x1 = plx/CELLSIZE - 2;
-    y1 = plz/CELLSIZE - 2;
-    x2 = plx/CELLSIZE + 2;
-    y2 = plz/CELLSIZE + 2;
+    x1 = player_ent->p.x/CELLSIZE - 2;
+    y1 = player_ent->p.z/CELLSIZE - 2;
+    x2 = player_ent->p.x/CELLSIZE + 2;
+    y2 = player_ent->p.z/CELLSIZE + 2;
     if (x1 < 0) x1 = 0;
     if (y1 < 0) y1 = 0;
     if (x2 >= map_width) x2 = map_width - 1;
@@ -1414,12 +1411,13 @@ static int collides(void)
 
 void move_towards(float ix, float iy, float iz)
 {
-    plx += ix;
-    if (collides()) plx -= ix;
-    ply += iy;
-    if (collides()) ply -= iy;
-    plz += iz;
-    if (collides()) plz -= iz;
+    player_ent->p.x += ix;
+    if (collides()) player_ent->p.x -= ix;
+    player_ent->p.y += iy;
+    if (collides()) player_ent->p.y -= iy;
+    player_ent->p.z += iz;
+    if (collides()) player_ent->p.z -= iz;
+    ent_update(player_ent);
 }
 
 static void update_game(float ms)
@@ -1457,15 +1455,15 @@ static void gamescreen_update(float ms)
         goffv = 0;
     }
 
-    if (ply - 48 > floorz) {
-        ply -= ms*0.5;
-        if (ply - 48 < floorz)
-            ply = floorz + 48;
+    if (player_ent->p.y - 48 > floorz) {
+        player_ent->p.y -= ms*0.5;
+        if (player_ent->p.y - 48 < floorz)
+            player_ent->p.y = floorz + 48;
     }
-    if (ply - 48 < floorz) {
-        ply += ms;
-        if (ply - 48 > floorz)
-            ply = floorz + 48;
+    if (player_ent->p.y - 48 < floorz) {
+        player_ent->p.y += ms;
+        if (player_ent->p.y - 48 > floorz)
+            player_ent->p.y = floorz + 48;
     }
     /*
     if (floorz > ply + 48) {
@@ -1586,9 +1584,6 @@ static void run(void)
 
     calc_campoints(sqrt(256*256 + 256*256));
     lmap_update();
-    plx = (map_width*CELLSIZE)*0.5;
-    ply = -128+48;
-    plz = (map_width*CELLSIZE)*0.5;
 
     gamescreen_init();
 

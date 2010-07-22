@@ -49,6 +49,7 @@ typedef struct _plane_t
 #define vec_lensq(a) vec_dot(a, a)
 #define vec_len(a) sqrtf(vec_lensq(a))
 void vec_normalize(vector_t* v);
+void vec_add(vector_t* a, vector_t* b);
 void vec_sub(vector_t* a, vector_t* b);
 void vec_makedir(vector_t* d, vector_t* a, vector_t* b);
 float vec_distsq(vector_t* a, vector_t* b);

@@ -130,6 +130,7 @@ extern int cluster_height;
 extern lmap_texel_t* lightmap;
 extern GLuint lmaptex;
 extern int lmap_quality;
+extern entity_t* player_ent;
 
 void map_init(int width, int height);
 void map_free(void);

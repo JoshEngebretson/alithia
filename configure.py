@@ -40,12 +40,14 @@ debug = not options.release
 
 # common flags
 if debug:
-    common_cflags = '-Wall -g3'
+    common_cflags = '-Wall -g3 -O0'
     common_ldflags = '-g'
 else:
-    common_cflags = '-Wall -O3 -fomit-frame-pointer'
+    common_cflags = '-Wall -fomit-frame-pointer'
     if cc != 'clang':
-        common_cflags = common_cflags + ' -ffast-math'
+        common_cflags = common_cflags + ' -O3 -ffast-math'
+    else:
+        common_cflags = common_cflags + ' -O4'
     common_ldflags = ''
 
 # set platform-specific variables

@@ -166,13 +166,14 @@ void editor_get_cursor(int* x, int* y)
 
 void editor_move_towards(float ix, float iy, float iz)
 {
-    plx += ix;
-    if (plx < 0) plx = 0;
-    else if (plx > CELLSIZE*(map_width - 1)) plx = (map_width - 1)*CELLSIZE;
-    ply += iy;
-    plz += iz;
-    if (plz < 0) plz = 0;
-    else if (plz > CELLSIZE*(map_height - 1)) plz = (map_height - 1)*CELLSIZE;
+    camera_ent->p.x += ix;
+    if (camera_ent->p.x < 0) camera_ent->p.x = 0;
+    else if (camera_ent->p.x > CELLSIZE*(map_width - 1)) camera_ent->p.x = (map_width - 1)*CELLSIZE;
+    camera_ent->p.y += iy;
+    camera_ent->p.z += iz;
+    if (camera_ent->p.z < 0) camera_ent->p.z = 0;
+    else if (camera_ent->p.z > CELLSIZE*(map_height - 1)) camera_ent->p.z = (map_height - 1)*CELLSIZE;
+    ent_update(camera_ent);
 }
 
 pickdata_t* editor_get_pickdata(void)

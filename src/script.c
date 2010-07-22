@@ -1036,6 +1036,23 @@ static void reg_world_procs(void)
     lil_register(lil, "get-light-radius", nat_get_light_radius);
 }
 
+/* Game procs */
+static lil_value_t nat_get_camera_entity(lil_t lil, size_t argc, lil_value_t* argv)
+{
+    return lil_alloc_integer(or_new(OT_ENTITY, camera_ent));
+}
+
+static lil_value_t nat_get_player_entity(lil_t lil, size_t argc, lil_value_t* argv)
+{
+    return lil_alloc_integer(or_new(OT_ENTITY, camera_ent));
+}
+
+static void reg_game_procs(void)
+{
+    lil_register(lil, "get-camera-entity", nat_get_camera_entity);
+    lil_register(lil, "get-player-entity", nat_get_player_entity);
+}
+
 /* Script interface */
 static void script_callback(lil_t lil, int cbtype, const void* data)
 {
@@ -1115,6 +1132,7 @@ void script_init(void)
     reg_engine_procs();
     reg_editor_procs();
     reg_world_procs();
+    reg_game_procs();
     execats = list_new();
     execats->item_free = execat_entry_free;
     script_run_scripts();

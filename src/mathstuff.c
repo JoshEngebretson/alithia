@@ -33,6 +33,13 @@ void vec_normalize(vector_t* v)
     }
 }
 
+void vec_add(vector_t* a, vector_t* b)
+{
+    a->x += b->x;
+    a->y += b->y;
+    a->z += b->z;
+}
+
 void vec_sub(vector_t* a, vector_t* b)
 {
     a->x -= b->x;

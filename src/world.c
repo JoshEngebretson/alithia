@@ -35,6 +35,7 @@ int cluster_height;
 lmap_texel_t* lightmap;
 GLuint lmaptex;
 int lmap_quality = 2;
+entity_t* player_ent;
 
 model_t* mdl_vytio;
 model_t* mdl_armor;
@@ -98,6 +99,10 @@ void map_init(int width, int height)
 
     mdl_vytio = modelcache_get("vytio");
     mdl_armor = modelcache_get("armor");
+
+    player_ent = ent_new();
+    camera_ent = player_ent;
+    ent_move(player_ent, map_width*CELLSIZE*0.5, -128+48, map_height*CELLSIZE*0.5);
 
     ent = ent_new();
     ent_set_model(ent, mdl_vytio);

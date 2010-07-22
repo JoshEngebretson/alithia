@@ -71,13 +71,14 @@ extern float mouse_x;
 extern float mouse_y;
 extern int mouse_sx;
 extern int mouse_sy;
-extern float plx, ply, plz, pla, pll;
+extern float pla, pll;
 extern float frustum[6][4];
 extern float proj[16];
 extern float modl[16];
 extern float clip[16];
 extern vector_t centeraya, centerayb;
 extern int disable_occlusion;
+extern entity_t* camera_ent;
 
 void console_clear(void);
 void console_write(const char* txt);
