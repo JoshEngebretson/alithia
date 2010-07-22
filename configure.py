@@ -11,6 +11,9 @@ program_name = 'atest'
 target = sys.platform
 if target == 'darwin':
     target = 'macosx'
+    cc = 'clang'
+else:
+    cc = 'gcc'
 
 # common flags
 #common_cflags = '-Wall -O3 -fomit-frame-pointer -ffast-math'
@@ -35,6 +38,7 @@ ldflags = common_ldflags = ' ' + sys_ldflags
 
 f = open("Makefile", "w")
 f.write('# generated makefile, do not modify. Use configure.py instead.\n\n')
+f.write('CC=' + cc + '\n')
 f.write('OUTPUT=' + output_exe + '\n')
 f.write('CFLAGS=' + cflags + '\n')
 f.write('LDFLAGS=' + ldflags + '\n')
