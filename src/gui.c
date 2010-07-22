@@ -414,7 +414,7 @@ void uimenu_free(menu_t* menu)
     free(menu);
 }
 
-void uimenu_add(menu_t* menu, const char* title, menu_t* submenu, menuitem_callback_t callback, void* cbdata)
+menuitem_t* uimenu_add(menu_t* menu, const char* title, menu_t* submenu, menuitem_callback_t callback, void* cbdata)
 {
     menu->item = realloc(menu->item, sizeof(menuitem_t)*(menu->items + 1));
     menu->item[menu->items].callback = callback;
@@ -426,6 +426,16 @@ void uimenu_add(menu_t* menu, const char* title, menu_t* submenu, menuitem_callb
     if (submenu) submenu->root = menu->root;
     menu->items++;
     menu->index = menu->items;
+    return menu->item + (menu->items - 1);
+}
+
+menuitem_t* uimenu_find(menu_t* menu, const char* title)
+{
+    size_t i;
+    for (i=0; i<menu->items; i++)
+        if (!strcmp(title, menu->item[i].title))
+            return menu->item + i;
+    return NULL;
 }
 
 static void uimenu_ctl_render(uicontrol_t* ctl)
@@ -1300,6 +1310,9 @@ static int editor_handle_event(uicontrol_t* ted, SDL_Event* ev)
             fake.key.keysym.unicode = 32;
             j = 4 - (data->col&3);
             for (i=0; i<j; i++) editor_handle_event(ted, &fake);
+            return 1;
+        } else if (ev->key.keysym.sym == SDLK_ESCAPE) {
+            gui_focus(NULL);
             return 1;
         } else if (!(ev->key.keysym.unicode & 0xFF80) && ev->key.keysym.unicode > 31) {
             char* newtext;

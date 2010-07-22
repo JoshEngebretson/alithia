@@ -39,4 +39,7 @@ typedef struct _model_t
 model_t* mdl_load(const char* geofile, const char* texfile);
 void mdl_free(model_t* mdl);
 
+model_t* modelcache_get(const char* name);
+void modelcache_clear(void);
+
 #endif

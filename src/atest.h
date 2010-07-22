@@ -42,6 +42,7 @@
 #endif
 #include <SDL/SDL.h>
 
+#include "lil.h"
 #include "defines.h"
 #include "utils.h"
 #include "mathstuff.h"

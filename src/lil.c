@@ -1904,6 +1904,18 @@ static lil_value_t fnc_append(lil_t lil, size_t argc, lil_value_t* argv)
     return r;
 }
 
+static lil_value_t fnc_lmap(lil_t lil, size_t argc, lil_value_t* argv)
+{
+    lil_list_t list;
+    size_t i;
+    if (argc < 2) return NULL;
+    list = lil_subst_to_list(lil, argv[0]);
+    for (i=1; i<argc; i++)
+        lil_set_var(lil, lil_to_string(argv[i]), lil_list_get(list, i - 1), LIL_SETVAR_LOCAL);
+    lil_free_list(list);
+    return NULL;
+}
+
 static lil_value_t fnc_list(lil_t lil, size_t argc, lil_value_t* argv)
 {
     lil_list_t list = lil_alloc_list();
@@ -2237,6 +2249,11 @@ static lil_value_t fnc_split(lil_t lil, size_t argc, lil_value_t* argv)
     return val;
 }
 
+static lil_value_t fnc_rand(lil_t lil, size_t argc, lil_value_t* argv)
+{
+    return lil_alloc_double(rand()/(double)RAND_MAX);
+}
+
 static void register_stdcmds(lil_t lil)
 {
     lil_register(lil, "reflect", fnc_reflect);
@@ -2248,6 +2265,7 @@ static void register_stdcmds(lil_t lil)
 	lil_register(lil, "eval", fnc_eval);
 	lil_register(lil, "count", fnc_count);
 	lil_register(lil, "index", fnc_index);
+	lil_register(lil, "lmap", fnc_lmap);
     lil_register(lil, "list", fnc_list);
 	lil_register(lil, "append", fnc_append);
     lil_register(lil, "subst", fnc_subst);
@@ -2270,4 +2288,5 @@ static void register_stdcmds(lil_t lil)
     lil_register(lil, "strcmp", fnc_strcmp);
     lil_register(lil, "streq", fnc_streq);
     lil_register(lil, "split", fnc_split);
+    lil_register(lil, "rand", fnc_rand);
 }

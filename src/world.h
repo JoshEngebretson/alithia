@@ -46,14 +46,21 @@ typedef struct _light_t
     float rad;
 } light_t;
 
+typedef struct _entity_attr_t
+{
+    lil_value_t name;
+    lil_value_t value;
+} entity_attr_t;
+
 typedef struct _entity_t
 {
     model_t* mdl;
     vector_t p;
     float xoff, yoff, zoff;
-    int yrot;
+    float yrot;
     float mtx[16];
     struct _cluster_t* clus;
+    list_t* attrs;
     aabb_t aabb;
 } entity_t;
 
@@ -94,7 +101,7 @@ typedef struct _lmap_texel_t
 
 typedef struct _pickdata_t
 {
-    vector_t ip; /* interection point */
+    vector_t ip; /* intersection point */
     int result; /* one of PICK_xxx */
     entity_t* entity; /* picked entity for PICK_ENTITY */
     int cluster_x, cluster_y; /* cluster coords where picking was done */
@@ -138,8 +145,12 @@ void light_free(light_t* light);
 
 entity_t* ent_new(void);
 void ent_free(entity_t* ent);
+entity_t* ent_clone(entity_t* ent);
 void ent_update(entity_t* ent);
 void ent_set_model(entity_t* ent, model_t* mdl);
 void ent_move(entity_t* ent, float x, float y, float z);
+void ent_set_attr(entity_t* ent, lil_value_t name, lil_value_t value);
+lil_value_t ent_get_attr(entity_t* ent, lil_value_t name);
+lil_value_t ent_call_attr(entity_t* ent, const char* name);
 
 #endif

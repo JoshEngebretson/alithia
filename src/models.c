@@ -23,6 +23,14 @@
 
 #include "atest.h"
 
+typedef struct _cache_entry_t
+{
+    char* name;
+    model_t* model;
+} cache_entry_t;
+
+static list_t* cache;
+
 model_t* mdl_load(const char* geofile, const char* texfile)
 {
     model_t* mdl = new(model_t);
@@ -79,9 +87,54 @@ fail:
 void mdl_free(model_t* mdl)
 {
     if (!mdl) return;
+    or_deleted(mdl);
     if (mdl->dl) glDeleteLists(mdl->dl, 1);
     if (mdl->tex) tex_free(mdl->tex);
     if (mdl->v) free(mdl->v);
     if (mdl->f) free(mdl->f);
     free(mdl);
+}
+
+model_t* modelcache_get(const char* name)
+{
+    cache_entry_t* e;
+    char mdlname[256];
+    char texname[256];
+    model_t* mdl;
+
+    if (strlen(name) > 200) return NULL;
+    if (cache) {
+        listitem_t* li;
+        for (li=cache->first; li; li=li->next) {
+            e = li->ptr;
+            if (!strcmp(name, e->name))
+                return e->model;
+        }
+    }
+    sprintf(mdlname, "data/models/%s.alm", name);
+    sprintf(texname, "data/models/%s.bmp", name);
+    mdl = mdl_load(mdlname, texname);
+    if (!mdl) return NULL;
+
+    e = new(cache_entry_t);
+    e->name = strdup(name);
+    e->model = mdl;
+    if (!cache) cache = list_new();
+    list_add(cache, e);
+
+    return mdl;
+}
+
+void modelcache_clear(void)
+{
+    listitem_t* li;
+    if (!cache) return;
+    for (li=cache->first; li; li=li->next) {
+        cache_entry_t* e = li->ptr;
+        free(e->name);
+        mdl_free(e->model);
+        free(e);
+    }
+    list_free(cache);
+    cache = NULL;
 }

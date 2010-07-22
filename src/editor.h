@@ -41,5 +41,8 @@ void editor_apply_cell_modifier(modifier_proc_t proc, void* data);
 void editor_set_selection(int x1, int y1, int x2, int y2);
 void editor_get_selection(int* x1, int* y1, int* x2, int* y2);
 void editor_get_cursor(int* x, int* y);
+pickdata_t* editor_get_pickdata(void);
+
+void editor_scriptmenu_add(const char* name, lil_value_t code);
 
 #endif

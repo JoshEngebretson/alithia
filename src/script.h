@@ -24,12 +24,25 @@
 #ifndef __SCRIPT_H_INCLUDED__
 #define __SCRIPT_H_INCLUDED__
 
-#include "lil.h"
+#define OT_NOTHING 0
+#define OT_ENTITY 1
+#define OT_LIGHT 2
+#define OT_MODEL 3
+#define OT_TEXTURE 4
 
 extern lil_t lil;
+
+size_t or_new(int type, void* obj);
+void* or_get(int type, size_t idx);
+void or_release(size_t idx);
+void or_deleted(void* obj);
 
 void script_init(void);
 void script_shutdown(void);
 void script_eval(const char* code);
+void script_run(const char* name);
+void script_run_execats(const char* event);
+
+entity_t* ent_new_by_class(const char* clsname);
 
 #endif

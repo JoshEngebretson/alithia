@@ -150,7 +150,7 @@ static void console_handle_keydown(SDL_Event* ev)
         console_command_len = 0;
         console_mode = 0;
     } else if (ev->key.keysym.sym == SDLK_RETURN) {
-        script_eval(console_command);
+        lil_free_value(lil_parse(lil, console_command, 0, 0));
         console_command[0] = 0;
         console_command_len = 0;
         console_mode = 0;
@@ -1561,7 +1561,7 @@ static void run(void)
     skybox_front = tex_load("data/textures/skybox_front.bmp");
     skybox_back = tex_load("data/textures/skybox_back.bmp");*/
 
-    mdl_gun = mdl_load("data/models/gun.alm", "data/models/gun.bmp");
+    mdl_gun = modelcache_get("gun");
 
     map_init(256, 256);
 
@@ -1591,6 +1591,8 @@ static void run(void)
     plz = (map_width*CELLSIZE)*0.5;
 
     gamescreen_init();
+
+    script_run_execats("map-load");
 
     mark = SDL_GetTicks();
     millis = mark;
@@ -1626,6 +1628,7 @@ int main(int _argc, char *_argv[])
 
     run();
 
+    modelcache_clear();
     script_shutdown();
     editor_shutdown();
     screen_free(gamescreen);

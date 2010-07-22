@@ -134,6 +134,7 @@ void tex_load_skybox(const char* filename, texture_t** left, texture_t** back, t
 
 void tex_free(texture_t* tex)
 {
+    or_deleted(tex);
     glTexImage2D(GL_TEXTURE_2D, 0, 3, 0, 0, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
     glDeleteTextures(1, &tex->name);
     free(tex);

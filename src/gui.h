@@ -120,7 +120,8 @@ uicontrol_t* uiroot_set(uicontrol_t* newroot);
 /* Popup menus */
 menu_t* uimenu_new(void);
 void uimenu_free(menu_t* menu);
-void uimenu_add(menu_t* menu, const char* title, menu_t* submenu, menuitem_callback_t callback, void* cbdata);
+menuitem_t* uimenu_add(menu_t* menu, const char* title, menu_t* submenu, menuitem_callback_t callback, void* cbdata);
+menuitem_t* uimenu_find(menu_t* menu, const char* title);
 void uimenu_show(menu_t* menu, float x, float y);
 void uimenu_hide(menu_t* menu);
 

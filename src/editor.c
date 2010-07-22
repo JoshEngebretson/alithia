@@ -23,6 +23,12 @@
 
 #include "atest.h"
 
+typedef struct _scriptmenu_entry_t
+{
+    char* name;
+    lil_value_t code;
+} scriptmenu_entry_t;
+
 static int selx1, sely1, selx2, sely2;
 static int drag_selection, has_selection;
 static int dsel_x1, dsel_y1;
@@ -46,6 +52,7 @@ static uicontrol_t* evaluator;
 static uicontrol_t* evaluator_box;
 
 static menu_t* editormenu;
+static list_t* scriptmenu_entries;
 
 screen_t* editorscreen;
 
@@ -168,6 +175,11 @@ void editor_move_towards(float ix, float iy, float iz)
     else if (plz > CELLSIZE*(map_height - 1)) plz = (map_height - 1)*CELLSIZE;
 }
 
+pickdata_t* editor_get_pickdata(void)
+{
+    return &pd;
+}
+
 static void key_down(SDL_Event ev)
 {
     switch (ev.key.keysym.sym) {
@@ -227,7 +239,7 @@ static void editorscreen_sdl_event(SDL_Event ev)
                 vec_makedir(&n, &centerayb, &centeraya);
                 dragging_entity = 1;
                 if (SDL_GetModState() & KMOD_SHIFT) {
-                    // TODO: this
+                    drag_entity = pd.entity = ent_clone(pd.entity);
                 } else {
                     drag_entity = pd.entity;
                 }
@@ -798,12 +810,12 @@ static void evaluator_evaluate_button_callback(struct _uicontrol_t* ctl, int cbt
 {
     if (cbtype == CB_ACTIVATED) {
         char* code = uieditor_get_text(evaluator_box);
-        script_eval(code);
+        lil_free_value(lil_parse(lil, code, 0, 1));
         free(code);
     }
 }
 
-static void editormenu_scripting_toggleevaluator(int action, menuitem_t* item, void* data)
+static void editormenu_script_toggleevaluator(int action, menuitem_t* item, void* data)
 {
     uicontrol_t* btn;
 
@@ -827,32 +839,152 @@ static void editormenu_closed(menu_t* menu)
 {
 }
 
+static void editormenu_createentity_clsname_menu_callback(int action, menuitem_t* item, void* data)
+{
+    if (action == MI_SELECT) {
+        entity_t* ent = ent_new_by_class(item->title);
+        if (!ent) return;
+        ent_move(ent, cur_x1*CELLSIZE + CELLSIZE*0.5, cell[cur_y1*map_width + cur_x1].floorz, cur_y1*CELLSIZE + CELLSIZE*0.5);
+    }
+}
+
+static void editormenu_createentity_category_menu_callback(int action, menuitem_t* item, void* data)
+{
+    menu_t* menu;
+    lil_value_t public_entity_classes;
+    lil_list_t classes;
+    size_t i;
+    if (action != MI_HIGHLIGHT) return;
+
+    public_entity_classes = lil_get_var(lil, "public-entity-classes");
+    if (!public_entity_classes) return;
+
+    menu = uimenu_new();
+    classes = lil_subst_to_list(lil, public_entity_classes);
+    for (i=0; i<lil_list_size(classes); i++) {
+        lil_value_t entry = lil_list_get(classes, i), category;
+        lil_list_t elist;
+        if (!entry) continue;
+        elist = lil_subst_to_list(lil, entry);
+        category = lil_list_get(elist, 0);
+        if (!strcmp(item->title, lil_to_string(category))) {
+            lil_value_t clsname = lil_list_get(elist, 1);
+            uimenu_add(menu, lil_to_string(clsname), NULL, editormenu_createentity_clsname_menu_callback, NULL);
+        }
+        lil_free_list(elist);
+    }
+    lil_free_list(classes);
+
+    if (item->submenu)
+        uimenu_free(item->submenu);
+    item->submenu = menu;
+}
+
+static void editormenu_createentity_menu_callback(int action, menuitem_t* item, void* data)
+{
+    menu_t* menu;
+    lil_value_t public_entity_classes;
+    lil_list_t classes;
+    size_t i;
+    if (action != MI_HIGHLIGHT) return;
+
+    public_entity_classes = lil_get_var(lil, "public-entity-classes");
+    if (!public_entity_classes) return;
+
+    menu = uimenu_new();
+    classes = lil_subst_to_list(lil, public_entity_classes);
+    for (i=0; i<lil_list_size(classes); i++) {
+        lil_value_t entry = lil_list_get(classes, i), category;
+        lil_list_t elist;
+        menuitem_t* mitem;
+        if (!entry) continue;
+        elist = lil_subst_to_list(lil, entry);
+        category = lil_list_get(elist, 0);
+        mitem = uimenu_find(menu, lil_to_string(category));
+        if (!mitem) mitem = uimenu_add(menu, lil_to_string(category), NULL, NULL, NULL);
+        mitem->callback = editormenu_createentity_category_menu_callback;
+        lil_free_list(elist);
+    }
+    lil_free_list(classes);
+
+    if (item->submenu)
+        uimenu_free(item->submenu);
+    item->submenu = menu;
+}
+
+static void editormenu_scriptmenu_item_callback(int action, menuitem_t* item, void* data)
+{
+    scriptmenu_entry_t* e = data;
+    if (action != MI_SELECT) return;
+    lil_free_value(lil_parse_value(lil, e->code, 1));
+}
+
+static void editormenu_script_menu_callback(int action, menuitem_t* item, void* data)
+{
+    menu_t* script_menu;
+    listitem_t* li;
+    if (action != MI_HIGHLIGHT) return;
+
+    script_menu = uimenu_new();
+    uimenu_add(script_menu, "Toggle evaluator", NULL, editormenu_script_toggleevaluator, NULL);
+    uimenu_add(script_menu, "-", NULL, NULL, NULL);
+    for (li=scriptmenu_entries->first; li; li=li->next) {
+        scriptmenu_entry_t* e = li->ptr;
+        uimenu_add(script_menu, e->name, NULL, editormenu_scriptmenu_item_callback, e);
+    }
+
+    if (item->submenu)
+        uimenu_free(item->submenu);
+    item->submenu = script_menu;
+}
+
 static void create_editormenu(void)
 {
     menu_t* create_menu;
-    menu_t* scripting_menu;
 
     /* Create menu */
     create_menu = uimenu_new();
-    uimenu_add(create_menu, "Entity", NULL, NULL, NULL);
+    uimenu_add(create_menu, "Entity", NULL, editormenu_createentity_menu_callback, NULL);
     uimenu_add(create_menu, "Light", NULL, editormenu_create_light, NULL);
-
-    /* Scripting menu */
-    scripting_menu = uimenu_new();
-    uimenu_add(scripting_menu, "Toggle evaluator", NULL, editormenu_scripting_toggleevaluator, NULL);
 
     /* Main editor menu */
     editormenu = uimenu_new();
     editormenu->closed = editormenu_closed;
     uimenu_add(editormenu, "Create", create_menu, NULL, NULL);
     uimenu_add(editormenu, "-", NULL, NULL, NULL);
-    uimenu_add(editormenu, "Scripting", scripting_menu, NULL, NULL);
+    uimenu_add(editormenu, "Script", NULL, editormenu_script_menu_callback, NULL);
     uimenu_add(editormenu, "-", NULL, NULL, NULL);
     uimenu_add(editormenu, "Save...", NULL, NULL, NULL);
     uimenu_add(editormenu, "Open...", NULL, NULL, NULL);
     uimenu_add(editormenu, "Clear...", NULL, NULL, NULL);
     uimenu_add(editormenu, "-", NULL, NULL, NULL);
     uimenu_add(editormenu, "Exit", NULL, editormenu_exit, NULL);
+}
+
+void editor_scriptmenu_add(const char* name, lil_value_t code)
+{
+    listitem_t* li;
+    scriptmenu_entry_t* e;
+    for (li=scriptmenu_entries->first; li; li=li->next) {
+        e = li->ptr;
+        if (!strcmp(e->name, name)) {
+            lil_free_value(e->code);
+            e->code = lil_clone_value(code);
+            return;
+        }
+    }
+    e = new(scriptmenu_entry_t);
+    e->name = strdup(name);
+    e->code = lil_clone_value(code);
+    list_add(scriptmenu_entries, e);
+}
+
+static void scriptmenu_entry_free(void* ptr)
+{
+    scriptmenu_entry_t* e = ptr;
+    free(e->name);
+    lil_free_value(e->code);
+    free(e);
 }
 
 void editor_init(void)
@@ -862,10 +994,13 @@ void editor_init(void)
     uiroot_set(editoruiroot);
     create_editormenu();
     create_texture_browser();
+    scriptmenu_entries = list_new();
+    scriptmenu_entries->item_free = scriptmenu_entry_free;
 }
 
 void editor_shutdown(void)
 {
+    list_free(scriptmenu_entries);
     uimenu_free(editormenu);
     uictl_free(editoruiroot);
     screen_free(editorscreen);

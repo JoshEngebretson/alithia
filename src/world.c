@@ -96,8 +96,8 @@ void map_init(int width, int height)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, map_width, map_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
 
-    mdl_vytio = mdl_load("data/models/vytio.alm", "data/models/vytio.bmp");
-    mdl_armor = mdl_load("data/models/armor.alm", "data/models/armor.bmp");
+    mdl_vytio = modelcache_get("vytio");
+    mdl_armor = modelcache_get("armor");
 
     ent = ent_new();
     ent_set_model(ent, mdl_vytio);
@@ -483,21 +483,51 @@ light_t* light_new(float x, float y, float z, float r, float g, float b, float r
 
 void light_free(light_t* light)
 {
+    or_deleted(light);
     list_remove(lights, light, 0);
     free(light);
+}
+
+static void entity_attr_free(void* ptr)
+{
+    entity_attr_t* attr = ptr;
+    lil_free_value(attr->name);
+    lil_free_value(attr->value);
+    free(attr);
 }
 
 entity_t* ent_new(void)
 {
     entity_t* ent = new(entity_t);
     list_add(ents, ent);
+    ent->attrs = list_new();
+    ent->attrs->item_free = entity_attr_free;
     return ent;
 }
 
 void ent_free(entity_t* ent)
 {
+    or_deleted(ent);
+    list_free(ent->attrs);
+    if (ent->clus) list_remove(ent->clus->ents, ent, 0);
     list_remove(ents, ent, 0);
     free(ent);
+}
+
+entity_t* ent_clone(entity_t* ent)
+{
+    entity_t* clone = ent_new();
+    list_t* save_attrs = clone->attrs;
+    listitem_t* li;
+    *clone = *ent;
+    clone->clus = NULL;
+    clone->attrs = save_attrs;
+    for (li=ent->attrs->first; li; li=li->next) {
+        entity_attr_t* attr = li->ptr;
+        ent_set_attr(clone, attr->name, attr->value);
+    }
+    ent_update(clone);
+    return clone;
 }
 
 void ent_update(entity_t* ent)
@@ -513,7 +543,8 @@ void ent_update(entity_t* ent)
         ent->clus = clus;
     }
 
-    aabb_copytrans(&ent->aabb, &ent->mdl->aabb, ent->p.x, ent->p.y, ent->p.z);
+    if (ent->mdl)
+        aabb_copytrans(&ent->aabb, &ent->mdl->aabb, ent->p.x, ent->p.y, ent->p.z);
 
     mtx[0] = 1; mtx[4] = 0; mtx[8] = 0; mtx[12] = ent->p.x;
     mtx[1] = 0; mtx[5] = 1; mtx[9] = 0; mtx[13] = ent->p.y;
@@ -535,4 +566,45 @@ void ent_move(entity_t* ent, float x, float y, float z)
     ent->p.y = y;
     ent->p.z = z;
     ent_update(ent);
+}
+
+void ent_set_attr(entity_t* ent, lil_value_t name, lil_value_t value)
+{
+    listitem_t* li;
+    entity_attr_t* attr;
+    const char* cname = lil_to_string(name);
+    for (li=ent->attrs->first; li; li=li->next) {
+        attr = li->ptr;
+        if (!strcmp(lil_to_string(attr->name), cname)) {
+            lil_free_value(attr->value);
+            attr->value = lil_clone_value(value);
+            return;
+        }
+    }
+    attr = new(entity_attr_t);
+    attr->name = lil_clone_value(name);
+    attr->value = lil_clone_value(value);
+    list_add(ent->attrs, attr);
+}
+
+lil_value_t ent_get_attr(entity_t* ent, lil_value_t name)
+{
+    listitem_t* li;
+    entity_attr_t* attr;
+    const char* cname = lil_to_string(name);
+    for (li=ent->attrs->first; li; li=li->next) {
+        attr = li->ptr;
+        if (!strcmp(lil_to_string(attr->name), cname))
+            return attr->value;
+    }
+    return NULL;
+}
+
+lil_value_t ent_call_attr(entity_t* ent, const char* name)
+{
+    lil_value_t lilname = lil_alloc_string(name);
+    lil_value_t code = ent_get_attr(ent, lilname);
+    lil_value_t retval = lil_parse_value(lil, code, 0);
+    lil_free_value(lilname);
+    return retval;
 }
