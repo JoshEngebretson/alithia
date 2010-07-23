@@ -2,6 +2,7 @@
 
 import os
 import sys
+import glob
 from optparse import OptionParser
 
 # find platform
@@ -90,10 +91,12 @@ $(OUTPUT): $(OBJECTS)
 
 src/SDLMain.o: src/SDLMain.m $(HEADERS)
 	$(OBJC) -ObjC $(CFLAGS) -o $@ -c $<
-    
-*.o: %.c $(HEADERS)
-	$(CC) $(CFLAGS) -o $@ -c $<
-	
+''')
+
+for cfile in glob.glob("src/*.c"):
+    ofile = cfile.replace('.c', '.o')
+    f.write(ofile + ": " + cfile + " $(HEADERS)\n\t$(CC) $(CFLAGS) -o $@ -c $<\n")
+f.write('''
 .PHONY: clean
 clean:
 	$(RM) $(OUTPUT) $(OBJECTS)
