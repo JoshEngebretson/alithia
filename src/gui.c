@@ -228,6 +228,7 @@ void uictl_free(uicontrol_t* ctl)
     if (!ctl) return;
     uictl_callback(ctl, CB_DESTROYED, NULL);
     if (capture == ctl) capture = NULL;
+    if (focus == ctl) focus = NULL;
     if (ctl->parent) uictl_remove(ctl->parent, ctl);
     if (ctl->dispose) ctl->dispose(ctl);
     if (ctl->ctldata) free(ctl->ctldata);

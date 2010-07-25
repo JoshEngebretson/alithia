@@ -53,6 +53,7 @@
 #include "gui.h"
 #include "models.h"
 #include "world.h"
+#include "motion.h"
 #include "screens.h"
 #include "editor.h"
 #include "script.h"

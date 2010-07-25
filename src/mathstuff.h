@@ -45,6 +45,7 @@ typedef struct _plane_t
     float nx, ny, nz, d;
 } plane_t;
 
+#define vec_set(v,xv,yv,zv) {(v)->x = (xv); (v)->y = (yv); (v)->z = (zv);}
 #define vec_dot(a,b) ((a)->x*(b)->x + (a)->y*(b)->y + (a)->z*(b)->z)
 #define vec_lensq(a) vec_dot(a, a)
 #define vec_len(a) sqrtf(vec_lensq(a))
@@ -67,5 +68,6 @@ int ray_plane_intersection(plane_t* p, vector_t* a, vector_t* b, vector_t* ip);
 int ray_tri_intersection(triangle_t* t, vector_t* a, vector_t* b, vector_t* ip, int dualface);
 int ray_sphere_intersection(vector_t* sc, float sr, vector_t* a, vector_t* b, vector_t* ip);
 int ray_aabb_intersection(aabb_t* aabb, vector_t* a, vector_t* b, vector_t* ip);
+int aabb_aabb_collision(aabb_t* a, aabb_t* b);
 
 #endif

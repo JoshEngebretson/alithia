@@ -187,6 +187,17 @@ static void key_down(SDL_Event ev)
     case SDLK_TAB:
         camera_mode = !camera_mode;
         break;
+    case SDLK_BACKSPACE:
+        if (pd.result == PICK_LIGHT) {
+            light_free(pd.light);
+            pd.light = NULL;
+            pd.result = PICK_NOTHING;
+        } else if (pd.result == PICK_ENTITY) {
+            ent_free(pd.entity);
+            pd.entity = NULL;
+            pd.result = PICK_NOTHING;
+        }
+        break;
     case SDLK_o:
         if (SDL_GetModState() & KMOD_CTRL)
             disable_occlusion = !disable_occlusion;
@@ -405,6 +416,7 @@ static void editorscreen_sdl_event(SDL_Event ev)
             break;
         }
 
+        pd.ignore_ent = player_ent;
         if (pick(&centeraya, &centerayb, &pd, PICKFLAG_PICK_LIGHTS)) {
             switch (pd.result) {
             case PICK_WORLD:
@@ -414,7 +426,7 @@ static void editorscreen_sdl_event(SDL_Event ev)
                 else if (cur_x1 > map_width - 1) cur_x1 = map_width - 1;
                 if (cur_y1 < 1) cur_y1 = 1;
                 else if (cur_y1 > map_height - 1) cur_y1 = map_height - 1;
-                last_cell_y = pd.cell->floorz;
+                last_cell_y = cell[cur_y1*map_width + cur_x1].floorz;
                 break;
             }
         } else {
@@ -614,6 +626,7 @@ static void editorscreen_render(void)
     /* Draw entities */
     for (li=ents->first; li; li=li->next) {
         ent = li->ptr;
+//        if (ent == player_ent) continue;
         if (pd.result == PICK_ENTITY && pd.entity == ent) {
             if (dragging_entity) {
                 aabb_t tmp = ent->aabb;

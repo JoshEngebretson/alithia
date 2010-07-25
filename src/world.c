@@ -54,6 +54,8 @@ void map_init(int width, int height)
     ocmap = malloc0(width*height);
     cluster = malloc0(cluster_width*cluster_height*sizeof(cluster_t));
 
+    mot_reset();
+
     ents = list_new();
     ents->item_free = (void*)ent_free;
 
@@ -103,6 +105,13 @@ void map_init(int width, int height)
     player_ent = ent_new();
     camera_ent = player_ent;
     ent_move(player_ent, map_width*CELLSIZE*0.5, -128+48, map_height*CELLSIZE*0.5);
+    {
+        motion_t* mot = mot_new(player_ent);
+        mot_for_char(mot);
+        vec_set(&player_ent->laabb.min, -16, -48, -16);
+        vec_set(&player_ent->laabb.max, 16, 16, 16);
+    }
+
 
     ent = ent_new();
     ent_set_model(ent, mdl_vytio);
@@ -295,6 +304,7 @@ static int pick_rm_func(int x, int y, cell_t* cell, void* data)
     /* check entities */
     for (li=cls->ents->first; li; li=li->next) {
         entity_t* ent = li->ptr;
+        if (ent == pd->ignore_ent) continue;
         if (ray_aabb_intersection(&ent->aabb, pd->a, pd->b, &ip)) {
             ipad = vec_distsq(pd->a, &ip);
             if (pd->nopick || ipad < pd->ipad) {
@@ -513,6 +523,7 @@ entity_t* ent_new(void)
 void ent_free(entity_t* ent)
 {
     or_deleted(ent);
+    if (ent->mot) mot_free(ent->mot);
     list_free(ent->attrs);
     if (ent->clus) list_remove(ent->clus->ents, ent, 0);
     list_remove(ents, ent, 0);
@@ -550,6 +561,11 @@ void ent_update(entity_t* ent)
 
     if (ent->mdl)
         aabb_copytrans(&ent->aabb, &ent->mdl->aabb, ent->p.x, ent->p.y, ent->p.z);
+    else
+        aabb_copytrans(&ent->aabb, &ent->laabb, ent->p.x, ent->p.y, ent->p.z);
+
+    if (ent->mot)
+        mot_unfreeze(ent->mot);
 
     mtx[0] = 1; mtx[4] = 0; mtx[8] = 0; mtx[12] = ent->p.x;
     mtx[1] = 0; mtx[5] = 1; mtx[9] = 0; mtx[13] = ent->p.y;
@@ -563,14 +579,33 @@ void ent_set_model(entity_t* ent, model_t* mdl)
     ent_update(ent);
 }
 
+static int aabb_below_aabb(aabb_t* a, aabb_t* b)
+{
+    return fabsf(a->min.y < b->min.y) &&
+           fabsf((b->min.x + b->max.x) - (a->min.x + a->max.x)) < ((a->max.x - a->min.x) + (b->max.x - b->min.x)) &&
+           fabsf((b->min.z + b->max.z) - (a->min.z + a->max.z)) < ((a->max.z - a->min.z) + (b->max.z - b->min.z));
+}
+
 void ent_move(entity_t* ent, float x, float y, float z)
 {
+    listitem_t* li;
+    int cc, cr;
+    cluster_t* clus;
+    if (ent->p.x == x && ent->p.y == y && ent->p.z == z) return;
     if (x < 0) x = 0; else if (x > (map_width - 1)*CELLSIZE) x = (map_width - 1)*CELLSIZE;
     if (z < 0) z = 0; else if (z > (map_height - 1)*CELLSIZE) z = (map_height - 1)*CELLSIZE;
     ent->p.x = x;
     ent->p.y = y;
     ent->p.z = z;
     ent_update(ent);
+    cc = ((int)x)/(CLUSTERSIZE*CELLSIZE);
+    cr = ((int)z)/(CLUSTERSIZE*CELLSIZE);
+    clus = cluster + cr*cluster_width + cc;
+    for (li=clus->ents->first; li; li=li->next) {
+        entity_t*e = li->ptr;
+        if (aabb_below_aabb(&ent->aabb, &e->aabb) && e->mot)
+            mot_unfreeze(e->mot);
+    }
 }
 
 void ent_set_attr(entity_t* ent, lil_value_t name, lil_value_t value)

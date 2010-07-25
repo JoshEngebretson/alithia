@@ -62,6 +62,8 @@ typedef struct _entity_t
     struct _cluster_t* clus;
     list_t* attrs;
     aabb_t aabb;
+    aabb_t laabb; /* aabb for modelless entities */
+    void* mot;
 } entity_t;
 
 typedef struct _cell_t
@@ -101,6 +103,7 @@ typedef struct _lmap_texel_t
 
 typedef struct _pickdata_t
 {
+    entity_t* ignore_ent; /* entity to ignore */
     vector_t ip; /* intersection point */
     int result; /* one of PICK_xxx */
     entity_t* entity; /* picked entity for PICK_ENTITY */

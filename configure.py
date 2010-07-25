@@ -22,6 +22,8 @@ program_name = 'atest'
 # parse arguments
 oparser = OptionParser(version="configure script for Alithia Engine version 0.1")
 oparser.add_option("--release", action="store_true", dest="release", default=False, help="use build options for releases (enable optimizations, disable debug info, etc)")
+oparser.add_option("--optimize", action="store_true", dest="optimize", default=False, help="include optimization (like --release but does not remove debug info)")
+oparser.add_option("--profiling", action="store_true", dest="profiling", default=False, help="use build options for profiling")
 oparser.add_option("--target", action="store", type="string", dest="target", default=target, help="target platform [default: %default]")
 oparser.add_option("--c-compiler", action="store", type="string", dest="cc", default=cc, help="C compiler binary name (arguments must be GCC compatible) [default: %default]")
 if target == 'macosx':
@@ -38,18 +40,28 @@ program_name = options.program_name
 cc = options.cc
 objc = options.objc
 debug = not options.release
+profiling = options.profiling
+optimize = options.optimize
 
 # common flags
+if profiling and cc == 'clang':
+    cc = 'gcc'
 if debug:
-    common_cflags = '-Wall -g3 -O0'
+    common_cflags = '-Wall -g3'
+    if (not optimize):
+        common_cflags = common_cflags + ' -O0'
     common_ldflags = '-g'
 else:
     common_cflags = '-Wall -fomit-frame-pointer'
+    common_ldflags = ''
+if optimize or (not debug):
     if cc != 'clang':
-        common_cflags = common_cflags + ' -O3 -ffast-math'
+        common_cflags = common_cflags + ' -O3 -ffast-math -ftree-vectorize'
     else:
         common_cflags = common_cflags + ' -O4'
-    common_ldflags = ''
+if profiling:
+    common_cflags = common_cflags + ' -pg'
+    common_ldflags = common_ldflags + ' -pg'
 
 # set platform-specific variables
 exe_suffix = ''
@@ -64,8 +76,8 @@ else:
     sys_ldflags = '-lSDL -lGL -lGLU -lX11'
 
 output_exe = program_prefix + program_name + exe_suffix
-cflags = common_cflags + ' ' + sys_cflags + options.extra_cflags
-ldflags = common_ldflags = ' ' + sys_ldflags + options.extra_ldflags
+cflags = common_cflags + ' ' + sys_cflags + ' ' + options.extra_cflags
+ldflags = common_ldflags + ' ' + sys_ldflags + ' ' + options.extra_ldflags
 
 f = open("Makefile", "w")
 f.write('# generated makefile, do not modify. Use configure.py instead.\n\n')

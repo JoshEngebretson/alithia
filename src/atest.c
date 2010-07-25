@@ -26,6 +26,7 @@
 #define CELLVSIZE 2
 
 #define MAX_POINTS 16384
+#define MAX_VISIBLE_ENTITIES 16384
 
 typedef struct _bucket_t
 {
@@ -168,8 +169,8 @@ static void process_events(void)
     while (SDL_PollEvent(&ev)) {
         switch (ev.type) {
             case SDL_MOUSEMOTION:
-                mouse_x = ((float)ev.motion.x/(float)vid_width)*2.0 - 1.0;
-                mouse_y = 1.0 - ((float)ev.motion.y/(float)vid_height)*2.0;
+                mouse_x = ((float)ev.motion.x/(float)vid_width)*2.0f - 1.0f;
+                mouse_y = 1.0 - ((float)ev.motion.y/(float)vid_height)*2.0f;
                 mouse_sx = ev.motion.x;
                 mouse_sy = ev.motion.y;
                 break;
@@ -216,8 +217,8 @@ static void calc_campoints(float r)
     int i;
     pntc = 0;
     for (i = 0; i < 3600; i++) {
-        int px = (int) (cos(i * PI / 1800.0) * r);
-        int py = (int) (sin(i * PI / 1800.0) * r);
+        int px = (int) (cosf(i * PI / 1800.0f) * r);
+        int py = (int) (sinf(i * PI / 1800.0f) * r);
         if (i == 0 || pntx[pntc - 1] != px || pnty[pntc - 1] != py) {
             pntx[pntc] = px;
             pnty[pntc] = py;
@@ -905,23 +906,55 @@ static void render_skybox(void)
 
 #undef M
 }
-
+/*
+static void draw_aabb_outline(aabb_t* aabb)
+{
+    glBegin(GL_LINE_STRIP);
+    glVertex3f(aabb->min.x, aabb->min.y, aabb->min.z);
+    glVertex3f(aabb->max.x, aabb->min.y, aabb->min.z);
+    glVertex3f(aabb->max.x, aabb->min.y, aabb->max.z);
+    glVertex3f(aabb->min.x, aabb->min.y, aabb->max.z);
+    glVertex3f(aabb->min.x, aabb->min.y, aabb->min.z);
+    glEnd();
+    glBegin(GL_LINE_STRIP);
+    glVertex3f(aabb->min.x, aabb->max.y, aabb->min.z);
+    glVertex3f(aabb->max.x, aabb->max.y, aabb->min.z);
+    glVertex3f(aabb->max.x, aabb->max.y, aabb->max.z);
+    glVertex3f(aabb->min.x, aabb->max.y, aabb->max.z);
+    glVertex3f(aabb->min.x, aabb->max.y, aabb->min.z);
+    glEnd();
+    glBegin(GL_LINE_STRIP);
+    glVertex3f(aabb->min.x, aabb->min.y, aabb->min.z);
+    glVertex3f(aabb->min.x, aabb->min.y, aabb->max.z);
+    glVertex3f(aabb->min.x, aabb->max.y, aabb->max.z);
+    glVertex3f(aabb->min.x, aabb->max.y, aabb->min.z);
+    glVertex3f(aabb->min.x, aabb->min.y, aabb->min.z);
+    glEnd();
+    glBegin(GL_LINE_STRIP);
+    glVertex3f(aabb->max.x, aabb->min.y, aabb->min.z);
+    glVertex3f(aabb->max.x, aabb->min.y, aabb->max.z);
+    glVertex3f(aabb->max.x, aabb->max.y, aabb->max.z);
+    glVertex3f(aabb->max.x, aabb->max.y, aabb->min.z);
+    glVertex3f(aabb->max.x, aabb->min.y, aabb->min.z);
+    glEnd();
+}
+*/
 static void render_world(void)
 {
     static int init_frames = 10;
     int x, y, i;
-    entity_t* e[1024];
+    entity_t* e[MAX_VISIBLE_ENTITIES];
     int ec = 0;
     GLint vport[4];
     double pmtx[16];
     double vmtx[16];
     double winx, winy, objx1, objy1, objz1, objx2, objy2, objz2;
-    float pos[] = { 0, 1, 0, 0 };
-    float amb[] = { 0.9, 0.9, 0.9, 1.0 };
-    float col[] = { 0.9, 0.9, 0.9, 1.0 };
+    float pos[] = { 0.0f, 1.0f, 0.0f, 0.0f };
+    float amb[] = { 0.9f, 0.9f, 0.9f, 1.0f };
+    float col[] = { 0.9f, 0.9f, 0.9f, 1.0f };
 
     /* prepare scene for rendering */
-    glClearColor(0.1, 0.12, 0.2, 1.0);
+    glClearColor(0.1f, 0.12f, 0.2f, 1.0f);
     glClearStencil(0);
     if (draw_wire || active_screen->do_clear)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
@@ -934,7 +967,7 @@ static void render_world(void)
     /* prepare for rendering the perspective from camera */
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    gluPerspective(60.0, wh_ratio, 1.0, 65536.0);
+    gluPerspective(60.0f, wh_ratio, 1.0f, 65536.0f);
     glGetDoublev(GL_PROJECTION_MATRIX, pmtx);
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
@@ -943,7 +976,7 @@ static void render_world(void)
 
     render_skybox();
 
-    glTranslatef(-camera_ent->p.x, -camera_ent->p.y-goffy*1.5, -camera_ent->p.z);
+    glTranslatef(-camera_ent->p.x, -camera_ent->p.y-goffy*1.5f, -camera_ent->p.z);
     glGetDoublev(GL_MODELVIEW_MATRIX, vmtx);
     glColor3f(1, 1, 1);
     glGetIntegerv(GL_VIEWPORT, vport);
@@ -1190,6 +1223,31 @@ static void render_world(void)
     if (draw_wire)
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
+    /*
+    {
+        listitem_t* li;
+        entity_t* ent;
+        glDisable(GL_TEXTURE_2D);
+        glActiveTexture(GL_TEXTURE1);
+        glDisable(GL_TEXTURE_2D);
+        glActiveTexture(GL_TEXTURE0);
+        glDisable(GL_LIGHTING);
+        for (li=ents->first; li; li=li->next) {
+            ent = li->ptr;
+            if (ent == player_ent) continue;
+            if (ent->mot) {
+                motion_t* mot = ent->mot;
+                if (mot->frozen) {
+                    glColor3f(0.2, 0.2, 0.8);
+                } else {
+                    glColor3f(1, 0.2, 0.2);
+                }
+                draw_aabb_outline(&ent->aabb);
+            }
+        }
+    }
+*/
+
     /* calculate picking ray */
     if (active_screen->draw_gui || active_screen->draw_mouse) {
         winx = mouse_sx;
@@ -1210,7 +1268,7 @@ static void render_world(void)
     centeraya = camera_ent->p;
     vec_add(&centerayb, &camera_ent->p);
 #ifdef DEBUG_DRAW_PICK_DATA
-    glColor3f(0.6,0.6,0.6);
+    glColor3f(0.6f, 0.6f, 0.6f);
     glActiveTexture(GL_TEXTURE0);
     glDisable(GL_TEXTURE_2D);
     glActiveTexture(GL_TEXTURE1);
@@ -1220,13 +1278,13 @@ static void render_world(void)
     {
         pickdata_t pd;
         if (pick(&centeraya, &centerayb, &pd)) {
-            glColor3f(0.2, 1, 0.2);
+            glColor3f(0.2f, 1.0f, 0.2f);
             glBegin(GL_TRIANGLES);
             glVertex3fv(&pd.tri.v[0].x);
             glVertex3fv(&pd.tri.v[1].x);
             glVertex3fv(&pd.tri.v[2].x);
             glEnd();
-            glColor3f(1, 0.2, 0.2);
+            glColor3f(1.0f, 0.2f, 0.2f);
             glBegin(GL_QUADS);
             glVertex3f(pd.ip.x - 5, pd.ip.y - 5, pd.ip.z);
             glVertex3f(pd.ip.x + 5, pd.ip.y - 5, pd.ip.z);
@@ -1266,7 +1324,7 @@ static void render_world(void)
     glDisable(GL_LIGHTING);
     glDisable(GL_TEXTURE_2D);
     glEnable(GL_POLYGON_OFFSET_FILL);
-    glPolygonOffset(-1.0, -1.0);
+    glPolygonOffset(-1.0f, -1.0f);
     glColorMask(0, 0, 0, 0);
     glDepthMask(0);
     glEnable(GL_STENCIL_TEST);
@@ -1333,17 +1391,17 @@ static void render_hud(void)
     glDisable(GL_DEPTH_TEST);
 
     glColor4f(1, 1, 1, 1);
-    font_render(font_normal, -1, 1 - 0.06, status, statlen, 0.06);
+    font_render(font_normal, -1, 1 - 0.06f, status, statlen, 0.06f);
 
     /* console */
     for (i=0; i<8; i++) {
         if (console_line[i].len)
-            font_render(font_normal, -1, 1 - 0.12 - 0.06*i, console_line[i].text, console_line[i].len, 0.06);
+            font_render(font_normal, -1.0f, 1.0f - 0.12f - 0.06f*i, console_line[i].text, console_line[i].len, 0.06f);
     }
     if (console_mode) {
         char tmp[258];
         sprintf(tmp, "> %s", console_command);
-        font_render(font_normal, -1 + 0.06, -1 + 0.06, tmp, -1, 0.06);
+        font_render(font_normal, -1.0f + 0.06f, -1.0f + 0.06f, tmp, -1.0f, 0.06f);
     }
 
     /* overlay gui */
@@ -1360,9 +1418,9 @@ static void render_hud(void)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
         glBegin(GL_QUADS);
-        glTexCoord2f(0, 1); glVertex2f(mouse_x, mouse_y - 0.08);
-        glTexCoord2f(1, 1); glVertex2f(mouse_x + 0.08*hw_ratio, mouse_y - 0.08);
-        glTexCoord2f(1, 0); glVertex2f(mouse_x + 0.08*hw_ratio, mouse_y);
+        glTexCoord2f(0, 1); glVertex2f(mouse_x, mouse_y - 0.08f);
+        glTexCoord2f(1, 1); glVertex2f(mouse_x + 0.08f*hw_ratio, mouse_y - 0.08f);
+        glTexCoord2f(1, 0); glVertex2f(mouse_x + 0.08f*hw_ratio, mouse_y);
         glTexCoord2f(0, 0); glVertex2f(mouse_x, mouse_y);
         glEnd();
         glDisable(GL_BLEND);
@@ -1382,9 +1440,9 @@ static void render(void)
     /* FPS calculation */
     if (++frames == 10) {
         uint32_t ticks = SDL_GetTicks();
-        double diff = ((double) (ticks - mark)) / 10.0;
-        sprintf(status, "%0.2f FPS (%0.2f ms/frame)", (float) (1000.0
-            / diff), diff);
+        double diff = ((double) (ticks - mark)) / 10.0f;
+        sprintf(status, "%0.2f FPS (%0.2f ms/frame) %i entities", (float) (1000.0f
+            / diff), diff, ents->count);
         statlen = strlen(status);
         mark = SDL_GetTicks();
         frames = 0;
@@ -1392,7 +1450,7 @@ static void render(void)
 
     ((entity_t*) ents->last->ptr)->yrot = SDL_GetTicks() * 15;
 }
-
+/*
 static int collides(void)
 {
     int x, y, x1, y1, x2, y2;
@@ -1419,6 +1477,12 @@ void move_towards(float ix, float iy, float iz)
     if (collides()) player_ent->p.z -= iz;
     ent_update(player_ent);
 }
+*/
+
+void move_towards(float x, float y, float z)
+{
+    mot_const(player_ent->mot, x, y, z);
+}
 
 static void update_game(float ms)
 {
@@ -1429,32 +1493,72 @@ static void update_game(float ms)
 static void gamescreen_update(float ms)
 {
     float floorz = cell[camy*map_width + camx].floorz;
-    int goffup = 0;
+    int goffup = 0, domove = 0;
+    float mvx = 0, mvy = 0, mvz = 0;
+    if (key[SDLK_SPACE]) {
+        static float foo = 0;
+        foo += ms;
+        while (foo >= 100) {
+            entity_t* ent = ent_new_by_class("armor");
+            motion_t* mot = mot_new(ent);
+            ent_move(ent, player_ent->p.x - sinf(pla*PI/180.0f)*64.0f, player_ent->p.y - 48, player_ent->p.z - cosf(pla*PI/180.0f)*64.0f);
+            mot->f.x = -sinf(pla*PI/180.0f)*200.0f;
+            mot->f.y = sinf(pll*PI/180.0f)*200.0f;
+            mot->f.z = -cosf(pla*PI/180.0f)*200.0f;
+
+            ent = ent_new_by_class("armor");
+            mot = mot_new(ent);
+            ent_move(ent, player_ent->p.x - sinf((pla+45)*PI/180.0f)*64.0f, player_ent->p.y - 48, player_ent->p.z - cosf((pla+45)*PI/180.0f)*64.0f);
+            mot->f.x = -sinf(pla*PI/180.0f)*200.0f;
+            mot->f.y = sinf(pll*PI/180.0f)*200.0f;
+            mot->f.z = -cosf(pla*PI/180.0f)*200.0f;
+
+            ent = ent_new_by_class("armor");
+            mot = mot_new(ent);
+            ent_move(ent, player_ent->p.x - sinf((pla-45)*PI/180.0f)*64.0f, player_ent->p.y - 48, player_ent->p.z - cosf((pla-45)*PI/180.0f)*64.0f);
+            mot->f.x = -sinf(pla*PI/180.0f)*200.0f;
+            mot->f.y = sinf(pll*PI/180.0f)*200.0f;
+            mot->f.z = -cosf(pla*PI/180.0f)*200.0f;
+            foo -= 100;
+        }
+    }
     if (key[SDLK_w]) {
-        move_towards(-sin(pla*PI/180.0)*ms*0.55, 0, -cos(pla*PI/180.0)*ms*0.55);
-        goffv += ms/170.0; goffup = 1;
+        domove = 1;
+        mvx = -sinf(pla*PI/180.0f)*50.0f;
+        mvz = -cosf(pla*PI/180.0f)*50.0f;
+        goffv += ms/170.0f; goffup = 1;
     }
     if (key[SDLK_s]) {
-        move_towards(sin(pla*PI/180.0)*ms*0.55, 0, cos(pla*PI/180.0)*ms*0.55);
-        if (!key[SDLK_w] && !goffup) goffv -= ms/270.0; goffup = 1;
+        domove = 1;
+        mvx += sinf(pla*PI/180.0f)*50.0f;
+        mvz += cosf(pla*PI/180.0f)*50.0f;
+        if (!key[SDLK_w] && !goffup) goffv -= ms/270.0f; goffup = 1;
     }
     if (key[SDLK_a]) {
-        move_towards(sin((pla-90)*PI/180.0)*ms*0.55, 0, cos((pla-90)*PI/180.0)*ms*0.55);
-        if (!goffup) goffv += ms/370.0; goffup = 1;
+        domove = 1;
+        mvx += sinf((pla-90.0f)*PI/180.0f)*50.0f;
+        mvz += cosf((pla-90.0f)*PI/180.0f)*50.0f;
+        if (!goffup) goffv += ms/370.0f; goffup = 1;
     }
     if (key[SDLK_d]) {
-        move_towards(sin((pla+90)*PI/180.0)*ms*0.55, 0, cos((pla+90)*PI/180.0)*ms*0.55);
-        if (!goffup) goffv += ms/370.0; goffup = 1;
+        domove = 1;
+        mvx += sinf((pla+90.0f)*PI/180.0f)*50.0f;
+        mvz += cosf((pla+90.0f)*PI/180.0f)*50.0f;
+        if (!goffup) goffv += ms/370.0f; goffup = 1;
     }
     if (goffup) {
-        goffx = sin(goffv)*4;
-        goffy = cos(goffv*2.5);
+        goffx = sinf(goffv)*4.0f;
+        goffy = cosf(goffv*2.5f);
     } else {
-        goffx *= 0.9;
+        goffx *= 0.9f;
        // goffy *= 0.995;
-        goffv = 0;
+        goffv = 0.0f;
     }
 
+    mot_const(player_ent->mot, mvx, mvy, mvz);
+
+    mot_update(ms);
+/*
     if (player_ent->p.y - 48 > floorz) {
         player_ent->p.y -= ms*0.5;
         if (player_ent->p.y - 48 < floorz)
@@ -1464,7 +1568,7 @@ static void gamescreen_update(float ms)
         player_ent->p.y += ms;
         if (player_ent->p.y - 48 > floorz)
             player_ent->p.y = floorz + 48;
-    }
+    }*/
     /*
     if (floorz > ply + 48) {
         ply += ms*4;
@@ -1479,9 +1583,18 @@ static void gamescreen_update(float ms)
 static void gamescreen_sdl_event(SDL_Event ev)
 {
     switch (ev.type) {
+    case SDL_MOUSEBUTTONDOWN:
+        if (ev.button.button == 3) {
+            motion_t* mot = player_ent->mot;
+            if (mot->onground) {
+                mot_force(player_ent->mot, 0, 48, 0);
+                mot->onground = 0;
+            }
+        }
+        break;
     case SDL_MOUSEMOTION:
-        pla -= ev.motion.xrel/10.0;
-        pll -= ev.motion.yrel/10.0;
+        pla -= ev.motion.xrel/10.0f;
+        pll -= ev.motion.yrel/10.0f;
         if (pll > 60) pll = 60;
         if (pll < -60) pll = -60;
         break;
@@ -1511,9 +1624,9 @@ static void gamescreen_render(void)
     glEnable(GL_TEXTURE_2D);
     glEnable(GL_DEPTH_TEST);
     glBindTexture(GL_TEXTURE_2D, mdl_gun->tex->name);
-    glColor3f((float)lightmap[camy*map_width + camx].r/255.0 + 0.2 + 0.1*sin(pla*PI/90),
-        (float)lightmap[camy*map_width + camx].g/255.0 + 0.2 + 0.1*sin(pla*PI/90),
-        (float)lightmap[camy*map_width + camx].b/255.0 + 0.2 + 0.1*sin(pla*PI/90));
+    glColor3f((float)lightmap[camy*map_width + camx].r/255.0f + 0.2f + 0.1f*sinf(pla*PI/90.0f),
+        (float)lightmap[camy*map_width + camx].g/255.0f + 0.2f + 0.1f*sinf(pla*PI/90.0f),
+        (float)lightmap[camy*map_width + camx].b/255.0f + 0.2f + 0.1f*sinf(pla*PI/90.0f));
     if (mdl_gun->dl)  glCallList(mdl_gun->dl);
 }
 
@@ -1620,9 +1733,11 @@ int main(int _argc, char *_argv[])
     gui_init();
     editor_init();
     script_init();
+    mot_init();
 
     run();
 
+    mot_shutdown();
     modelcache_clear();
     script_shutdown();
     editor_shutdown();

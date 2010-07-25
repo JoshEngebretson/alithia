@@ -281,3 +281,27 @@ int ray_aabb_intersection(aabb_t* aabb, vector_t* a, vector_t* b, vector_t* ip)
     }
     return ipfound;
 }
+
+int aabb_aabb_collision(aabb_t* a, aabb_t* b)
+{
+    return fabsf((b->min.y + b->max.y) - (a->min.y + a->max.y)) < ((a->max.y - a->min.y) + (b->max.y - b->min.y)) &&
+           fabsf((b->min.x + b->max.x) - (a->min.x + a->max.x)) < ((a->max.x - a->min.x) + (b->max.x - b->min.x)) &&
+           fabsf((b->min.z + b->max.z) - (a->min.z + a->max.z)) < ((a->max.z - a->min.z) + (b->max.z - b->min.z));
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

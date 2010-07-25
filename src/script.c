@@ -388,6 +388,16 @@ static lil_value_t nat_get_map_size(lil_t lil, size_t argc, lil_value_t* argv)
     return lil_alloc_string(tmp);
 }
 
+static lil_value_t nat_get_entity_count(lil_t lil, size_t argc, lil_value_t* argv)
+{
+    return lil_alloc_integer(ents->count);
+}
+
+static lil_value_t nat_get_light_count(lil_t lil, size_t argc, lil_value_t* argv)
+{
+    return lil_alloc_integer(lights->count);
+}
+
 static lil_value_t nat_new_raw_entity(lil_t lil, size_t argc, lil_value_t* argv)
 {
     return lil_alloc_integer(or_new(OT_ENTITY, ent_new()));
@@ -1002,6 +1012,8 @@ static lil_value_t nat_get_light_radius(lil_t lil, size_t argc, lil_value_t* arg
 static void reg_world_procs(void)
 {
     lil_register(lil, "get-map-size", nat_get_map_size);
+    lil_register(lil, "get-entity-count", nat_get_entity_count);
+    lil_register(lil, "get-light-count", nat_get_light_count);
     lil_register(lil, "new-raw-entity", nat_new_raw_entity);
     lil_register(lil, "del-entity", nat_del_entity);
     lil_register(lil, "new-entity", nat_new_entity);

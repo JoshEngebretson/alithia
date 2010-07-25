@@ -15,6 +15,7 @@ h2. Source
 h2. World
 
 * Add particle emitting entities
+* Entities can touch more than one cluster: add cluster list to entities and update motion.c to use that for faster processing
 
 h2. Editing
 

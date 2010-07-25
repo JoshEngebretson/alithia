@@ -9,4 +9,4 @@ dist/
 *.pyc
 acer-alithia.bat
 atest.dSYM/
-
+.externalToolBuilders/
