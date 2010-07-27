@@ -38,7 +38,8 @@ target = options.target
 program_prefix = options.program_prefix
 program_name = options.program_name
 cc = options.cc
-objc = options.objc
+if target == 'macosx':
+    objc = options.objc
 debug = not options.release
 profiling = options.profiling
 optimize = options.optimize
@@ -82,7 +83,8 @@ ldflags = common_ldflags + ' ' + sys_ldflags + ' ' + options.extra_ldflags
 f = open("Makefile", "w")
 f.write('# generated makefile, do not modify. Use configure.py instead.\n\n')
 f.write('CC=' + cc + '\n')
-f.write('OBJC=' + objc + '\n')
+if target == 'macosx':
+    f.write('OBJC=' + objc + '\n')
 f.write('OUTPUT=' + output_exe + '\n')
 f.write('CFLAGS=' + cflags + '\n')
 f.write('LDFLAGS=' + ldflags + '\n')
@@ -101,6 +103,9 @@ all: $(OUTPUT)
 $(OUTPUT): $(OBJECTS)
 	$(CC) -o $(OUTPUT) $(OBJECTS) $(LDFLAGS)
 
+''')
+if target == 'macosx':
+    f.write('''
 src/SDLMain.o: src/SDLMain.m $(HEADERS)
 	$(OBJC) -ObjC $(CFLAGS) -o $@ -c $<
 ''')
