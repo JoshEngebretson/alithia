@@ -36,7 +36,6 @@ typedef struct _motion_t
     float frf; /* force receive factor */
     float fdf; /* force damp factor */
     float xff; /* extra force factor */
-    float frif; /* friction factor */
     float slideup; /* slide up units */
     int slideupc; /* slide up count */
     int sliding;

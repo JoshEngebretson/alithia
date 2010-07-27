@@ -1120,48 +1120,51 @@ static void render_world(void)
     for (i = 0; i < ec; i++) {
         entity_t* ent = e[i];
         if (!ent->mdl->dl) {
-            /* normal display list */
-            ent->mdl->dl = glGenLists(1);
-            glNewList(ent->mdl->dl, GL_COMPILE);
-            glBegin(GL_TRIANGLES);
-            for (i = 0; i < ent->mdl->fc; i++) {
-                float* v = ent->mdl->v + (ent->mdl->f[i * 3] * 8);
-                glMultiTexCoord2f(GL_TEXTURE0, v[6], v[7]);
-                glMultiTexCoord2f(GL_TEXTURE1, v[0] / (float) map_width
-                    / CELLSIZE, v[2] / (float) map_height / CELLSIZE);
-                glNormal3f(v[3], v[4], v[5]);
-                glVertex3f(v[0], v[1], v[2]);
-                v = ent->mdl->v + (ent->mdl->f[i * 3 + 1] * 8);
-                glMultiTexCoord2f(GL_TEXTURE0, v[6], v[7]);
-                glMultiTexCoord2f(GL_TEXTURE1, v[0] / (float) map_width
-                    / CELLSIZE, v[2] / (float) map_height / CELLSIZE);
-                glNormal3f(v[3], v[4], v[5]);
-                glVertex3f(v[0], v[1], v[2]);
-                v = ent->mdl->v + (ent->mdl->f[i * 3 + 2] * 8);
-                glMultiTexCoord2f(GL_TEXTURE0, v[6], v[7]);
-                glMultiTexCoord2f(GL_TEXTURE1, v[0] / (float) map_width
-                    / CELLSIZE, v[2] / (float) map_height / CELLSIZE);
-                glNormal3f(v[3], v[4], v[5]);
-                glVertex3f(v[0], v[1], v[2]);
+            int i, f;
+            ent->mdl->dl = glGenLists(ent->mdl->frames);
+            ent->mdl->dlshadow = glGenLists(ent->mdl->frames);
+            for (f = 0; f < ent->mdl->frames; f++) {
+                /* normal display list */
+                glNewList(ent->mdl->dl + f, GL_COMPILE);
+                glBegin(GL_TRIANGLES);
+                for (i = 0; i < ent->mdl->fc; i++) {
+                    float* v = ent->mdl->v + ent->mdl->vc*8*f + (ent->mdl->f[i * 3] * 8);
+                    glMultiTexCoord2f(GL_TEXTURE0, v[6], v[7]);
+                    glMultiTexCoord2f(GL_TEXTURE1, v[0] / (float) map_width
+                        / CELLSIZE, v[2] / (float) map_height / CELLSIZE);
+                    glNormal3f(v[3], v[4], v[5]);
+                    glVertex3f(v[0], v[1], v[2]);
+                    v = ent->mdl->v + ent->mdl->vc*8*f + (ent->mdl->f[i * 3 + 1] * 8);
+                    glMultiTexCoord2f(GL_TEXTURE0, v[6], v[7]);
+                    glMultiTexCoord2f(GL_TEXTURE1, v[0] / (float) map_width
+                        / CELLSIZE, v[2] / (float) map_height / CELLSIZE);
+                    glNormal3f(v[3], v[4], v[5]);
+                    glVertex3f(v[0], v[1], v[2]);
+                    v = ent->mdl->v + ent->mdl->vc*8*f + (ent->mdl->f[i * 3 + 2] * 8);
+                    glMultiTexCoord2f(GL_TEXTURE0, v[6], v[7]);
+                    glMultiTexCoord2f(GL_TEXTURE1, v[0] / (float) map_width
+                        / CELLSIZE, v[2] / (float) map_height / CELLSIZE);
+                    glNormal3f(v[3], v[4], v[5]);
+                    glVertex3f(v[0], v[1], v[2]);
+                }
+                glEnd();
+                glEndList();
+                /* shadow display list */
+                glNewList(ent->mdl->dlshadow + f, GL_COMPILE);
+                glBegin(GL_TRIANGLES);
+                for (i = 0; i < ent->mdl->fc; i++) {
+                    float* v = ent->mdl->v + ent->mdl->vc*8*f + (ent->mdl->f[i * 3] * 8);
+                    glVertex3f(v[0], 0, v[2]);
+                    v = ent->mdl->v + ent->mdl->vc*8*f + (ent->mdl->f[i * 3 + 1] * 8);
+                    glVertex3f(v[0], 0, v[2]);
+                    v = ent->mdl->v + ent->mdl->vc*8*f + (ent->mdl->f[i * 3 + 2] * 8);
+                    glVertex3f(v[0], 0, v[2]);
+                }
+                glEnd();
+                glEndList();
             }
-            glEnd();
-            glEndList();
-            /* shadow display list */
-            ent->mdl->dlshadow = glGenLists(1);
-            glNewList(ent->mdl->dlshadow, GL_COMPILE);
-            glBegin(GL_TRIANGLES);
-            for (i = 0; i < ent->mdl->fc; i++) {
-                float* v = ent->mdl->v + (ent->mdl->f[i * 3] * 8);
-                glVertex3f(v[0], 0, v[2]);
-                v = ent->mdl->v + (ent->mdl->f[i * 3 + 1] * 8);
-                glVertex3f(v[0], 0, v[2]);
-                v = ent->mdl->v + (ent->mdl->f[i * 3 + 2] * 8);
-                glVertex3f(v[0], 0, v[2]);
-            }
-            glEnd();
-            glEndList();
         }
-        add_list_to_bucket(ent->mdl->tex, ent->mdl->dl, ent->mtx);
+        add_list_to_bucket(ent->mdl->tex, ent->mdl->dl + ent->frame, ent->mtx);
     }
 
     glEnable(GL_LIGHT0);
@@ -1195,9 +1198,9 @@ static void render_world(void)
                     col[0] = (float) tex->r / 255.0f;
                     col[1] = (float) tex->g / 255.0f;
                     col[2] = (float) tex->b / 255.0f;
-                    amb[0] = (float) tex->r / 767.0f;
-                    amb[1] = (float) tex->g / 767.0f;
-                    amb[2] = (float) tex->b / 767.0f;
+                    amb[0] = (float) tex->r / 255.0f;
+                    amb[1] = (float) tex->g / 255.0f;
+                    amb[2] = (float) tex->b / 255.0f;
                     glActiveTexture(GL_TEXTURE1);
                     glDisable(GL_TEXTURE_2D);
                     glActiveTexture(GL_TEXTURE0);
@@ -1336,7 +1339,7 @@ static void render_world(void)
         int shadow_y = cell[((int)ent->p.z / CELLSIZE) * map_width + (((int)ent->p.x) / CELLSIZE)].floorz;
         glPushMatrix();
         glTranslatef(ent->p.x, shadow_y, ent->p.z);
-        glCallList(ent->mdl->dlshadow);
+        glCallList(ent->mdl->dlshadow + ent->frame);
         glPopMatrix();
     }
 
@@ -1447,8 +1450,6 @@ static void render(void)
         mark = SDL_GetTicks();
         frames = 0;
     }
-
-    ((entity_t*) ents->last->ptr)->yrot = SDL_GetTicks() * 15;
 }
 /*
 static int collides(void)
@@ -1499,12 +1500,12 @@ static void gamescreen_update(float ms)
         static float foo = 0;
         foo += ms;
         while (foo >= 100) {
-            entity_t* ent = ent_new_by_class("armor");
-            motion_t* mot = mot_new(ent);
+            entity_t* ent = ent_new_by_class("quickmon");
+            motion_t* mot = ent->mot;
             ent_move(ent, player_ent->p.x - sinf(pla*PI/180.0f)*64.0f, player_ent->p.y - 48, player_ent->p.z - cosf(pla*PI/180.0f)*64.0f);
-            mot->f.x = -sinf(pla*PI/180.0f)*200.0f;
-            mot->f.y = sinf(pll*PI/180.0f)*200.0f;
-            mot->f.z = -cosf(pla*PI/180.0f)*200.0f;
+            mot->f.x = -sinf(pla*PI/180.0f)*300.0f;
+            mot->f.y = sinf(pll*PI/180.0f)*300.0f;
+            mot->f.z = -cosf(pla*PI/180.0f)*300.0f;
 
             ent = ent_new_by_class("armor");
             mot = mot_new(ent);
@@ -1557,7 +1558,9 @@ static void gamescreen_update(float ms)
 
     mot_const(player_ent->mot, mvx, mvy, mvz);
 
+    ai_update(ms);
     mot_update(ms);
+    world_animate(ms);
 /*
     if (player_ent->p.y - 48 > floorz) {
         player_ent->p.y -= ms*0.5;
@@ -1734,9 +1737,11 @@ int main(int _argc, char *_argv[])
     editor_init();
     script_init();
     mot_init();
+    ai_init();
 
     run();
 
+    ai_shutdown();
     mot_shutdown();
     modelcache_clear();
     script_shutdown();

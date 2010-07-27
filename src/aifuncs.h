@@ -1,6 +1,6 @@
 /*
  * Alithia Engine
- * Copyright (C) 2009 Kostas Michalopoulos
+ * Copyright (C) 2009-2010 Kostas Michalopoulos
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -21,26 +21,25 @@
  * Kostas Michalopoulos <badsector@runtimeterror.com>
  */
 
-#ifndef __MODELS_H_INCLUDED__
-#define __MODELS_H_INCLUDED__
+#ifndef __AIFUNCS_H_INCLUDED__
+#define __AIFUNCS_H_INCLUDED__
 
-typedef struct _model_t
+typedef struct _aidata_t
 {
-    float* v;
-    int* f;
-    int vc;
-    int fc;
-    int frames;
-    texture_t* tex;
-    GLuint dl;
-    GLuint dlshadow;
-    aabb_t aabb;
-} model_t;
+    entity_t* e;
+    int moving;
+    vector_t move_target;
+    float move_speed;
+} aidata_t;
 
-model_t* mdl_load(const char* geofile, const char* texfile);
-void mdl_free(model_t* mdl);
+void ai_init(void);
+void ai_shutdown(void);
 
-model_t* modelcache_get(const char* name);
-void modelcache_clear(void);
+aidata_t* ai_new(entity_t* ent);
+void ai_release(aidata_t* ai);
+
+void ai_update(float ms);
+
+void ai_move_to(entity_t* ent, float tx, float ty, float tz, float speed);
 
 #endif

@@ -523,6 +523,7 @@ entity_t* ent_new(void)
 void ent_free(entity_t* ent)
 {
     or_deleted(ent);
+    if (ent->ai) ai_release(ent->ai);
     if (ent->mot) mot_free(ent->mot);
     list_free(ent->attrs);
     if (ent->clus) list_remove(ent->clus->ents, ent, 0);
@@ -542,6 +543,8 @@ entity_t* ent_clone(entity_t* ent)
         entity_attr_t* attr = li->ptr;
         ent_set_attr(clone, attr->name, attr->value);
     }
+    clone->mot = NULL;
+    clone->ai = NULL;
     ent_update(clone);
     return clone;
 }
@@ -552,6 +555,8 @@ void ent_update(entity_t* ent)
     int cr = ((int)ent->p.z)/(CLUSTERSIZE*CELLSIZE);
     cluster_t* clus = cluster + cr*cluster_width + cc;
     float* mtx = ent->mtx;
+    float c = cosf(ent->yrot*PI/180.0);
+    float s = sinf(ent->yrot*PI/180.0);
 
     if (ent->clus != clus) {
         if (ent->clus) list_remove(ent->clus->ents, ent, 0);
@@ -567,15 +572,21 @@ void ent_update(entity_t* ent)
     if (ent->mot)
         mot_unfreeze(ent->mot);
 
-    mtx[0] = 1; mtx[4] = 0; mtx[8] = 0; mtx[12] = ent->p.x;
+    mtx[0] = c; mtx[4] = 0; mtx[8] = -s;mtx[12] = ent->p.x;
     mtx[1] = 0; mtx[5] = 1; mtx[9] = 0; mtx[13] = ent->p.y;
-    mtx[2] = 0; mtx[6] = 0; mtx[10]= 1; mtx[14] = ent->p.z;
+    mtx[2] = s; mtx[6] = 0; mtx[10]= c; mtx[14] = ent->p.z;
     mtx[3] = 0; mtx[7] = 0; mtx[11]= 0; mtx[15] = 1;
 }
 
 void ent_set_model(entity_t* ent, model_t* mdl)
 {
     ent->mdl = mdl;
+    ent->frame = 0;
+    ent->frames = ent->mdl->frames;
+    ent->framedur = 50;
+    ent->start_frame = 0;
+    ent->end_frame = ent->frames - 1;
+    ent->durstate = 0;
     ent_update(ent);
 }
 
@@ -647,4 +658,25 @@ lil_value_t ent_call_attr(entity_t* ent, const char* name)
     lil_value_t retval = lil_parse_value(lil, code, 0);
     lil_free_value(lilname);
     return retval;
+}
+
+static void animate_entities(float ms)
+{
+    listitem_t* li = ents->first;
+    for (li=ents->first; li; li=li->next) {
+        entity_t* ent = li->ptr;
+        if (ent->frames < 2) continue;
+        ent->durstate += ms;
+        while (ent->durstate >= ent->framedur) {
+            ent->frame++;
+            if (ent->frame > ent->end_frame)
+                ent->frame = ent->start_frame;
+            ent->durstate -= ent->framedur;
+        }
+    }
+}
+
+void world_animate(float ms)
+{
+    animate_entities(ms);
 }

@@ -68,7 +68,7 @@ motion_t* mot_new(entity_t* ent)
     mot->g.y = -8;
     mot->frf = 0.45f;
     mot->fdf = 0.45f;
-    mot->frif = 0.95f;
+    mot->wldf = 0.95f;
     ent->mot = mot;
     list_add(motions, mot);
     return mot;
@@ -137,7 +137,7 @@ static int collision_entity_in_cluster_check(collcheck_t* ct, int cc, int cr)
             ct->other_ent = other;
             if (other->mot && ct->bounce) {
                 motion_t* omot = other->mot;
-                float ff = omot->frf > 0.0001f ? omot->frf + ct->mot->xff : 0.0f;
+                float ff = omot->frf > 0.0001f ? (omot->frf + ct->mot->xff) : 0.0f;
                 mot_force(omot,
                     (ct->nf.x + ct->mot->c.x)*ff,
                     (ct->nf.y + ct->mot->c.y)*ff,
@@ -237,8 +237,8 @@ static void update_motion(float ms, motion_t* mot)
         ct.np.x = ent->p.x;
         if (!i) {
             ct.nf.x = -mot->bncf*ct.nf.x;
-            ct.nf.y *= mot->frif;
-            ct.nf.z *= mot->frif;
+            ct.nf.y *= mot->wldf;
+            ct.nf.z *= mot->wldf;
             if (ct.type == CT_ENTITY) ct.nf.x *= mot->fdf;
         }
     }
@@ -258,8 +258,8 @@ static void update_motion(float ms, motion_t* mot)
         ct.np.y = ent->p.y;
         if (!i) {
             ct.nf.y = -mot->bncf*ct.nf.y;
-            ct.nf.x *= mot->frif;
-            ct.nf.z *= mot->frif;
+            ct.nf.x *= mot->wldf;
+            ct.nf.z *= mot->wldf;
             if (ct.type == CT_ENTITY) ct.nf.y *= mot->fdf;
         }
     }
@@ -286,8 +286,8 @@ static void update_motion(float ms, motion_t* mot)
         ct.np.z = ent->p.z;
         if (!i) {
             ct.nf.z = -mot->bncf*ct.nf.z;
-            ct.nf.x *= mot->frif;
-            ct.nf.y *= mot->frif;
+            ct.nf.x *= mot->wldf;
+            ct.nf.y *= mot->wldf;
             if (ct.type == CT_ENTITY) ct.nf.z *= mot->fdf;
         }
     }

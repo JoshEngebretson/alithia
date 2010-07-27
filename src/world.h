@@ -64,6 +64,13 @@ typedef struct _entity_t
     aabb_t aabb;
     aabb_t laabb; /* aabb for modelless entities */
     void* mot;
+    void* ai;
+    int frame;
+    int frames;
+    int start_frame;
+    int end_frame;
+    float durstate;
+    float framedur;
 } entity_t;
 
 typedef struct _cell_t
@@ -156,5 +163,7 @@ void ent_move(entity_t* ent, float x, float y, float z);
 void ent_set_attr(entity_t* ent, lil_value_t name, lil_value_t value);
 lil_value_t ent_get_attr(entity_t* ent, lil_value_t name);
 lil_value_t ent_call_attr(entity_t* ent, const char* name);
+
+void world_animate(float ms);
 
 #endif

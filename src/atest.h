@@ -57,6 +57,7 @@
 #include "screens.h"
 #include "editor.h"
 #include "script.h"
+#include "aifuncs.h"
 
 extern int running;
 extern int argc;

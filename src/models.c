@@ -50,11 +50,12 @@ model_t* mdl_load(const char* geofile, const char* texfile)
     if (fread(&mdl->fc, 1, 4, f) != 4) goto fail;
     if (fread(&frames, 1, 4, f) != 4) goto fail;
 
-    mdl->v = malloc0(sizeof(float)*mdl->vc*8);
+    mdl->frames = frames;
+    mdl->v = malloc0(sizeof(float)*mdl->vc*8*frames);
     mdl->f = malloc0(sizeof(int)*mdl->fc*3);
     fidx = malloc0(2*mdl->fc*3);
 
-    if (fread(mdl->v, sizeof(float)*8, mdl->vc, f) != mdl->vc) goto fail;
+    if (fread(mdl->v, sizeof(float)*8, mdl->vc*frames, f) != mdl->vc*frames) goto fail;
     if (fread(fidx, 6, mdl->fc, f) != mdl->fc) goto fail;
     for (i=0; i<mdl->fc*3; i++) mdl->f[i] = fidx[i];
     free(fidx);
@@ -88,7 +89,7 @@ void mdl_free(model_t* mdl)
 {
     if (!mdl) return;
     or_deleted(mdl);
-    if (mdl->dl) glDeleteLists(mdl->dl, 1);
+    if (mdl->dl) glDeleteLists(mdl->dl, mdl->frames);
     if (mdl->tex) tex_free(mdl->tex);
     if (mdl->v) free(mdl->v);
     if (mdl->f) free(mdl->f);

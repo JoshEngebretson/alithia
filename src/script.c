@@ -1059,10 +1059,196 @@ static lil_value_t nat_get_player_entity(lil_t lil, size_t argc, lil_value_t* ar
     return lil_alloc_integer(or_new(OT_ENTITY, camera_ent));
 }
 
+static lil_value_t nat_init_entity_ai(lil_t lil, size_t argc, lil_value_t* argv)
+{
+    entity_t* ent;
+    if (argc < 1) {
+        console_write("not enough arguments in init-entity-ai"); console_newline();
+        return NULL;
+    }
+    ent = or_get(OT_ENTITY, lil_to_integer(argv[0]));
+    if (!ent) {
+        console_write("invalid entity reference"); console_newline();
+        return NULL;
+    }
+    ai_new(ent);
+    return NULL;
+}
+
+static lil_value_t nat_init_entity_motion(lil_t lil, size_t argc, lil_value_t* argv)
+{
+    entity_t* ent;
+    if (argc < 1) {
+        console_write("not enough arguments in init-entity-motion"); console_newline();
+        return NULL;
+    }
+    ent = or_get(OT_ENTITY, lil_to_integer(argv[0]));
+    if (!ent) {
+        console_write("invalid entity reference"); console_newline();
+        return NULL;
+    }
+    mot_new(ent);
+    return NULL;
+}
+
+static lil_value_t nat_apply_force_to_entity(lil_t lil, size_t argc, lil_value_t* argv)
+{
+    entity_t* ent;
+    if (argc < 4) {
+        console_write("not enough arguments in apply-force-to-entity"); console_newline();
+        return NULL;
+    }
+    ent = or_get(OT_ENTITY, lil_to_integer(argv[0]));
+    if (!ent) {
+        console_write("invalid entity reference"); console_newline();
+        return NULL;
+    }
+    if (!ent->mot) {
+        console_write("entity has no motion controller. Use init-entity-motion first."); console_newline();
+        return NULL;
+    }
+    mot_force(ent->mot, lil_to_double(argv[1]), lil_to_double(argv[2]), lil_to_double(argv[3]));
+    return NULL;
+}
+
+static lil_value_t nat_set_entity_motion_option(lil_t lil, size_t argc, lil_value_t* argv)
+{
+    const char* opt;
+    entity_t* ent;
+    motion_t* mot;
+    if (argc < 2) {
+        console_write("not enough arguments in set-entity-motion-option"); console_newline();
+        return NULL;
+    }
+    ent = or_get(OT_ENTITY, lil_to_integer(argv[0]));
+    if (!ent) {
+        console_write("invalid entity reference"); console_newline();
+        return NULL;
+    }
+    if (!ent->mot) {
+        console_write("entity has no motion controller. Use init-entity-motion first."); console_newline();
+        return NULL;
+    }
+    mot = ent->mot;
+    opt = lil_to_string(argv[1]);
+    if (!strcmp(opt, "constant-motion")) {
+        if (argc < 5) {
+            console_write("not enough arguments for constant-motion motion option"); console_newline();
+            return NULL;
+        }
+        mot->c.x = lil_to_double(argv[2]);
+        mot->c.y = lil_to_double(argv[3]);
+        mot->c.z = lil_to_double(argv[4]);
+        return NULL;
+    }
+    if (!strcmp(opt, "gravity")) {
+        if (argc < 5) {
+            console_write("not enough arguments for gravity motion option"); console_newline();
+            return NULL;
+        }
+        mot->g.x = lil_to_double(argv[2]);
+        mot->g.y = lil_to_double(argv[3]);
+        mot->g.z = lil_to_double(argv[4]);
+        return NULL;
+    }
+    if (!strcmp(opt, "air-friction")) {
+        if (argc < 3) {
+            console_write("not enough arguments for air-friction motion option"); console_newline();
+            return NULL;
+        }
+        mot->airf = lil_to_double(argv[2]);
+        return NULL;
+    }
+    if (!strcmp(opt, "world-friction")) {
+        if (argc < 3) {
+            console_write("not enough arguments for world-friction motion option"); console_newline();
+            return NULL;
+        }
+        mot->wldf = lil_to_double(argv[2]);
+        return NULL;
+    }
+    if (!strcmp(opt, "bounce-multiplier")) {
+        if (argc < 3) {
+            console_write("not enough arguments for bounce-multiplier motion option"); console_newline();
+            return NULL;
+        }
+        mot->bncf = lil_to_double(argv[2]);
+        return NULL;
+    }
+    if (!strcmp(opt, "force-receive-factor")) {
+        if (argc < 3) {
+            console_write("not enough arguments for force-receive-factor motion option"); console_newline();
+            return NULL;
+        }
+        mot->frf = lil_to_double(argv[2]);
+        return NULL;
+    }
+    if (!strcmp(opt, "force-damp-factor")) {
+        if (argc < 3) {
+            console_write("not enough arguments for force-damp-factor motion option"); console_newline();
+            return NULL;
+        }
+        mot->fdf = lil_to_double(argv[2]);
+        return NULL;
+    }
+    if (!strcmp(opt, "extra-force-factor")) {
+        if (argc < 3) {
+            console_write("not enough arguments for extra-force-factor motion option"); console_newline();
+            return NULL;
+        }
+        mot->xff = lil_to_double(argv[2]);
+        return NULL;
+    }
+    if (!strcmp(opt, "slide-up")) {
+        if (argc < 4) {
+            console_write("not enough arguments for slide-up motion option"); console_newline();
+            return NULL;
+        }
+        mot->slideup = lil_to_double(argv[2]);
+        mot->slideupc = lil_to_integer(argv[3]);
+        return NULL;
+    }
+    if (!strcmp(opt, "for-character")) {
+        mot_for_char(mot);
+        return NULL;
+    }
+    console_write("unknown motion option "); console_write(opt); console_newline();
+    return NULL;
+}
+
+static lil_value_t nat_move_entity_to(lil_t lil, size_t argc, lil_value_t* argv)
+{
+    entity_t* ent;
+    if (argc < 5) {
+        console_write("not enough arguments in move-entity-to"); console_newline();
+        return NULL;
+    }
+    ent = or_get(OT_ENTITY, lil_to_integer(argv[0]));
+    if (!ent) {
+        console_write("invalid entity reference"); console_newline();
+        return NULL;
+    }
+    if (!ent->mot) {
+        console_write("entity has no motion controller. Use init-entity-motion first."); console_newline();
+        return NULL;
+    }
+    if (!ent->ai) {
+        console_write("entity has no AI enabled. Use init-entity-ai first."); console_newline();
+        return NULL;
+    }
+    ai_move_to(ent, lil_to_double(argv[1]), lil_to_double(argv[2]), lil_to_double(argv[3]), lil_to_double(argv[4]));
+    return NULL;
+}
+
 static void reg_game_procs(void)
 {
     lil_register(lil, "get-camera-entity", nat_get_camera_entity);
     lil_register(lil, "get-player-entity", nat_get_player_entity);
+    lil_register(lil, "init-entity-ai", nat_init_entity_ai);
+    lil_register(lil, "init-entity-motion", nat_init_entity_motion);
+    lil_register(lil, "apply-force-to-entity", nat_apply_force_to_entity);
+    lil_register(lil, "set-entity-motion-option", nat_set_entity_motion_option);
+    lil_register(lil, "move-entity-to", nat_move_entity_to);
 }
 
 /* Script interface */
