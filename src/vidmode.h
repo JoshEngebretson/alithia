@@ -24,7 +24,7 @@
 #ifndef __VIDMODE_H_INCLUDED__
 #define __VIDMODE_H_INCLUDED__
 
-#ifndef GL_ARB_multitexture
+#ifdef WIN32
 extern PFNGLACTIVETEXTUREPROC glActiveTexture;
 extern PFNGLMULTITEXCOORD2FPROC glMultiTexCoord2f;
 #endif

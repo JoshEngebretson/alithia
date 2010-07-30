@@ -23,7 +23,7 @@
 
 #include "atest.h"
 
-#ifndef GL_ARB_multitexture
+#ifdef WIN32
 PFNGLACTIVETEXTUREPROC glActiveTexture;
 PFNGLMULTITEXCOORD2FARBPROC glMultiTexCoord2f;
 #endif
@@ -52,7 +52,7 @@ float pixelh;
 
 static int load_extensions(void)
 {
-#ifndef GL_ARB_multitexture
+#ifdef WIN32
     EXT_LOAD2(glActiveTexture, glActiveTextureARB);
     EXT_LOAD2(glMultiTexCoord2f, glMultiTexCoord2fARB);
 #endif

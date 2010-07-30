@@ -57,7 +57,9 @@ else:
     common_ldflags = ''
 if optimize or (not debug):
     if cc != 'clang':
-        common_cflags = common_cflags + ' -O3 -ffast-math -ftree-vectorize'
+        common_cflags = common_cflags + ' -O3 -ffast-math'
+	if target != 'win32':
+		common_cflags = common_cflags + ' -ftree-vectorize'
     else:
         common_cflags = common_cflags + ' -O4'
 if profiling:

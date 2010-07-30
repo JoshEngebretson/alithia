@@ -41,6 +41,7 @@
 #include <GL/glext.h>
 #endif
 #include <SDL/SDL.h>
+#undef main
 
 #include "lil.h"
 #include "defines.h"
