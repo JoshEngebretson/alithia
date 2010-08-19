@@ -1339,6 +1339,7 @@ static void render_world(void)
         int shadow_y = cell[((int)ent->p.z / CELLSIZE) * map_width + (((int)ent->p.x) / CELLSIZE)].floorz;
         glPushMatrix();
         glTranslatef(ent->p.x, shadow_y, ent->p.z);
+        glRotatef(-ent->yrot, 0, 1, 0);
         glCallList(ent->mdl->dlshadow + ent->frame);
         glPopMatrix();
     }
