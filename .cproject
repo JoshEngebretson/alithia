@@ -31,6 +31,7 @@
 							<tool id="cdt.managedbuild.tool.gnu.assembler.macosx.base.373732426" name="GCC Assembler" superClass="cdt.managedbuild.tool.gnu.assembler.macosx.base">
 								<option id="gnu.both.asm.option.include.paths.79700767" name="Include paths (-I)" superClass="gnu.both.asm.option.include.paths" valueType="includePath">
 									<listOptionValue builtIn="false" value="/Users/badsector/Code/Includes"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/lil}&quot;"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.assembler.input.409549028" superClass="cdt.managedbuild.tool.gnu.assembler.input"/>
 							</tool>
@@ -39,6 +40,7 @@
 							<tool id="cdt.managedbuild.tool.gnu.c.compiler.macosx.base.2025659626" name="GCC C Compiler" superClass="cdt.managedbuild.tool.gnu.c.compiler.macosx.base">
 								<option id="gnu.c.compiler.option.include.paths.1298187358" name="Include paths (-I)" superClass="gnu.c.compiler.option.include.paths" valueType="includePath">
 									<listOptionValue builtIn="false" value="/Users/badsector/Code/Includes"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/lil}&quot;"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.878052565" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
 							</tool>

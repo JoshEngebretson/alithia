@@ -18,7 +18,12 @@ else:
 # build configuration
 program_prefix = './'
 program_name = 'atest'
-
+if os.path.isdir('../lil'):
+    lil_path = '../lil'
+elif os.path.isdir('../../lil'):
+    lil_path = '../../lil'
+else:
+    lil_path = './lil';
 # parse arguments
 oparser = OptionParser(version="configure script for Alithia Engine version 0.1")
 oparser.add_option("--release", action="store_true", dest="release", default=False, help="use build options for releases (enable optimizations, disable debug info, etc)")
@@ -32,6 +37,7 @@ oparser.add_option("--bin-prefix", action="store", type="string", dest="program_
 oparser.add_option("--bin-name", action="store", type="string", dest="program_name", default=program_name, help="executable program's name (note: proper suffix depending on the target platform is appended) [default: %default]")
 oparser.add_option("--extra-cflags", action="store", type="string", dest="extra_cflags", default='', help="extra CFLAGS [default: %default]")
 oparser.add_option("--extra-ldflags", action="store", type="string", dest="extra_ldflags", default='', help="extra LDFLAGS [default: %default]")
+oparser.add_option("--lil-path", action="store", type="string", dest="lil_path", default=lil_path, help="path to the LIL source code [default: %default]");
 (options, args) = oparser.parse_args()
 
 target = options.target
@@ -43,18 +49,30 @@ if target == 'macosx':
 debug = not options.release
 profiling = options.profiling
 optimize = options.optimize
+lil_path = options.lil_path
+
+# check paths
+if not os.path.isdir(lil_path):
+    print("The LIL path '" + lil_path + "' is not a directory");
+    sys.exit()
+if not os.path.isfile(lil_path + "/liblil.a"):
+    print("The LIL library 'liblil.a' was not found in '" + lil_path + "'");
+    sys.exit()
+if not os.path.isfile(lil_path + "/lil.h"):
+    print("The LIL header file 'lil.h' was not found in '" + lil_path + "'");
+    sys.exit()
 
 # common flags
 if profiling and cc == 'clang':
     cc = 'gcc'
 if debug:
-    common_cflags = '-Wall -g3'
+    common_cflags = '-Wall -g3 -I' + lil_path
     if (not optimize):
         common_cflags = common_cflags + ' -O0'
-    common_ldflags = '-g'
+    common_ldflags = '-g -L' + lil_path + ' -llil'
 else:
-    common_cflags = '-Wall -fomit-frame-pointer'
-    common_ldflags = ''
+    common_cflags = '-Wall -fomit-frame-pointer -I' + lil_path
+    common_ldflags = '-L' + lil_path + ' -llil'
 if optimize or (not debug):
     if cc != 'clang':
         common_cflags = common_cflags + ' -O3 -ffast-math'

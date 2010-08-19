@@ -1252,22 +1252,41 @@ static void reg_game_procs(void)
 }
 
 /* Script interface */
-static void script_callback(lil_t lil, int cbtype, const void* data)
+static void script_write_callback(lil_t lil, const char* msg)
 {
-    switch (cbtype) {
-    case LIL_CB_ERROR:
-        console_write("Script error: ");
-        console_write(data);
-        console_newline();
-        break;
-    case LIL_CB_WRITE:
-        console_write(data);
-        break;
-    case LIL_CB_PRINT:
-        console_write(data);
-        console_newline();
-        break;
+    char* part = NULL;
+    size_t len = 0, i;
+    for (i=0; msg[i]; i++)
+        if (msg[i] == '\n') {
+            part = realloc(part, len + 1);
+            part[len] = 0;
+            console_write(part);
+            console_newline();
+            free(part);
+            part = NULL;
+            len = 0;
+        } else {
+            part = realloc(part, len + 1);
+            part[len++] = msg[i];
+        }
+    if (len) {
+        part = realloc(part, len + 1);
+        part[len] = 0;
+        console_write(part);
+        free(part);
     }
+}
+
+static void script_error_callback(lil_t lil, size_t pos, const char* msg)
+{
+    console_write("Script error: ");
+    console_write(msg);
+    console_newline();
+}
+
+static void script_exit_callback(lil_t lil, size_t pos, const char* msg)
+{
+    running = 0;
 }
 
 static void script_run_file(const char* filename)
@@ -1326,7 +1345,9 @@ void script_run_execats(const char* event)
 void script_init(void)
 {
     lil = lil_new();
-    lil_callback(lil, script_callback);
+    lil_callback(lil, LIL_CALLBACK_WRITE, (lil_callback_proc_t)script_write_callback);
+    lil_callback(lil, LIL_CALLBACK_ERROR, (lil_callback_proc_t)script_error_callback);
+    lil_callback(lil, LIL_CALLBACK_EXIT, (lil_callback_proc_t)script_exit_callback);
     reg_engine_procs();
     reg_editor_procs();
     reg_world_procs();
