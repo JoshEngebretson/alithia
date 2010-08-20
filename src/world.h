@@ -86,6 +86,12 @@ typedef struct _cell_t
     int8_t zcoffs[4];
 } cell_t;
 
+typedef struct _decal_t
+{
+    vector_t p[4];
+    texture_t* tex;
+} decal_t;
+
 typedef struct _clusterpart_t
 {
     texture_t* tex;
@@ -100,6 +106,8 @@ typedef struct _cluster_t
     triangle_t* tri;
     size_t tris;
     list_t* ents;
+    decal_t* decal;
+    size_t decals;
     aabb_t aabb;
 } cluster_t;
 
@@ -153,6 +161,8 @@ void lmap_update(void);
 
 light_t* light_new(float x, float y, float z, float r, float g, float b, float rad);
 void light_free(light_t* light);
+
+decal_t* decal_new(cluster_t* clus, vector_t* p, texture_t* tex);
 
 entity_t* ent_new(void);
 void ent_free(entity_t* ent);

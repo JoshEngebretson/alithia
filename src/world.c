@@ -121,11 +121,12 @@ void map_init(int width, int height)
     ent_set_model(ent, mdl_armor);
     ent_move(ent, 18*CELLSIZE, -128, 10*CELLSIZE);
 
-    light_new(14*CELLSIZE, 0, 10*CELLSIZE, 0.7, 0.2, 0.1, 150);
-    light_new(14*CELLSIZE, 0, 10*CELLSIZE, 0.1, 0.1, 0.2, 150000);
-    light_new(114*CELLSIZE, 0, 34*CELLSIZE, 0.1, 0.3, 1.0, 1500);
-    light_new(38*CELLSIZE, 0, 78*CELLSIZE, 0.2, 0.8, 0.3, 1000);
-    light_new(138*CELLSIZE, 0, 208*CELLSIZE, 0.8, 0.2, 0.3, 1000);
+    light_new((map_width/2)*CELLSIZE, 0, (map_height/2)*CELLSIZE, 0.5, 0.5, 0.5, 150000);
+//    light_new(14*CELLSIZE, 0, 10*CELLSIZE, 0.7, 0.2, 0.1, 150);
+//    light_new(14*CELLSIZE, 0, 10*CELLSIZE, 0.1, 0.1, 0.2, 150000);
+//    light_new(114*CELLSIZE, 0, 34*CELLSIZE, 0.1, 0.3, 1.0, 1500);
+//    light_new(38*CELLSIZE, 0, 78*CELLSIZE, 0.2, 0.8, 0.3, 1000);
+//    light_new(138*CELLSIZE, 0, 208*CELLSIZE, 0.8, 0.2, 0.3, 1000);
 /*
     for (i=0; i<100; i++) {
         for (y=7+i; y<map_height-(7+i); y++) {
@@ -146,8 +147,15 @@ void map_free(void)
     glBindTexture(GL_TEXTURE_2D, lmaptex);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 0, 0, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
     glDeleteTextures(1, &lmaptex);
-    for (i=0; i<cluster_width*cluster_height; i++)
+    for (i=0; i<cluster_width*cluster_height; i++) {
+        int j;
+        for (j=0; j<cluster[i].parts; j++)
+            glDeleteLists(cluster[i].part[j].dl, 1);
+        free(cluster[i].decal);
+        free(cluster[i].part);
+        free(cluster[i].tri);
         list_free(cluster[i].ents);
+    }
     list_free(lights);
     list_free(ents);
     free(cluster);
@@ -501,6 +509,13 @@ void light_free(light_t* light)
     or_deleted(light);
     list_remove(lights, light, 0);
     free(light);
+}
+
+decal_t* decal_new(cluster_t* clus, vector_t* p, texture_t* tex)
+{
+    clus->decal = realloc(clus->decal, sizeof(decal_t)*(clus->decals + 1));
+    memcpy(clus->decal[clus->decals].p, p, sizeof(vector_t)*4);
+    clus->decal[clus->decals++].tex = tex;
 }
 
 static void entity_attr_free(void* ptr)

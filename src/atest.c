@@ -39,6 +39,8 @@ typedef struct _bucket_t
 
 static bucket_t bucket[4096];
 static int buckets = 0;
+static cluster_t* vcluster[4096];
+static int vclusters = 0;
 
 typedef struct _geoquad_t
 {
@@ -90,6 +92,7 @@ texture_t* skybox_top;
 texture_t* skybox_bottom;
 texture_t* skybox_front;
 texture_t* skybox_back;
+texture_t* decal_texture;
 model_t* mdl_gun;
 float goffx, goffy, goffv;
 float frustum[6][4];
@@ -939,6 +942,7 @@ static void draw_aabb_outline(aabb_t* aabb)
     glEnd();
 }
 */
+
 static void render_world(void)
 {
     static int init_frames = 10;
@@ -1007,11 +1011,11 @@ static void render_world(void)
     glActiveTexture(GL_TEXTURE1);
     glEnable(GL_TEXTURE_2D);
 
-
     if (draw_wire)
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
     /* fill the buckets with the world geometry */
+    vclusters = 0;
     for (y = 0; y < cluster_height; y++) {
         for (x = 0; x < cluster_width; x++) {
             cluster_t* cls = cluster + y * cluster_width + x;
@@ -1100,6 +1104,7 @@ static void render_world(void)
                 for (i = 0; i < cls->parts; i++)
                     add_list_to_bucket(cls->part[i].tex, cls->part[i].dl, NULL);
 
+                /* add entities in cluster */
                 if (cls->ents->first) {
                     listitem_t* item;
                     for (item = cls->ents->first; item; item = item->next) {
@@ -1109,6 +1114,10 @@ static void render_world(void)
                         }
                     }
                 }
+
+                /* add cluster in visible clusters */
+                vcluster[vclusters++] = cls;
+
 #ifndef DEBUG_DRAW_PICK_DATA
                 cls->visible = 0;
 #endif
@@ -1221,8 +1230,40 @@ static void render_world(void)
             }
             bucket[i].dlc = 0;
         }
-    glActiveTexture(GL_TEXTURE0);
 
+    /* render decals */
+    glEnable(GL_POLYGON_OFFSET_FILL);
+    glPolygonOffset(-1.0f, -1.0f);
+    glDepthMask(0);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glColor4f(1, 1, 1, 1);
+    for (i=0; i<vclusters; i++) {
+        decal_t* decal = vcluster[i]->decal;
+        size_t j, decals = vcluster[i]->decals;
+        for (j=0; j<decals; j++) {
+            glBindTexture(GL_TEXTURE_2D, decal[j].tex->name);
+            glBegin(GL_QUADS);
+            glMultiTexCoord2f(GL_TEXTURE0, 0, 0);
+            glMultiTexCoord2f(GL_TEXTURE1, decal[j].p[0].x/(float)map_width/CELLSIZE, decal[j].p[0].z/(float)map_height/CELLSIZE);
+            glVertex3fv(&decal[j].p[0].x);
+            glMultiTexCoord2f(GL_TEXTURE0, 0, 1);
+            glMultiTexCoord2f(GL_TEXTURE1, decal[j].p[1].x/(float)map_width/CELLSIZE, decal[j].p[1].z/(float)map_height/CELLSIZE);
+            glVertex3fv(&decal[j].p[1].x);
+            glMultiTexCoord2f(GL_TEXTURE0, 1, 1);
+            glMultiTexCoord2f(GL_TEXTURE1, decal[j].p[2].x/(float)map_width/CELLSIZE, decal[j].p[2].z/(float)map_height/CELLSIZE);
+            glVertex3fv(&decal[j].p[2].x);
+            glMultiTexCoord2f(GL_TEXTURE0, 1, 0);
+            glMultiTexCoord2f(GL_TEXTURE1, decal[j].p[3].x/(float)map_width/CELLSIZE, decal[j].p[3].z/(float)map_height/CELLSIZE);
+            glVertex3fv(&decal[j].p[3].x);
+            glEnd();
+        }
+    }
+    glDisable(GL_BLEND);
+    glDepthMask(1);
+    glDisable(GL_POLYGON_OFFSET_FILL);
+
+    glActiveTexture(GL_TEXTURE0);
     if (draw_wire)
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
@@ -1584,6 +1625,50 @@ static void gamescreen_update(float ms)
     }*/
 }
 
+static void add_decal(void)
+{
+    vector_t p[4];
+    vector_t r[4];
+    vector_t xaxis, yaxis, zaxis, tmp;
+    int i;
+    pickdata_t pd = {0};
+    matrix_t mat;
+
+    pd.ignore_ent = player_ent;
+    if (pick(&centeraya, &centerayb, &pd, PICKFLAG_NOFLAGS) != PICK_WORLD) return;
+
+    vec_makenormal(&yaxis, pd.tri.v);
+    if (fabsf(yaxis.y) > 0.5) {
+        vec_set(&tmp, 0, 0, -1);
+        vec_cross(&xaxis, &yaxis, &tmp);
+        vec_normalize(&xaxis);
+        vec_cross(&zaxis, &xaxis, &yaxis);
+        vec_normalize(&zaxis);
+    } else {
+        return;
+    }
+    printf("x = %f %f %f\n", xaxis.x, xaxis.y, xaxis.z);
+    printf("y = %f %f %f\n", yaxis.x, yaxis.y, yaxis.z);
+    printf("z = %f %f %f\n", zaxis.x, zaxis.y, zaxis.z);
+
+    mat[0] = xaxis.x; mat[1] = xaxis.y; mat[2] = xaxis.z; mat[3] = 0;
+    mat[4] = yaxis.x; mat[5] = yaxis.y; mat[6] = yaxis.z; mat[7] = 0;
+    mat[8] = zaxis.x; mat[9] = zaxis.y; mat[10] = zaxis.z; mat[11] = 0;
+    mat[12] = pd.ip.x; mat[13] = pd.ip.y; mat[14] = pd.ip.z; mat[15] = 1;
+
+    vec_set(p, -16, 0, -16);
+    vec_set(p + 1, -16, 0, 16);
+    vec_set(p + 2, 16, 0, 16);
+    vec_set(p + 3, 16, 0, -16);
+
+    for (i=0; i<4; i++) {
+        mat_transform_vector(mat, r + i, p + i);
+//        vec_set(r + i, p[i].x + pd.ip.x, p[i].y + pd.ip.y, p[i].z + pd.ip.z);
+    }
+
+    decal_new(pd.cluster, r, decal_texture);
+}
+
 static void gamescreen_sdl_event(SDL_Event ev)
 {
     switch (ev.type) {
@@ -1606,6 +1691,10 @@ static void gamescreen_sdl_event(SDL_Event ev)
         if (ev.key.keysym.sym == SDLK_q) draw_wire = !draw_wire;
         if (ev.key.keysym.sym == SDLK_e) {
             screen_set(editorscreen);
+            break;
+        }
+        if (ev.key.keysym.sym == SDLK_t) {
+            add_decal();
             break;
         }
         break;
@@ -1663,13 +1752,14 @@ static void run(void)
 {
     int x, y;
     entity_t* ent;
-    tex_bricks = texbank_get("bricks");
-    tex_floor = texbank_get("floor");
+    tex_bricks = texbank_get("redbricks");
+    tex_floor = texbank_get("floorbrick");
     tex_stuff = texbank_get("stuff");
     tex_wtf = texbank_get("wtf");
     pointer_cursor = tex_load("data/other/pointer_cursor.bmp");
     tex_load_skybox("data/textures/skybox.bmp", &skybox_left, &skybox_back, &skybox_right, &skybox_bottom, &skybox_top, &skybox_front);
-/*    skybox_left = tex_load("data/textures/skybox_left.bmp");
+    decal_texture = texbank_get("alithiaposter");
+    /*    skybox_left = tex_load("data/textures/skybox_left.bmp");
     skybox_right = tex_load("data/textures/skybox_right.bmp");
     skybox_top = tex_load("data/textures/skybox_top.bmp");
     skybox_bottom = tex_load("data/textures/skybox_bottom.bmp");

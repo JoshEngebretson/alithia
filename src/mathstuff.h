@@ -24,6 +24,8 @@
 #ifndef __MATHSTUFF_H_INCLUDED__
 #define __MATHSTUFF_H_INCLUDED__
 
+typedef float matrix_t[16];
+
 typedef struct _vector_t
 {
     float x, y, z;
@@ -49,12 +51,16 @@ typedef struct _plane_t
 #define vec_dot(a,b) ((a)->x*(b)->x + (a)->y*(b)->y + (a)->z*(b)->z)
 #define vec_lensq(a) vec_dot(a, a)
 #define vec_len(a) sqrtf(vec_lensq(a))
+void vec_makenormal(vector_t* n, vector_t* v);
 void vec_normalize(vector_t* v);
 void vec_add(vector_t* a, vector_t* b);
 void vec_sub(vector_t* a, vector_t* b);
+void vec_cross(vector_t* r, vector_t* a, vector_t* b);
 void vec_makedir(vector_t* d, vector_t* a, vector_t* b);
 float vec_distsq(vector_t* a, vector_t* b);
 float vec_dist(vector_t* a, vector_t* b);
+void mat_identity(matrix_t mat);
+void mat_transform_vector(matrix_t mat, vector_t* r, vector_t* v);
 int plane_from_three_points(plane_t* p, vector_t* a, vector_t* b, vector_t* c);
 int plane_from_three_points_xyz(plane_t* p, float ax, float ay, float az, float bx, float by, float bz, float cx, float cy, float cz);
 void plane_from_point_and_normal(plane_t* p, vector_t* v, vector_t* n);

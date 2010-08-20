@@ -23,6 +23,16 @@
 
 #include "atest.h"
 
+void vec_makenormal(vector_t* n, vector_t* v)
+{
+    vector_t a;
+    vector_t b;
+    vec_set(&a, v[1].x - v[0].x, v[1].y - v[0].y, v[1].z - v[0].z);
+    vec_set(&b, v[2].x - v[0].x, v[2].y - v[0].y, v[2].z - v[0].z);
+    vec_cross(n, &a, &b);
+    vec_normalize(n);
+}
+
 void vec_normalize(vector_t* v)
 {
     float len = vec_len(v);
@@ -47,6 +57,13 @@ void vec_sub(vector_t* a, vector_t* b)
     a->z -= b->z;
 }
 
+void vec_cross(vector_t* r, vector_t* a, vector_t* b)
+{
+    r->x = a->y*b->z - a->z*b->y;
+    r->y = a->z*b->x - a->x*b->z;
+    r->z = a->x*b->y - a->y*b->x;
+}
+
 void vec_makedir(vector_t* d, vector_t* a, vector_t* b)
 {
     *d = *b;
@@ -62,6 +79,33 @@ float vec_distsq(vector_t* a, vector_t* b)
 float vec_dist(vector_t* a, vector_t* b)
 {
     return sqrtf(SQR(b->x - a->x) + SQR(b->y - a->y) + SQR(b->z - a->z));
+}
+
+void mat_identity(matrix_t mat)
+{
+    mat[0] = 1;
+    mat[1] = 0;
+    mat[2] = 0;
+    mat[3] = 0;
+    mat[4] = 0;
+    mat[5] = 1;
+    mat[6] = 0;
+    mat[7] = 0;
+    mat[8] = 0;
+    mat[9] = 1;
+    mat[10] = 0;
+    mat[11] = 0;
+    mat[12] = 0;
+    mat[13] = 0;
+    mat[14] = 0;
+    mat[15] = 1;
+}
+
+void mat_transform_vector(matrix_t mat, vector_t* r, vector_t* v)
+{
+    r->x = mat[0]*v->x + mat[1]*v->y + mat[2]*v->z + mat[12];
+    r->y = mat[4]*v->x + mat[5]*v->y + mat[6]*v->z + mat[13];
+    r->z = mat[8]*v->x + mat[9]*v->y + mat[10]*v->z + mat[14];
 }
 
 int plane_from_three_points(plane_t* p, vector_t* a, vector_t* b, vector_t* c)
