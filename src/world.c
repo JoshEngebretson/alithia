@@ -75,8 +75,8 @@ void map_init(int width, int height)
     }
 
     for (i=0; i<width*height; i++) {
-        cell[i].floorz = -128;
-        cell[i].ceilz = 128;
+        cell[i].floorz = -256;
+        cell[i].ceilz = 512;
     }
 
     for (i=0; i<width; i++) {
@@ -115,11 +115,11 @@ void map_init(int width, int height)
 
     ent = ent_new();
     ent_set_model(ent, mdl_vytio);
-    ent_move(ent, 10*CELLSIZE, -128, 10*CELLSIZE);
+    ent_move(ent, 10*CELLSIZE, -256, 10*CELLSIZE);
 
     ent = ent_new();
     ent_set_model(ent, mdl_armor);
-    ent_move(ent, 18*CELLSIZE, -128, 10*CELLSIZE);
+    ent_move(ent, 18*CELLSIZE, -256, 10*CELLSIZE);
 
     light_new((map_width/2)*CELLSIZE, 0, (map_height/2)*CELLSIZE, 0.5, 0.5, 0.5, 150000);
 //    light_new(14*CELLSIZE, 0, 10*CELLSIZE, 0.7, 0.2, 0.1, 150);
@@ -647,6 +647,17 @@ void ent_set_attr(entity_t* ent, lil_value_t name, lil_value_t value)
             return;
         }
     }
+#define __EVMASK_UPDATE(mv) ent->event_mask = lil_to_string(value)[0] ? (ent->event_mask | (mv)) : (ent->event_mask & (~(mv)))
+    /* check event names */
+    if (!strcmp(cname, "motion-touch"))
+        __EVMASK_UPDATE(EVMASK_MOTION_TOUCH);
+    else if (!strcmp(cname, "motion-touched"))
+        __EVMASK_UPDATE(EVMASK_MOTION_TOUCHED);
+    else if (!strcmp(cname, "motion-hit-ground"))
+        __EVMASK_UPDATE(EVMASK_MOTION_HIT_GROUND);
+    else if (!strcmp(cname, "move-target-reached"))
+        __EVMASK_UPDATE(EVMASK_MOVE_TARGET_REACHED);
+#undef __EVMASK_UPDATE
     attr = new(entity_attr_t);
     attr->name = lil_clone_value(name);
     attr->value = lil_clone_value(value);
@@ -670,7 +681,7 @@ lil_value_t ent_call_attr(entity_t* ent, const char* name)
 {
     lil_value_t lilname = lil_alloc_string(name);
     lil_value_t code = ent_get_attr(ent, lilname);
-    lil_value_t retval = lil_parse_value(lil, code, 0);
+    lil_value_t retval = code ? lil_parse_value(lil, code, 0) : NULL;
     lil_free_value(lilname);
     return retval;
 }

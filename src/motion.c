@@ -204,16 +204,21 @@ static void update_motion(float ms, motion_t* mot)
     collcheck_t ct;
     float factor = 1.0f, s = ms/100.0f, frv, save;
     entity_t* ent = mot->ent;
+    entity_t* hit_entity = NULL;
     int i, j, db;
     vector_t op;
+    int prev_onground;
     if (mot->frozen) return;
 
+    ct.type = CT_AIR;
     ct.ent = ent;
     ct.mot = mot;
     ct.other_ent = NULL;
     ct.nf = mot->f;
 
     ct.np = ent->p;
+
+    prev_onground = mot->onground;
 
     for (i=0; i<3; i++,factor *= 0.5f) {
         ct.np.x = ent->p.x + (mot->c.x + mot->f.x)*s*factor;
@@ -239,13 +244,18 @@ static void update_motion(float ms, motion_t* mot)
             ct.nf.x = -mot->bncf*ct.nf.x;
             ct.nf.y *= mot->wldf;
             ct.nf.z *= mot->wldf;
-            if (ct.type == CT_ENTITY) ct.nf.x *= mot->fdf;
+            if (ct.type == CT_ENTITY) {
+                ct.nf.x *= mot->fdf;
+                hit_entity = ct.other_ent;
+            }
         }
     }
     factor = 1.0;
     for (i=0; i<3; i++,factor *= 0.5f) {
+        float py = ct.np.y;
         ct.np.y = ent->p.y + (mot->c.y + mot->f.y)*s*factor;
         ct.bounce = i == 0;
+        if (py > ct.np.y + 0.1) mot->onground = 0; /* falling */
         if (!collision_check(&ct)) {
             mot->sliding = 0;
             break;
@@ -260,7 +270,10 @@ static void update_motion(float ms, motion_t* mot)
             ct.nf.y = -mot->bncf*ct.nf.y;
             ct.nf.x *= mot->wldf;
             ct.nf.z *= mot->wldf;
-            if (ct.type == CT_ENTITY) ct.nf.y *= mot->fdf;
+            if (ct.type == CT_ENTITY) {
+                ct.nf.y *= mot->fdf;
+                hit_entity = ct.other_ent;
+            }
         }
     }
     factor = 1.0;
@@ -288,7 +301,10 @@ static void update_motion(float ms, motion_t* mot)
             ct.nf.z = -mot->bncf*ct.nf.z;
             ct.nf.x *= mot->wldf;
             ct.nf.y *= mot->wldf;
-            if (ct.type == CT_ENTITY) ct.nf.z *= mot->fdf;
+            if (ct.type == CT_ENTITY) {
+                ct.nf.z *= mot->fdf;
+                hit_entity = ct.other_ent;
+            }
         }
     }
 
@@ -305,6 +321,19 @@ static void update_motion(float ms, motion_t* mot)
         if ((--mot->frozctr) <= 0)
             mot_freeze(mot);
     } else mot->frozctr = 4;
+
+    if ((!prev_onground && mot->onground) && (ent->event_mask & EVMASK_MOTION_HIT_GROUND))
+        ent_call_attr(ent, "motion-hit-ground");
+    if (hit_entity) {
+        if (ent->event_mask & EVMASK_MOTION_TOUCH) {
+            script_set_int("other-entity", or_new(OT_ENTITY, hit_entity));
+            ent_call_attr(ent, "motion-touch");
+        }
+        if (hit_entity->event_mask & EVMASK_MOTION_TOUCHED) {
+            script_set_int("other-entity", or_new(OT_ENTITY, ent));
+            ent_call_attr(hit_entity, "motion-touched");
+        }
+    }
 }
 
 void mot_const(motion_t* mot, float x, float y, float z)

@@ -10,3 +10,6 @@ dist/
 acer-alithia.bat
 atest.dSYM/
 .externalToolBuilders/
+makexz.sh
+report.html
+*.xz

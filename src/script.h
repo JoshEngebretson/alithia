@@ -42,6 +42,9 @@ void script_shutdown(void);
 void script_eval(const char* code);
 void script_run(const char* name);
 void script_run_execats(const char* event);
+void script_set_int(const char* name, int64_t value);
+void script_set_string(const char* name, const char* value);
+void script_set_float(const char* name, float value);
 
 entity_t* ent_new_by_class(const char* clsname);
 

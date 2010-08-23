@@ -62,13 +62,13 @@ static void update_ai_moving(aidata_t* ai, float ms)
         vector_t d;
         vec_makedir(&d, &ent->p, &ai->move_target);
         ent->yrot = atan2f(d.z, d.x)*180.0f/PI - 90;
-        mot_const(ent->mot, d.x*ai->move_speed, d.y*ai->move_speed, d.z*ai->move_speed);
+        mot_const(ent->mot, d.x*ai->move_speed, 0/* d.y*ai->move_speed*/, d.z*ai->move_speed);
     } else {
-        int x = 10 + rand()%(map_width - 20);
-        int y = 10 + rand()%(map_width - 20);
-        ent_move(ent, ai->move_target.x, ai->move_target.y, ai->move_target.z);
-        ai_move_to(ent, x*CELLSIZE, -128, y*CELLSIZE, 7);
-        //ai->moving = 0;
+        ent_move(ent, ai->move_target.x, ai->e->p.y /*ai->move_target.y*/, ai->move_target.z);
+        mot_const(ent->mot, 0, 0, 0);
+        ai->moving = 0;
+        if (ent->event_mask & EVMASK_MOVE_TARGET_REACHED)
+            ent_call_attr(ent, "move-target-reached");
     }
 }
 

@@ -39,6 +39,12 @@
 #define PICKFLAG_NOFLAGS 0
 #define PICKFLAG_PICK_LIGHTS 0x0001
 
+#define EVMASK_NOTHING 0
+#define EVMASK_MOTION_TOUCH 0x0001
+#define EVMASK_MOTION_TOUCHED 0x0002
+#define EVMASK_MOTION_HIT_GROUND 0x0004
+#define EVMASK_MOVE_TARGET_REACHED 0x0008
+
 typedef struct _light_t
 {
     vector_t p;
@@ -71,6 +77,7 @@ typedef struct _entity_t
     int end_frame;
     float durstate;
     float framedur;
+    int event_mask;
 } entity_t;
 
 typedef struct _cell_t

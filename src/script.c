@@ -1342,6 +1342,27 @@ void script_run_execats(const char* event)
     }
 }
 
+void script_set_int(const char* name, int64_t value)
+{
+    lil_value_t val = lil_alloc_integer(value);
+    lil_set_var(lil, name, val, LIL_SETVAR_LOCAL);
+    lil_free_value(val);
+}
+
+void script_set_string(const char* name, const char* value)
+{
+    lil_value_t val = lil_alloc_string(value);
+    lil_set_var(lil, name, val, LIL_SETVAR_LOCAL);
+    lil_free_value(val);
+}
+
+void script_set_float(const char* name, float value)
+{
+    lil_value_t val = lil_alloc_double(value);
+    lil_set_var(lil, name, val, LIL_SETVAR_LOCAL);
+    lil_free_value(val);
+}
+
 void script_init(void)
 {
     lil = lil_new();

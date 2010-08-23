@@ -1773,16 +1773,10 @@ static void run(void)
     for (y=0; y<256; y++)
         for (x=0; x<256; x++) {
             cell_t* c = &cell[y*map_width + x];
-            c->uppertex = tex_stuff;
+            c->uppertex = NULL;
             c->lowetex = tex_bricks;
-            c->toptex = tex_stuff;
-            c->bottomtex = tex_floor;
-        }
-
-    for (y=20; y<120; y++)
-        for (x=20; x<120; x++) {
-            cell_t* c = &cell[y*map_width + x];
             c->toptex = NULL;
+            c->bottomtex = tex_floor;
         }
 
     ent = ent_new();
