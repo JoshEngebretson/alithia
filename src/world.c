@@ -36,6 +36,7 @@ lmap_texel_t* lightmap;
 GLuint lmaptex;
 int lmap_quality = 2;
 entity_t* player_ent;
+int world_init_frames = 10;
 
 model_t* mdl_vytio;
 model_t* mdl_armor;
@@ -43,7 +44,8 @@ model_t* mdl_armor;
 void map_init(int width, int height)
 {
     int i, x, y;
-    entity_t* ent;
+    texture_t* tex_bricks;
+    texture_t* tex_floor;
 
     map_width = width;
     map_height = height;
@@ -74,9 +76,15 @@ void map_init(int width, int height)
         }
     }
 
+    tex_bricks = texbank_get("redbricks");
+    tex_floor = texbank_get("floorbrick");
     for (i=0; i<width*height; i++) {
-        cell[i].floorz = -256;
-        cell[i].ceilz = 512;
+        cell[i].floorz = -128;
+        cell[i].ceilz = 128;
+        cell[i].uppertex = tex_bricks;
+        cell[i].lowetex = tex_bricks;
+        cell[i].bottomtex = tex_floor;
+        cell[i].toptex = tex_bricks;
     }
 
     for (i=0; i<width; i++) {
@@ -99,9 +107,6 @@ void map_init(int width, int height)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, map_width, map_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
 
-    mdl_vytio = modelcache_get("vytio");
-    mdl_armor = modelcache_get("armor");
-
     player_ent = ent_new();
     camera_ent = player_ent;
     ent_move(player_ent, map_width*CELLSIZE*0.5, -128+48, map_height*CELLSIZE*0.5);
@@ -112,33 +117,11 @@ void map_init(int width, int height)
         vec_set(&player_ent->laabb.max, 16, 16, 16);
     }
 
-
-    ent = ent_new();
-    ent_set_model(ent, mdl_vytio);
-    ent_move(ent, 10*CELLSIZE, -256, 10*CELLSIZE);
-
-    ent = ent_new();
-    ent_set_model(ent, mdl_armor);
-    ent_move(ent, 18*CELLSIZE, -256, 10*CELLSIZE);
-
-    light_new((map_width/2)*CELLSIZE, 0, (map_height/2)*CELLSIZE, 0.5, 0.5, 0.5, 150000);
-//    light_new(14*CELLSIZE, 0, 10*CELLSIZE, 0.7, 0.2, 0.1, 150);
-//    light_new(14*CELLSIZE, 0, 10*CELLSIZE, 0.1, 0.1, 0.2, 150000);
-//    light_new(114*CELLSIZE, 0, 34*CELLSIZE, 0.1, 0.3, 1.0, 1500);
-//    light_new(38*CELLSIZE, 0, 78*CELLSIZE, 0.2, 0.8, 0.3, 1000);
-//    light_new(138*CELLSIZE, 0, 208*CELLSIZE, 0.8, 0.2, 0.3, 1000);
-/*
-    for (i=0; i<100; i++) {
-        for (y=7+i; y<map_height-(7+i); y++) {
-            for (x=7+i; x<=map_width-(7+i); x++) {
-                cell[y*map_width + x].floorz -= 8 + (i/40);
-            }
-        }
-    }
-*/
     for (y=0; y<map_height; y++)
         for (x=0; x<map_width; x++)
             map_update_cell(x, y);
+
+    world_init_frames = 10;
 }
 
 void map_free(void)
@@ -147,6 +130,8 @@ void map_free(void)
     glBindTexture(GL_TEXTURE_2D, lmaptex);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 0, 0, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
     glDeleteTextures(1, &lmaptex);
+    list_free(lights);
+    list_free(ents);
     for (i=0; i<cluster_width*cluster_height; i++) {
         int j;
         for (j=0; j<cluster[i].parts; j++)
@@ -156,11 +141,10 @@ void map_free(void)
         free(cluster[i].tri);
         list_free(cluster[i].ents);
     }
-    list_free(lights);
-    list_free(ents);
     free(cluster);
     free(ocmap);
     free(cell);
+    player_ent = NULL;
 }
 
 static void invalidate_cluster(int cx, int cy)
@@ -174,6 +158,12 @@ static void invalidate_cluster(int cx, int cy)
         clus->part = NULL;
         clus->parts = 0;
     }
+    if (clus->tris) {
+        free(clus->tri);
+        clus->tri = NULL;
+        clus->tris = 0;
+    }
+    clus->visible = 0;
 }
 
 void map_update_cell(int x, int y)
@@ -424,9 +414,9 @@ static void calc_lightmap_for_cell_at(float* or, float* og, float* ob, int mx, i
             for (x=x1; x<=x2; x++) {
                 cell_t* nc = cell + y*map_width + x;
                 if (nc->floorz > c->floorz + CELLSIZE || nc->ceilz < c->ceilz - CELLSIZE || (nc->flags & CF_OCCLUDER)) {
-                    r -= 0.02;
-                    g -= 0.02;
-                    b -= 0.02;
+                    r -= 0.01;
+                    g -= 0.01;
+                    b -= 0.01;
                 }
             }
         }
@@ -516,6 +506,7 @@ decal_t* decal_new(cluster_t* clus, vector_t* p, texture_t* tex)
     clus->decal = realloc(clus->decal, sizeof(decal_t)*(clus->decals + 1));
     memcpy(clus->decal[clus->decals].p, p, sizeof(vector_t)*4);
     clus->decal[clus->decals++].tex = tex;
+    return &clus->decal[clus->decals - 1];
 }
 
 static void entity_attr_free(void* ptr)
@@ -538,6 +529,7 @@ entity_t* ent_new(void)
 void ent_free(entity_t* ent)
 {
     or_deleted(ent);
+    free(ent->class);
     if (ent->ai) ai_release(ent->ai);
     if (ent->mot) mot_free(ent->mot);
     list_free(ent->attrs);
@@ -548,18 +540,29 @@ void ent_free(entity_t* ent)
 
 entity_t* ent_clone(entity_t* ent)
 {
-    entity_t* clone = ent_new();
-    list_t* save_attrs = clone->attrs;
+    entity_t* clone;
+    list_t* save_attrs;
+    motion_t* save_mot;
+    aidata_t* save_ai;
     listitem_t* li;
+    if (ent->class)
+        clone = ent_new_by_class(ent->class);
+    else
+        clone = ent_new();
+    save_mot = clone->mot;
+    save_ai = clone->ai;
+    save_attrs = clone->attrs;
     *clone = *ent;
+    if (clone->class)
+        clone->class = strdup(clone->class);
     clone->clus = NULL;
     clone->attrs = save_attrs;
     for (li=ent->attrs->first; li; li=li->next) {
         entity_attr_t* attr = li->ptr;
         ent_set_attr(clone, attr->name, attr->value);
     }
-    clone->mot = NULL;
-    clone->ai = NULL;
+    clone->mot = save_mot;
+    clone->ai = save_ai;
     ent_update(clone);
     return clone;
 }
@@ -700,6 +703,297 @@ static void animate_entities(float ms)
             ent->durstate -= ent->framedur;
         }
     }
+}
+
+int world_save(const char* filename)
+{
+    const char id[4] = "ALW";
+    uint8_t subversion = 0;
+    uint16_t width = (uint16_t)map_width, height = (uint16_t)map_height;
+    uint32_t entcount = (uint32_t)ents->count;
+    uint32_t lightcount = (uint32_t)lights->count;
+    uint8_t reserved[256];
+    uint32_t foffset = 0;
+    listitem_t* litem;
+    texture_t** usv_texptr = NULL;
+    uint32_t usv_count = 0;
+    uint32_t i, player_entidx = 0;
+    int x, y;
+    FILE* f = fopen(filename, "wb");
+    memset(reserved, 0, 256);
+    if (!f) return 0;
+    fwrite(id, 4, 1, f);
+    fwrite(&subversion, 1, 1, f);
+    fwrite(&width, 2, 1, f);
+    fwrite(&height, 2, 1, f);
+    fwrite(&entcount, 4, 1, f);
+    fwrite(&lightcount, 4, 1, f);
+    for (litem=ents->first; litem; litem=litem->next) {
+        if (litem->ptr == player_ent) break;
+        player_entidx++;
+    }
+    fwrite(&player_entidx, 4, 1, f);
+    fwrite(&pla, 4, 1, f);
+    fwrite(&pll, 4, 1, f);
+    fwrite(reserved, 1, 256, f);
+
+#define world_save_add_texture_offset(tex) { \
+    if ((tex) && (tex)->bankname) { \
+        if (!(tex)->foffset) { \
+            usv_texptr = realloc(usv_texptr, sizeof(texture_t*)*(usv_count + 1)); \
+            usv_texptr[usv_count++] = tex; \
+            (tex)->foffset = foffset; \
+            foffset += strlen((tex)->bankname) + 1; \
+        } \
+        fwrite(&(tex)->foffset, 4, 1, f); \
+    } else fwrite(reserved, 4, 1, f); }
+
+    for (y=0; y<map_height; y++) {
+        for (x=0; x<map_width; x++) {
+            cell_t* c = cell + y*map_width + x;
+            fwrite(&c->floorz, 4, 1, f);
+            fwrite(&c->ceilz, 4, 1, f);
+            fwrite(&c->flags, 4, 1, f);
+            fwrite(c->zfoffs, 4, 1, f);
+            fwrite(c->zcoffs, 4, 1, f);
+            world_save_add_texture_offset(c->toptex);
+            world_save_add_texture_offset(c->bottomtex);
+            world_save_add_texture_offset(c->uppertex);
+            world_save_add_texture_offset(c->lowetex);
+        }
+    }
+#undef world_save_add_texture_offset
+
+    for (litem=lights->first; litem; litem=litem->next) {
+        light_t* light = litem->ptr;
+        fwrite(&light->p.x, 4, 1, f);
+        fwrite(&light->p.y, 4, 1, f);
+        fwrite(&light->p.z, 4, 1, f);
+        fwrite(&light->r, 4, 1, f);
+        fwrite(&light->g, 4, 1, f);
+        fwrite(&light->b, 4, 1, f);
+        fwrite(&light->rad, 4, 1, f);
+    }
+
+    for (litem=ents->first; litem; litem=litem->next) {
+        entity_t* ent = litem->ptr;
+        listitem_t* aitem;
+        uint32_t attrcount = (uint32_t)ent->attrs->count;
+        uint8_t clslen = ent->class ? ((uint8_t)strlen(ent->class)) : 0;
+        fwrite(&clslen, 1, 1, f);
+        if (clslen) fwrite(ent->class, clslen, 1, f);
+        fwrite(&ent->p.x, 4, 1, f);
+        fwrite(&ent->p.y, 4, 1, f);
+        fwrite(&ent->p.z, 4, 1, f);
+        fwrite(&ent->xoff, 4, 1, f);
+        fwrite(&ent->yoff, 4, 1, f);
+        fwrite(&ent->zoff, 4, 1, f);
+        fwrite(&ent->yrot, 4, 1, f);
+        fwrite(ent->mtx, 4, 16, f);
+        fwrite(&ent->laabb.min.x, 4, 1, f);
+        fwrite(&ent->laabb.min.y, 4, 1, f);
+        fwrite(&ent->laabb.min.z, 4, 1, f);
+        fwrite(&ent->laabb.max.x, 4, 1, f);
+        fwrite(&ent->laabb.max.y, 4, 1, f);
+        fwrite(&ent->laabb.max.z, 4, 1, f);
+        fwrite(&ent->frame, 4, 1, f);
+        fwrite(&ent->durstate, 4, 1, f);
+        fwrite(&ent->event_mask, 4, 1, f);
+        fwrite(reserved, 1, 32, f);
+        fwrite(&attrcount, 4, 1, f);
+        for (aitem=ent->attrs->first; aitem; aitem=aitem->next) {
+            entity_attr_t* attr = aitem->ptr;
+            const char* name = lil_to_string(attr->name);
+            const char* value = lil_to_string(attr->value);
+            uint32_t len = strlen(name);
+            fwrite(&len, 4, 1, f);
+            fwrite(name, len, 1, f);
+            len = strlen(value);
+            fwrite(&len, 4, 1, f);
+            fwrite(value, len, 1, f);
+        }
+    }
+
+    for (i=0; i<usv_count; i++) {
+        uint8_t len = strlen(usv_texptr[i]->bankname);
+        fwrite(&len, 1, 1, f);
+        fwrite(usv_texptr[i]->bankname, len, 1, f);
+        usv_texptr[i]->foffset = 0;
+    }
+    free(usv_texptr);
+
+    fclose(f);
+
+    return 1;
+}
+
+int world_load(const char* filename)
+{
+    FILE* f = fopen(filename, "rb");
+    char id[4];
+    uint8_t subversion = 0;
+    uint16_t width, height;
+    uint32_t entcount;
+    uint32_t lightcount;
+    uint8_t reserved[256];
+    listitem_t* litem;
+    texture_t*** usv_texptr = NULL;
+    uint32_t* usv_foffset = NULL;
+    uint32_t usv_count = 0;
+    uint32_t i, player_entidx;
+    size_t base;
+    int x, y;
+    if (!f) return 0;
+
+    fread(id, 4, 1, f);
+    if (id[0] != 'A' || id[1] != 'L' || id[2] != 'W' || id[3] != 0) goto cleanup;
+    fread(&subversion, 1, 1, f);
+    if (subversion != 0) goto cleanup;
+    fread(&width, 2, 1, f);
+    fread(&height, 2, 1, f);
+    fread(&entcount, 4, 1, f);
+    fread(&lightcount, 4, 1, f);
+    fread(&player_entidx, 4, 1, f);
+    fread(&pla, 4, 1, f);
+    fread(&pll, 4, 1, f);
+    fread(reserved, 1, 256, f);
+
+    map_free();
+    map_init(width, height);
+
+#define world_load_solve_texture_later(tex,foffs) { \
+    if (foffs) { \
+        usv_texptr = realloc(usv_texptr, sizeof(texture_t**)*(usv_count + 1)); \
+        usv_foffset = realloc(usv_foffset, 4*(usv_count + 1)); \
+        usv_texptr[usv_count] = tex; \
+        usv_foffset[usv_count++] = foffs; \
+    } else *(tex) = NULL; }\
+
+    for (y=0; y<map_height; y++) {
+        for (x=0; x<map_width; x++) {
+            cell_t* c = cell + y*map_width + x;
+            uint32_t foffset;
+            fread(&c->floorz, 4, 1, f);
+            fread(&c->ceilz, 4, 1, f);
+            fread(&c->flags, 4, 1, f);
+            fread(c->zfoffs, 4, 1, f);
+            fread(c->zcoffs, 4, 1, f);
+            fread(&foffset, 4, 1, f);
+            world_load_solve_texture_later(&c->toptex, foffset);
+            fread(&foffset, 4, 1, f);
+            world_load_solve_texture_later(&c->bottomtex, foffset);
+            fread(&foffset, 4, 1, f);
+            world_load_solve_texture_later(&c->uppertex, foffset);
+            fread(&foffset, 4, 1, f);
+            world_load_solve_texture_later(&c->lowetex, foffset);
+        }
+    }
+#undef world_load_solve_texture_later
+
+    for (i=0; i<lightcount; i++) {
+        light_t* light = light_new(0, 0, 0, 0, 0, 0, 16);
+        fread(&light->p.x, 4, 1, f);
+        fread(&light->p.y, 4, 1, f);
+        fread(&light->p.z, 4, 1, f);
+        fread(&light->r, 4, 1, f);
+        fread(&light->g, 4, 1, f);
+        fread(&light->b, 4, 1, f);
+        fread(&light->rad, 4, 1, f);
+    }
+
+    for (i=0; i<entcount; i++) {
+        entity_t* ent;
+        uint32_t a, attrcount;
+        uint8_t clslen;
+        char* class;
+        fread(&clslen, 1, 1, f);
+        if (clslen) {
+            class = calloc(1, clslen + 1);
+            fread(class, clslen, 1, f);
+            ent = ent_new_by_class(class);
+            free(class);
+        } else ent = ent_new();
+        if (i == player_entidx) {
+            motion_t* mot;
+            if (player_ent) ent_free(player_ent);
+            player_ent = ent;
+            camera_ent = ent;
+            mot = mot_new(player_ent);
+            mot_for_char(mot);
+            vec_set(&player_ent->laabb.min, -16, -48, -16);
+            vec_set(&player_ent->laabb.max, 16, 16, 16);
+        }
+        fread(&ent->p.x, 4, 1, f);
+        fread(&ent->p.y, 4, 1, f);
+        fread(&ent->p.z, 4, 1, f);
+        fread(&ent->xoff, 4, 1, f);
+        fread(&ent->yoff, 4, 1, f);
+        fread(&ent->zoff, 4, 1, f);
+        fread(&ent->yrot, 4, 1, f);
+        fread(ent->mtx, 4, 16, f);
+        fread(&ent->laabb.min.x, 4, 1, f);
+        fread(&ent->laabb.min.y, 4, 1, f);
+        fread(&ent->laabb.min.z, 4, 1, f);
+        fread(&ent->laabb.max.x, 4, 1, f);
+        fread(&ent->laabb.max.y, 4, 1, f);
+        fread(&ent->laabb.max.z, 4, 1, f);
+        fread(&ent->frame, 4, 1, f);
+        fread(&ent->durstate, 4, 1, f);
+        fread(&ent->event_mask, 4, 1, f);
+        fread(reserved, 1, 32, f);
+        fread(&attrcount, 4, 1, f);
+        for (a=0; a<attrcount; a++) {
+            char* name;
+            char* value;
+            lil_value_t vname, vvalue;
+            uint32_t len;
+            fread(&len, 4, 1, f);
+            name = calloc(1, len + 1);
+            fread(name, len, 1, f);
+            fread(&len, 4, 1, f);
+            value = calloc(1, len + 1);
+            fread(value, len, 1, f);
+            vname = lil_alloc_string(name);
+            vvalue = lil_alloc_string(value);
+            free(value);
+            free(name);
+            ent_set_attr(ent, vname, vvalue);
+            lil_free_value(vname);
+            lil_free_value(vvalue);
+        }
+    }
+
+    base = ftell(f);
+    for (i=0; i<usv_count; i++) {
+        uint8_t len;
+        char* name;
+        fseek(f, base + usv_foffset[i], SEEK_SET);
+        fread(&len, 1, 1, f);
+        name = calloc(1, len + 1);
+        fread(name, len, 1, f);
+        *usv_texptr[i] = texbank_get(name);
+        free(name);
+    }
+    free(usv_foffset);
+    free(usv_texptr);
+
+    for (y=0; y<cluster_height; y++)
+        for (x=0; x<cluster_width; x++)
+            invalidate_cluster(x, y);
+
+    for (y=0; y<map_height; y++)
+        for (x=0; x<map_width; x++)
+            map_update_cell(x, y);
+
+    lmap_update();
+
+    for (litem=ents->first; litem; litem=litem->next)
+        ent_update(litem->ptr);
+
+    return 1;
+cleanup:
+    if (f) fclose(f);
+    return 0;
 }
 
 void world_animate(float ms)

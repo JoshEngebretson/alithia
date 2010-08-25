@@ -16,23 +16,20 @@ h2. World
 
 * Add particle emitting entities
 * Entities can touch more than one cluster: add cluster list to entities and update motion.c to use that for faster processing
+* Make clusters to take entities in account when calculating aabb and make entities update this aabb when they're added or removed from the cluster list
 
 h2. Editing
 
 * Add "snap to grid" key for lights and entities
 * Add "drop to ground" key for entities
-* Add entity and light delete key
 * Add "fullbright lightmap" key
-* Add "Create" menu. Needs popup menus from below.
-** Add "Create light" command
-** Add "Create entity" popup with available entities
 * Add copy/paste functionality
 * Add save/load clipboard functionality for prefabbing (needs copy/paste)
 
 h2. Models
 
-* Add animation in models
 * Make model shadow optional
+* Add model-to-display-list rendering function which will be used for both world model rendering and HUD gun (currently there is a bit of copypasta spilled around).
 
 h2. Resources
 
@@ -41,29 +38,17 @@ h2. Resources
 
 h2. GUI
 
-* Add popup menus
 * Add listbox control
 
 h2. Scripting
 
-* Add LIL to Alithia Engine
-* Add two separate 'libraries' for functions and a common one.
-** One library for the game
-** And another for the editor
-
 h3. Game Scripting
 
-* Add scripts to entities
 * Add world triggers
-
-h3. Editor Scripting
-
-* Add scripting functionality for the editor
 
 h1. Tools
 
 h2. Exporter and models
 
-* Add animation export for the Blender 2.5 exporter
 * Write an OBJ to ALM converter for non-Blender users (low priority)
 ** The converter should be able to use multiple OBJ files for multiple frames

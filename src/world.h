@@ -60,6 +60,7 @@ typedef struct _entity_attr_t
 
 typedef struct _entity_t
 {
+    char* class;
     model_t* mdl;
     vector_t p;
     float xoff, yoff, zoff;
@@ -71,13 +72,13 @@ typedef struct _entity_t
     aabb_t laabb; /* aabb for modelless entities */
     void* mot;
     void* ai;
-    int frame;
-    int frames;
-    int start_frame;
-    int end_frame;
+    uint32_t frame;
+    uint32_t frames;
+    uint32_t start_frame;
+    uint32_t end_frame;
     float durstate;
     float framedur;
-    int event_mask;
+    uint32_t event_mask;
 } entity_t;
 
 typedef struct _cell_t
@@ -156,6 +157,7 @@ extern lmap_texel_t* lightmap;
 extern GLuint lmaptex;
 extern int lmap_quality;
 extern entity_t* player_ent;
+extern int world_init_frames;
 
 void map_init(int width, int height);
 void map_free(void);
@@ -181,6 +183,8 @@ void ent_set_attr(entity_t* ent, lil_value_t name, lil_value_t value);
 lil_value_t ent_get_attr(entity_t* ent, lil_value_t name);
 lil_value_t ent_call_attr(entity_t* ent, const char* name);
 
+int world_save(const char* filename);
+int world_load(const char* filename);
 void world_animate(float ms);
 
 #endif

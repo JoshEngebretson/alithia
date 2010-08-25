@@ -466,7 +466,7 @@ static void fill_cell(int cx, int cy, int floor)
         glVertex3f(vx[i], vy[i] + (floor?0.1:-0.1), vz[i]);
 }
 
-static void draw_cell_cursor(int cx, int cy, int floor)
+static void draw_cell_grid_part(int cx, int cy, int floor)
 {
     int i;
     float vx[4], vy[4], vz[4];
@@ -474,21 +474,25 @@ static void draw_cell_cursor(int cx, int cy, int floor)
     for (i=0; i<4; i++) vy[i] += floor?0.1:-0.1;
 
     if (!(cx&15)) glColor3f(0.5, 1.0, 0.5);
+    else if (!(cx&7)) glColor3f(0.7, 0.7, 1.0);
     else glColor3f(0.6, 0.6, 0.7);
     glVertex3f(vx[0], vy[0], vz[0]);
     glVertex3f(vx[1], vy[1], vz[1]);
 
     if (!((cx + 1)&15)) glColor3f(0.5, 1.0, 0.5);
+    else if (!((cx + 1)&7)) glColor3f(0.7, 0.7, 1.0);
     else glColor3f(0.6, 0.6, 0.7);
     glVertex3f(vx[2], vy[2], vz[2]);
     glVertex3f(vx[3], vy[3], vz[3]);
 
     if (!((cy + 1)&15)) glColor3f(0.5, 1.0, 0.5);
+    else if (!((cy + 1)&7)) glColor3f(0.7, 0.7, 1.0);
     else glColor3f(0.6, 0.6, 0.7);
     glVertex3f(vx[1], vy[1], vz[1]);
     glVertex3f(vx[2], vy[2], vz[2]);
 
     if (!(cy&15)) glColor3f(0.5, 1.0, 0.5);
+    else if (!(cy&7)) glColor3f(0.7, 0.7, 1.0);
     else glColor3f(0.6, 0.6, 0.7);
     glVertex3f(vx[3], vy[3], vz[3]);
     glVertex3f(vx[0], vy[0], vz[0]);
@@ -503,7 +507,7 @@ static void draw_cell_grid(int x1, int y1, int x2, int y2, int floor)
     if (y2 > map_height - 2) y2 = map_height - 2;
     for (y=y1; y<=y2; y++) {
         for (x=x1; x<=x2; x++)
-            draw_cell_cursor(x, y, floor);
+            draw_cell_grid_part(x, y, floor);
     }
 }
 
@@ -657,7 +661,7 @@ static void editorscreen_render(void)
     /* Draw grid around cursor */
     glLineWidth(2);
     glBegin(GL_LINES);
-    draw_cell_grid(cur_x1 - 4, cur_y1 - 4, cur_x1 + 4, cur_y1 + 4, points_to_floor);
+    draw_cell_grid(cur_x1 - 8, cur_y1 - 8, cur_x1 + 8, cur_y1 + 8, points_to_floor);
     glEnd();
     glLineWidth(1);
 

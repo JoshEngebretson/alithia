@@ -297,7 +297,7 @@ int ray_aabb_intersection(aabb_t* aabb, vector_t* a, vector_t* b, vector_t* ip)
     plane_t planes[6];
     int i, j, ipfound = 0;
     vector_t lip;
-    float ipad;
+    float ipad = 0;
     plane_from_three_points_xyz(planes + 0, aabb->min.x, aabb->max.y, aabb->min.z, aabb->min.x, aabb->max.y, aabb->max.z, aabb->max.x, aabb->max.y, aabb->min.z);
     plane_from_three_points_xyz(planes + 1, aabb->min.x, aabb->max.y, aabb->max.z, aabb->min.x, aabb->min.y, aabb->max.z, aabb->max.x, aabb->max.y, aabb->max.z);
     plane_from_three_points_xyz(planes + 2, aabb->min.x, aabb->min.y, aabb->max.z, aabb->min.x, aabb->min.y, aabb->min.z, aabb->max.x, aabb->min.y, aabb->max.z);

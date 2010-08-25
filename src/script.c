@@ -381,6 +381,48 @@ static void reg_editor_procs(void)
 }
 
 /* World procs */
+static lil_value_t nat_save(lil_t lil, size_t argc, lil_value_t* argv)
+{
+    lil_value_t filename;
+    int i;
+    if (argc < 1) {
+        console_write("not enough arguments in save"); console_newline();
+        return NULL;
+    }
+    filename = lil_alloc_string("data/worlds/");
+    lil_append_val(filename, argv[0]);
+    lil_append_string(filename, ".alw");
+    i = world_save(lil_to_string(filename));
+    if (!i) {
+        console_write("failed to save the world in ");
+        console_write(lil_to_string(filename));
+        console_newline();
+    }
+    lil_free_value(filename);
+    return lil_alloc_integer(i);
+}
+
+static lil_value_t nat_load(lil_t lil, size_t argc, lil_value_t* argv)
+{
+    lil_value_t filename;
+    int i;
+    if (argc < 1) {
+        console_write("not enough arguments in load"); console_newline();
+        return NULL;
+    }
+    filename = lil_alloc_string("data/worlds/");
+    lil_append_val(filename, argv[0]);
+    lil_append_string(filename, ".alw");
+    i = world_load(lil_to_string(filename));
+    if (!i) {
+        console_write("failed to load the world from ");
+        console_write(lil_to_string(filename));
+        console_newline();
+    }
+    lil_free_value(filename);
+    return lil_alloc_integer(i);
+}
+
 static lil_value_t nat_get_map_size(lil_t lil, size_t argc, lil_value_t* argv)
 {
     char tmp[64];
@@ -576,6 +618,38 @@ static lil_value_t nat_call_entity_attribute(lil_t lil, size_t argc, lil_value_t
     return ent_call_attr(ent, lil_to_string(argv[1]));
 }
 
+static lil_value_t nat_get_entity_class(lil_t lil, size_t argc, lil_value_t* argv)
+{
+    entity_t* ent;
+    if (argc < 1) {
+        console_write("not enough arguments in get-entity-class"); console_newline();
+        return NULL;
+    }
+    ent = or_get(OT_ENTITY, lil_to_integer(argv[0]));
+    if (!ent) {
+        console_write("invalid entity reference"); console_newline();
+        return NULL;
+    }
+    return lil_alloc_string(ent->class);
+}
+
+static lil_value_t nat_set_entity_class(lil_t lil, size_t argc, lil_value_t* argv)
+{
+    entity_t* ent;
+    if (argc < 2) {
+        console_write("not enough arguments in set-entity-class"); console_newline();
+        return NULL;
+    }
+    ent = or_get(OT_ENTITY, lil_to_integer(argv[0]));
+    if (!ent) {
+        console_write("invalid entity reference"); console_newline();
+        return NULL;
+    }
+    free(ent->class);
+    ent->class = strdup(lil_to_string(argv[1]));
+    return lil_alloc_string(ent->class);
+}
+
 static lil_value_t nat_set_cell_texture(lil_t lil, size_t argc, lil_value_t* argv)
 {
     int part, cx, cy;
@@ -733,7 +807,7 @@ static lil_value_t nat_update_cell(lil_t lil, size_t argc, lil_value_t* argv)
 static lil_value_t nat_get_cell_texture(lil_t lil, size_t argc, lil_value_t* argv)
 {
     int part, cx, cy;
-    texture_t* tex;
+    texture_t* tex = NULL;
     if (argc < 3) {
         console_write("not enough arguments in get-cell-texture"); console_newline();
         return NULL;
@@ -758,6 +832,7 @@ static lil_value_t nat_get_cell_texture(lil_t lil, size_t argc, lil_value_t* arg
     case 1: tex = cell[cy*map_width + cx].uppertex; break;
     case 2: tex = cell[cy*map_width + cx].lowetex; break;
     case 3: tex = cell[cy*map_width + cx].bottomtex; break;
+    default: return NULL;
     }
     return lil_alloc_integer(or_new(OT_TEXTURE, tex));
 }
@@ -1011,6 +1086,8 @@ static lil_value_t nat_get_light_radius(lil_t lil, size_t argc, lil_value_t* arg
 
 static void reg_world_procs(void)
 {
+    lil_register(lil, "save", nat_save);
+    lil_register(lil, "load", nat_load);
     lil_register(lil, "get-map-size", nat_get_map_size);
     lil_register(lil, "get-entity-count", nat_get_entity_count);
     lil_register(lil, "get-light-count", nat_get_light_count);
@@ -1027,6 +1104,8 @@ static void reg_world_procs(void)
     lil_register(lil, "get-entity-rotation", nat_get_entity_rotation);
     lil_register(lil, "get-entity-attribute", nat_get_entity_attribute);
     lil_register(lil, "call-entity-attribute", nat_call_entity_attribute);
+    lil_register(lil, "get-entity-class", nat_get_entity_class);
+    lil_register(lil, "set-entity-class", nat_set_entity_class);
     lil_register(lil, "set-cell-texture", nat_set_cell_texture);
     lil_register(lil, "set-cell-floor-height", nat_set_cell_floor_height);
     lil_register(lil, "set-cell-ceiling-height", nat_set_cell_ceiling_height);
@@ -1404,5 +1483,6 @@ entity_t* ent_new_by_class(const char* clsname)
     ent = or_get(OT_ENTITY, lil_to_integer(entval));
     lil_free_value(entval);
     free(funcname);
+    if (ent && !ent->class) ent->class = strdup(clsname);
     return ent;
 }

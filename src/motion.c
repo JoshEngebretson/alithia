@@ -153,8 +153,8 @@ static int collision_entity_check(collcheck_t* ct)
 {
     int cc = ((int)ct->np.x)/(CLUSTERSIZE*CELLSIZE);
     int cr = ((int)ct->np.z)/(CLUSTERSIZE*CELLSIZE);
-    int x, y;
     /* TODO: use the following code once entity_t has a list of touching clusters
+    int x, y;
     int x1 = ((int)ct->aabb.min.x)/(CLUSTERSIZE*CELLSIZE);
     int y1 = ((int)ct->aabb.min.z)/(CLUSTERSIZE*CELLSIZE);
     int x2 = ((int)ct->aabb.max.x)/(CLUSTERSIZE*CELLSIZE);

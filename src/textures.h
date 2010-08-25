@@ -26,8 +26,10 @@
 
 typedef struct _texture_t
 {
+    const char* bankname;
     GLuint name;
     int bucket;
+    uint32_t foffset;
 } texture_t;
 
 typedef struct _texbankitem_t

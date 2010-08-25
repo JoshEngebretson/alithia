@@ -81,10 +81,6 @@ int mouse_sx = 0;
 int mouse_sy = 0;
 int draw_wire = 0;
 float pla, pll;
-texture_t* tex_bricks;
-texture_t* tex_floor;
-texture_t* tex_stuff;
-texture_t* tex_wtf;
 texture_t* pointer_cursor;
 texture_t* skybox_left;
 texture_t* skybox_right;
@@ -945,7 +941,6 @@ static void draw_aabb_outline(aabb_t* aabb)
 
 static void render_world(void)
 {
-    static int init_frames = 10;
     int x, y, i;
     entity_t* e[MAX_VISIBLE_ENTITIES];
     int ec = 0;
@@ -965,8 +960,8 @@ static void render_world(void)
     else
         glClear(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
-    if (init_frames)
-        init_frames--;
+    if (world_init_frames)
+        world_init_frames--;
 
     /* prepare for rendering the perspective from camera */
     glMatrixMode(GL_PROJECTION);
@@ -1024,7 +1019,7 @@ static void render_world(void)
                 cls->visible = box_in_frustum(&cls->aabb);
             }
             /* inside */
-            if (cls->visible || init_frames > 0) {
+            if (cls->visible || world_init_frames > 0) {
                 int i;
                 if (!cls->part) {
                     int x1 = x * CLUSTERSIZE;
@@ -1349,7 +1344,7 @@ static void render_world(void)
         for (x = 0; x < cluster_width; x++) {
             cluster_t* cls = cluster + y * cluster_width + x;
             /* inside */
-            if (cls->visible || init_frames > 0) {
+            if (cls->visible || world_init_frames > 0) {
                 size_t i;
                 for (i=0; i<cls->tris; i++) {
                     glVertex3fv(&cls->tri[i].v[0].x);
@@ -1435,10 +1430,22 @@ static void render_hud(void)
     glDisable(GL_CULL_FACE);
     glDisable(GL_DEPTH_TEST);
 
-    glColor4f(1, 1, 1, 1);
-    font_render(font_normal, -1, 1 - 0.06f, status, statlen, 0.06f);
+    /* console shadow */
+    glColor4f(0, 0, 0, 1);
+    font_render(font_normal, -1 + pixelw, 1 - 0.06f - pixelh, status, statlen, 0.06f);
+    for (i=0; i<8; i++) {
+        if (console_line[i].len)
+            font_render(font_normal, -1.0f + pixelw, 1.0f - 0.12f - 0.06f*i - pixelh, console_line[i].text, console_line[i].len, 0.06f);
+    }
+    if (console_mode) {
+        char tmp[258];
+        sprintf(tmp, "> %s", console_command);
+        font_render(font_normal, -1.0f + 0.06f + pixelw, -1.0f + 0.06f - pixelh, tmp, -1.0f, 0.06f);
+    }
 
     /* console */
+    glColor4f(1, 1, 1, 1);
+    font_render(font_normal, -1, 1 - 0.06f, status, statlen, 0.06f);
     for (i=0; i<8; i++) {
         if (console_line[i].len)
             font_render(font_normal, -1.0f, 1.0f - 0.12f - 0.06f*i, console_line[i].text, console_line[i].len, 0.06f);
@@ -1487,7 +1494,7 @@ static void render(void)
         uint32_t ticks = SDL_GetTicks();
         double diff = ((double) (ticks - mark)) / 10.0f;
         sprintf(status, "%0.2f FPS (%0.2f ms/frame) %i entities", (float) (1000.0f
-            / diff), diff, ents->count);
+            / diff), diff, (int)ents->count);
         statlen = strlen(status);
         mark = SDL_GetTicks();
         frames = 0;
@@ -1535,7 +1542,6 @@ static void update_game(float ms)
 /* Game screen */
 static void gamescreen_update(float ms)
 {
-    float floorz = cell[camy*map_width + camx].floorz;
     int goffup = 0, domove = 0;
     float mvx = 0, mvy = 0, mvz = 0;
     if (key[SDLK_SPACE]) {
@@ -1720,7 +1726,38 @@ static void gamescreen_render(void)
     glColor3f((float)lightmap[camy*map_width + camx].r/255.0f + 0.2f + 0.1f*sinf(pla*PI/90.0f),
         (float)lightmap[camy*map_width + camx].g/255.0f + 0.2f + 0.1f*sinf(pla*PI/90.0f),
         (float)lightmap[camy*map_width + camx].b/255.0f + 0.2f + 0.1f*sinf(pla*PI/90.0f));
-    if (mdl_gun->dl)  glCallList(mdl_gun->dl);
+    if (!mdl_gun->dl) {
+        int i, f;
+        mdl_gun->dl = glGenLists(mdl_gun->frames);
+        for (f = 0; f < mdl_gun->frames; f++) {
+            /* normal display list */
+            glNewList(mdl_gun->dl + f, GL_COMPILE);
+            glBegin(GL_TRIANGLES);
+            for (i = 0; i < mdl_gun->fc; i++) {
+                float* v = mdl_gun->v + mdl_gun->vc*8*f + (mdl_gun->f[i * 3] * 8);
+                glMultiTexCoord2f(GL_TEXTURE0, v[6], v[7]);
+                glMultiTexCoord2f(GL_TEXTURE1, v[0] / (float) map_width
+                    / CELLSIZE, v[2] / (float) map_height / CELLSIZE);
+                glNormal3f(v[3], v[4], v[5]);
+                glVertex3f(v[0], v[1], v[2]);
+                v = mdl_gun->v + mdl_gun->vc*8*f + (mdl_gun->f[i * 3 + 1] * 8);
+                glMultiTexCoord2f(GL_TEXTURE0, v[6], v[7]);
+                glMultiTexCoord2f(GL_TEXTURE1, v[0] / (float) map_width
+                    / CELLSIZE, v[2] / (float) map_height / CELLSIZE);
+                glNormal3f(v[3], v[4], v[5]);
+                glVertex3f(v[0], v[1], v[2]);
+                v = mdl_gun->v + mdl_gun->vc*8*f + (mdl_gun->f[i * 3 + 2] * 8);
+                glMultiTexCoord2f(GL_TEXTURE0, v[6], v[7]);
+                glMultiTexCoord2f(GL_TEXTURE1, v[0] / (float) map_width
+                    / CELLSIZE, v[2] / (float) map_height / CELLSIZE);
+                glNormal3f(v[3], v[4], v[5]);
+                glVertex3f(v[0], v[1], v[2]);
+            }
+            glEnd();
+            glEndList();
+        }
+    }
+    glCallList(mdl_gun->dl);
 }
 
 static int gamescreen_proc(screen_t* scr, int msg, void* data)
@@ -1750,45 +1787,20 @@ static void gamescreen_init(void)
 
 static void run(void)
 {
-    int x, y;
-    entity_t* ent;
-    tex_bricks = texbank_get("redbricks");
-    tex_floor = texbank_get("floorbrick");
-    tex_stuff = texbank_get("stuff");
-    tex_wtf = texbank_get("wtf");
     pointer_cursor = tex_load("data/other/pointer_cursor.bmp");
     tex_load_skybox("data/textures/skybox.bmp", &skybox_left, &skybox_back, &skybox_right, &skybox_bottom, &skybox_top, &skybox_front);
     decal_texture = texbank_get("alithiaposter");
-    /*    skybox_left = tex_load("data/textures/skybox_left.bmp");
-    skybox_right = tex_load("data/textures/skybox_right.bmp");
-    skybox_top = tex_load("data/textures/skybox_top.bmp");
-    skybox_bottom = tex_load("data/textures/skybox_bottom.bmp");
-    skybox_front = tex_load("data/textures/skybox_front.bmp");
-    skybox_back = tex_load("data/textures/skybox_back.bmp");*/
 
     mdl_gun = modelcache_get("gun");
 
     map_init(256, 256);
-
-    for (y=0; y<256; y++)
-        for (x=0; x<256; x++) {
-            cell_t* c = &cell[y*map_width + x];
-            c->uppertex = NULL;
-            c->lowetex = tex_bricks;
-            c->toptex = NULL;
-            c->bottomtex = tex_floor;
-        }
-
-    ent = ent_new();
-    ent_set_model(ent, mdl_gun);
-    ent_move(ent, 26*CELLSIZE, -128, 10*CELLSIZE);
+    light_new((map_width/2)*CELLSIZE, 0, (map_height/2)*CELLSIZE, 1, 1, 1, 150000);
+    lmap_update();
+    script_run_execats("map-load");
 
     calc_campoints(sqrt(256*256 + 256*256));
-    lmap_update();
 
     gamescreen_init();
-
-    script_run_execats("map-load");
 
     mark = SDL_GetTicks();
     millis = mark;

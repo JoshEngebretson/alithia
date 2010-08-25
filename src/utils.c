@@ -43,6 +43,7 @@ list_t* list_new(void)
 void list_free(list_t* list)
 {
     if (!list) return;
+    list->deleting = 1;
     while (list->first) {
         list->last = list->first->next;
         if (list->item_free) list->item_free(list->first->ptr);
@@ -54,7 +55,9 @@ void list_free(list_t* list)
 
 void list_add(list_t* list, void* ptr)
 {
-    listitem_t* item = new(listitem_t);
+    listitem_t* item;
+    if (list->deleting) return;
+    item = new(listitem_t);
     item->list = list;
     item->prev = list->last;
     item->ptr = ptr;
@@ -66,6 +69,7 @@ void list_add(list_t* list, void* ptr)
 
 void list_insert(list_t* list, void* item, void* ptr)
 {
+    if (list->deleting) return;
     if (item == NULL) {
         listitem_t* nitem = new(listitem_t);
         nitem->list = list;
@@ -93,7 +97,9 @@ void list_insert(list_t* list, void* item, void* ptr)
 
 void list_remove(list_t* list, void* ptr, int release)
 {
-    listitem_t* item = list_find(list, ptr);
+    listitem_t* item;
+    if (list->deleting) return;
+    item = list_find(list, ptr);
     if (!item) return;
     if (item->prev) item->prev->next = item->next;
     else list->first = item->next;

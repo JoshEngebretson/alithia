@@ -104,7 +104,7 @@ void tex_load_skybox(const char* filename, texture_t** left, texture_t** back, t
 {
     SDL_Surface* bmp = SDL_LoadBMP(filename);
     GLint colors;
-    GLenum format;
+    GLenum format = 0;
     if (!bmp) {
         fprintf(stderr, "failed to load '%s'\n", filename);
         return;
@@ -120,6 +120,8 @@ void tex_load_skybox(const char* filename, texture_t** left, texture_t** back, t
     } else {
         SDL_FreeSurface(bmp);
         fprintf(stderr, "unknown format for '%s' (%i bpp)\n", filename, colors);
+        *left = *back = *right = *bottom = *top = *front = NULL;
+        return;
     }
 
     *left = tex_from_surface_part(bmp, 0, 0, 256, 256, colors, format);
@@ -189,6 +191,7 @@ texture_t* texbank_add(const char* name, const char* filename)
     texbank_item[texbank_items] = new(texbankitem_t);
     texbank_item[texbank_items]->name = strdup(name);
     texbank_item[texbank_items]->tex = tex;
+    tex->bankname = texbank_item[texbank_items]->name;
     texbank_items++;
     return tex;
 }

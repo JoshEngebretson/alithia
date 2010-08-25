@@ -40,6 +40,7 @@ typedef struct _list_t
     listitem_t* last;
     size_t count;
     void (*item_free)(void* ptr);
+    int deleting;
 } list_t;
 
 void* malloc0(size_t size);

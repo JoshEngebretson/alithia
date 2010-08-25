@@ -28,7 +28,7 @@ static list_t* ais;
 static void ai_free(void* ptr)
 {
     aidata_t* ai = ptr;
-    free(ptr);
+    free(ai);
 }
 
 void ai_init(void)
