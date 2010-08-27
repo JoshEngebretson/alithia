@@ -59,10 +59,12 @@ texture_t* tex_load(const char* filename)
     gluBuild2DMipmaps(GL_TEXTURE_2D, colors, bmp->w, bmp->h, format,
         GL_UNSIGNED_BYTE, bmp->pixels);
 
-    SDL_FreeSurface(bmp);
-
     tex->name = name;
     tex->bucket = -1;
+    tex->w = bmp->w;
+    tex->h = bmp->h;
+
+    SDL_FreeSurface(bmp);
 
     return tex;
 }
@@ -77,6 +79,8 @@ static texture_t* tex_from_bgra(const uint8_t* bgra, size_t width, size_t height
     gluBuild2DMipmaps(GL_TEXTURE_2D, colors, width, height, format,
         GL_UNSIGNED_BYTE, bgra);
     tex->bucket = -1;
+    tex->w = width;
+    tex->h = height;
 
     return tex;
 }

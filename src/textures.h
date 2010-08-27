@@ -30,6 +30,7 @@ typedef struct _texture_t
     GLuint name;
     int bucket;
     uint32_t foffset;
+    size_t w, h;
 } texture_t;
 
 typedef struct _texbankitem_t

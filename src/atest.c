@@ -385,14 +385,14 @@ static void do_quad(texture_t* tex, float x1, float y1, float z1, float x2,
     }
 
     part->q = realloc(part->q, sizeof(geoquad_t)*(part->qc + 1));
-    part->q[part->qc].u[0] = (x1 * ux + y1 * uy + z1 * uz) / 256.0f;
-    part->q[part->qc].v[0] = (x1 * vx + y1 * vy + z1 * vz) / 256.0f;
-    part->q[part->qc].u[1] = (x2 * ux + y2 * uy + z2 * uz) / 256.0f;
-    part->q[part->qc].v[1] = (x2 * vx + y2 * vy + z2 * vz) / 256.0f;
-    part->q[part->qc].u[2] = (x3 * ux + y3 * uy + z3 * uz) / 256.0f;
-    part->q[part->qc].v[2] = (x3 * vx + y3 * vy + z3 * vz) / 256.0f;
-    part->q[part->qc].u[3] = (x4 * ux + y4 * uy + z4 * uz) / 256.0f;
-    part->q[part->qc].v[3] = (x4 * vx + y4 * vy + z4 * vz) / 256.0f;
+    part->q[part->qc].u[0] = (x1 * ux + y1 * uy + z1 * uz) / (float)(tex?tex->w:1);
+    part->q[part->qc].v[0] = (x1 * vx + y1 * vy + z1 * vz) / (float)(tex?tex->h:1);
+    part->q[part->qc].u[1] = (x2 * ux + y2 * uy + z2 * uz) / (float)(tex?tex->w:1);
+    part->q[part->qc].v[1] = (x2 * vx + y2 * vy + z2 * vz) / (float)(tex?tex->h:1);
+    part->q[part->qc].u[2] = (x3 * ux + y3 * uy + z3 * uz) / (float)(tex?tex->w:1);
+    part->q[part->qc].v[2] = (x3 * vx + y3 * vy + z3 * vz) / (float)(tex?tex->h:1);
+    part->q[part->qc].u[3] = (x4 * ux + y4 * uy + z4 * uz) / (float)(tex?tex->w:1);
+    part->q[part->qc].v[3] = (x4 * vx + y4 * vy + z4 * vz) / (float)(tex?tex->h:1);
 
     part->q[part->qc].x[0] = x1;
     part->q[part->qc].y[0] = y1;

@@ -386,6 +386,21 @@ static void calc_lightmap_for_cell_at(float* or, float* og, float* ob, int mx, i
     int x, y, x1, y1, x2, y2;
     listitem_t* le;
 
+    if (c->toptex == NULL) { /* open sky */
+        r += 0.5;
+        g += 0.5;
+        b += 0.5;
+    } else { /* near open sky */
+        if ((mx > 0 && !cell[my*map_width + mx - 1].toptex) ||
+            (mx < map_width - 1 && !cell[my*map_width + mx + 1].toptex) ||
+            (my > 0 && !cell[(my + 1)*map_width + mx].toptex) ||
+            (my < map_height - 1 && !cell[(my + 1)*map_width + mx].toptex)) {
+            r += 0.25;
+            g += 0.25;
+            b += 0.25;
+        }
+    }
+
     for (le=lights->first; le; le=le->next) {
         light_t* l = le->ptr;
         float dist;
@@ -414,9 +429,9 @@ static void calc_lightmap_for_cell_at(float* or, float* og, float* ob, int mx, i
             for (x=x1; x<=x2; x++) {
                 cell_t* nc = cell + y*map_width + x;
                 if (nc->floorz > c->floorz + CELLSIZE || nc->ceilz < c->ceilz - CELLSIZE || (nc->flags & CF_OCCLUDER)) {
-                    r -= 0.01;
-                    g -= 0.01;
-                    b -= 0.01;
+//                    r -= 0.003;
+//                    g -= 0.003;
+//                    b -= 0.003;
                 }
             }
         }
