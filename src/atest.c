@@ -71,6 +71,7 @@ int key[1024];
 int button[16];
 int pntx[MAX_POINTS], pnty[MAX_POINTS];
 int pntc = 0;
+float pntr = 0;
 int camx = 0, camy = 0;
 int down = 0;
 int edit_mode = 0;
@@ -215,6 +216,7 @@ static void calc_campoints(float r)
 {
     int i;
     pntc = 0;
+    pntr = r;
     for (i = 0; i < 3600; i++) {
         int px = (int) (cosf(i * PI / 1800.0f) * r);
         int py = (int) (sinf(i * PI / 1800.0f) * r);
@@ -286,6 +288,7 @@ static int proc_map(int x, int y)
 static void ray_march_for_vis(int x1, int y1, int x2, int y2)
 {
     int x, y, dx, dy, steep = abs(y2 - y1) > abs(x2 - x1), ystep = 1, error;
+    int force_step = CLUSTERSIZE; /* ignore occluders for the first steps */
     if (steep) {
         x = x1;
         x1 = y1;
@@ -302,21 +305,23 @@ static void ray_march_for_vis(int x1, int y1, int x2, int y2)
         y = y1;
         if (steep) {
             for (x = x1; x > x2; x--) {
-                if (!proc_map(y, x)) return;
+                if (!proc_map(y, x) && !force_step) return;
                 error -= dy;
                 if (error < 0) {
                     y -= ystep;
                     error += dx;
                 }
+                force_step = force_step?(force_step - 1):0;
             }
         } else {
             for (x = x1; x > x2; x--) {
-                if (!proc_map(x, y)) return;
+                if (!proc_map(x, y) && !force_step) return;
                 error -= dy;
                 if (error < 0) {
                     y -= ystep;
                     error += dx;
                 }
+                force_step = force_step?(force_step - 1):0;
             }
         }
     } else {
@@ -327,21 +332,23 @@ static void ray_march_for_vis(int x1, int y1, int x2, int y2)
         y = y1;
         if (steep) {
             for (x = x1; x < x2; x++) {
-                if (!proc_map(y, x)) return;
+                if (!proc_map(y, x) && !force_step) return;
                 error -= dy;
                 if (error < 0) {
                     y += ystep;
                     error += dx;
                 }
+                force_step = force_step?(force_step - 1):0;
             }
         } else {
             for (x = x1; x < x2; x++) {
-                if (!proc_map(x, y)) return;
+                if (!proc_map(x, y) && !force_step) return;
                 error -= dy;
                 if (error < 0) {
                     y += ystep;
                     error += dx;
                 }
+                force_step = force_step?(force_step - 1):0;
             }
         }
     }
