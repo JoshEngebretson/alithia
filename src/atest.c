@@ -277,9 +277,18 @@ static void bar(float x1, float y1, float x2, float y2)
 static int proc_map(int x, int y)
 {
     int addr;
-    cluster[(y / CLUSTERSIZE) * cluster_width + (x / CLUSTERSIZE)].visible = 1;
-    if (x / CLUSTERSIZE < cluster_width - 1) cluster[(y / CLUSTERSIZE)
-        * cluster_width + (x / CLUSTERSIZE) + 1].visible = 1;
+#define proc_map_part(xx,yy) cluster[((yy) / CLUSTERSIZE) * cluster_width + ((xx) / CLUSTERSIZE)].visible = 1;
+//    proc_map_part(x, y)
+    if (x > 0 && y > 0 && x < map_width - 1 && y < map_height - 1) {
+        proc_map_part(x, y - 1)
+        proc_map_part(x - 1, y)
+        proc_map_part(x + 1, y)
+        proc_map_part(x, y + 1)
+    }
+#undef proc_map_part
+    //    cluster[(y / CLUSTERSIZE) * cluster_width + (x / CLUSTERSIZE)].visible = 1;
+//    if (x / CLUSTERSIZE < cluster_width - 1) cluster[(y / CLUSTERSIZE)
+//        * cluster_width + (x / CLUSTERSIZE) + 1].visible = 1;
 
     addr = y*map_width + x;
     return !(ocmap[(addr>>3)] & (1 << (addr&7)));
@@ -1510,8 +1519,8 @@ static void render(void)
     if (++frames == 10) {
         uint32_t ticks = SDL_GetTicks();
         double diff = ((double) (ticks - mark)) / 10.0f;
-        sprintf(status, "%0.2f FPS (%0.2f ms/frame) %i entities", (float) (1000.0f
-            / diff), diff, (int)ents->count);
+        sprintf(status, "%0.2f FPS (%0.2f ms/frame) %i entities %i vclusters", (float) (1000.0f
+            / diff), diff, (int)ents->count, vclusters);
         statlen = strlen(status);
         mark = SDL_GetTicks();
         frames = 0;
