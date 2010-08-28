@@ -962,6 +962,7 @@ static void render_world(void)
     /* prepare scene for rendering */
     glClearColor(0.1f, 0.12f, 0.2f, 1.0f);
     glClearStencil(0);
+    glClearDepth(1);
     if (draw_wire || active_screen->do_clear)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     else
@@ -980,15 +981,16 @@ static void render_world(void)
     glRotatef(-pll, 1, 0, 0);
     glRotatef(-pla, 0, 1, 0);
 
-    render_skybox();
+    camx = camera_ent->p.x/CELLSIZE;
+    camy = camera_ent->p.z/CELLSIZE;
 
+    /* push current matrix (will be popped at skybox drawing below),
+     * setup translation, vmtx and vport */
+    glPushMatrix();
     glTranslatef(-camera_ent->p.x, -camera_ent->p.y-goffy*1.5f, -camera_ent->p.z);
     glGetDoublev(GL_MODELVIEW_MATRIX, vmtx);
     glColor3f(1, 1, 1);
     glGetIntegerv(GL_VIEWPORT, vport);
-
-    camx = camera_ent->p.x/CELLSIZE;
-    camy = camera_ent->p.z/CELLSIZE;
 
     /* calculate frustum planes */
     calc_frustum_planes();
@@ -1007,8 +1009,6 @@ static void render_world(void)
     glEnable(GL_CULL_FACE);
     glEnable(GL_DEPTH_TEST);
     glActiveTexture(GL_TEXTURE0);
-    glEnable(GL_TEXTURE_2D);
-    glActiveTexture(GL_TEXTURE1);
     glEnable(GL_TEXTURE_2D);
     glActiveTexture(GL_TEXTURE1);
     glEnable(GL_TEXTURE_2D);
@@ -1178,8 +1178,23 @@ static void render_world(void)
         add_list_to_bucket(ent->mdl->tex, ent->mdl->dl + ent->frame, ent->mtx);
     }
 
-    glEnable(GL_LIGHT0);
-    glLightfv(GL_LIGHT0, GL_POSITION, pos);
+    /* render skybox bucket */
+    if (skybox_bucket > -1 && bucket[skybox_bucket].dlc) {
+        glEnable(GL_STENCIL_TEST);
+        glStencilFunc(GL_ALWAYS, 1, 1);
+        glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+        glColorMask(0, 0, 0, 0);
+        for (i = 0; i<bucket[skybox_bucket].dlc; i++)
+            glCallList(bucket[skybox_bucket].dl[i]);
+        bucket[skybox_bucket].dlc = 0;
+        glColorMask(1, 1, 1, 1);
+        glStencilFunc(GL_EQUAL, 1, 1);
+        glStencilOp(GL_ZERO, GL_ZERO, GL_ZERO);
+        glPopMatrix();
+        render_skybox();
+        glDisable(GL_STENCIL_TEST);
+    } else glPopMatrix();
+    glTranslatef(-camera_ent->p.x, -camera_ent->p.y-goffy*1.5f, -camera_ent->p.z);
 
     /* render buckets */
     glActiveTexture(GL_TEXTURE1);
@@ -1187,13 +1202,8 @@ static void render_world(void)
     glBindTexture(GL_TEXTURE_2D, lmaptex);
     glActiveTexture(GL_TEXTURE0);
 
-    if (skybox_bucket > -1 && bucket[skybox_bucket].dlc) {
-        glColorMask(0, 0, 0, 0);
-        for (i = 0; i<bucket[skybox_bucket].dlc; i++)
-            glCallList(bucket[skybox_bucket].dl[i]);
-        bucket[skybox_bucket].dlc = 0;
-        glColorMask(1, 1, 1, 1);
-    }
+    glEnable(GL_LIGHT0);
+    glLightfv(GL_LIGHT0, GL_POSITION, pos);
 
     for (i = 0; i < buckets; i++)
         if (bucket[i].dlc) {
