@@ -288,7 +288,7 @@ static int proc_map(int x, int y)
 static void ray_march_for_vis(int x1, int y1, int x2, int y2)
 {
     int x, y, dx, dy, steep = abs(y2 - y1) > abs(x2 - x1), ystep = 1, error;
-    int force_step = CLUSTERSIZE; /* ignore occluders for the first steps */
+    int force_step = 4; /* ignore occluders for the first steps */
     if (steep) {
         x = x1;
         x1 = y1;
@@ -305,7 +305,7 @@ static void ray_march_for_vis(int x1, int y1, int x2, int y2)
         y = y1;
         if (steep) {
             for (x = x1; x > x2; x--) {
-                if (!proc_map(y, x) && !force_step) return;
+                if (x < 0 || y < 0 || x >= map_height || y >= map_width || (!proc_map(y, x) && !force_step)) return;
                 error -= dy;
                 if (error < 0) {
                     y -= ystep;
@@ -315,7 +315,7 @@ static void ray_march_for_vis(int x1, int y1, int x2, int y2)
             }
         } else {
             for (x = x1; x > x2; x--) {
-                if (!proc_map(x, y) && !force_step) return;
+                if (x < 0 || y < 0 || x >= map_width || y >= map_height || (!proc_map(x, y) && !force_step)) return;
                 error -= dy;
                 if (error < 0) {
                     y -= ystep;
@@ -332,7 +332,7 @@ static void ray_march_for_vis(int x1, int y1, int x2, int y2)
         y = y1;
         if (steep) {
             for (x = x1; x < x2; x++) {
-                if (!proc_map(y, x) && !force_step) return;
+                if (x < 0 || y < 0 || x >= map_height || y >= map_width || (!proc_map(y, x) && !force_step)) return;
                 error -= dy;
                 if (error < 0) {
                     y += ystep;
@@ -342,7 +342,7 @@ static void ray_march_for_vis(int x1, int y1, int x2, int y2)
             }
         } else {
             for (x = x1; x < x2; x++) {
-                if (!proc_map(x, y) && !force_step) return;
+                if (x < 0 || y < 0 || x >= map_width || y >= map_height || (!proc_map(x, y) && !force_step)) return;
                 error -= dy;
                 if (error < 0) {
                     y += ystep;
