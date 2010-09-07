@@ -122,6 +122,8 @@ void map_init(int width, int height)
             map_update_cell(x, y);
 
     world_init_frames = 10;
+
+    plfov = arg_intval("-fov", 66);
 }
 
 void map_free(void)

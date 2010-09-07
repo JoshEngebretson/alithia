@@ -29,6 +29,7 @@ PFNGLMULTITEXCOORD2FARBPROC glMultiTexCoord2f;
 #endif
 int vid_width;
 int vid_height;
+int vid_anisotropy;
 float wh_ratio;
 float hw_ratio;
 float pixelw;
@@ -73,6 +74,8 @@ int vid_init(void)
 
     vid_width = width;
     vid_height = height;
+    vid_anisotropy = arg_intval("-anisotropy", 1);
+    if (vid_anisotropy < 1) vid_anisotropy = 1;
 
     if (bpp == 32 || bpp == 24) {
         SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);

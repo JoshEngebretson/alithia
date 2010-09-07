@@ -76,7 +76,7 @@ extern float mouse_x;
 extern float mouse_y;
 extern int mouse_sx;
 extern int mouse_sy;
-extern float pla, pll;
+extern float pla, pll, plfov;
 extern float frustum[6][4];
 extern float proj[16];
 extern float modl[16];

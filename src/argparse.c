@@ -25,6 +25,8 @@
 
 const char* arg_value(const char* name, const char* defvalue)
 {
+    const char* r;
+    char* varname;
     int i;
     for (i=0; i<argc; i++) {
         if (!strcmp(argv[i], name)) {
@@ -33,7 +35,11 @@ const char* arg_value(const char* name, const char* defvalue)
             return "";
         }
     }
-    return "";
+    varname = malloc(strlen(name) + 15);
+    sprintf(varname, "engine:default%s", name);
+    r = lil_to_string(lil_get_var(lil, varname));
+    free(varname);
+    return r;
 }
 
 int arg_intval(const char* name, int defvalue)

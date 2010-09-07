@@ -65,7 +65,7 @@ motion_t* mot_new(entity_t* ent)
     mot->ent = ent;
     mot->airf = 0.98f;
     mot->bncf = 0.1f;
-    mot->g.y = -8;
+    mot->g.y = -16;
     mot->frf = 0.45f;
     mot->fdf = 0.45f;
     mot->wldf = 0.95f;

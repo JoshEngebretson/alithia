@@ -30,6 +30,7 @@ extern PFNGLMULTITEXCOORD2FPROC glMultiTexCoord2f;
 #endif
 extern int vid_width;
 extern int vid_height;
+extern int vid_anisotropy;
 extern float wh_ratio;
 extern float hw_ratio;
 extern float pixelw;

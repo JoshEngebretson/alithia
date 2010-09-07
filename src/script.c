@@ -1084,6 +1084,16 @@ static lil_value_t nat_get_light_radius(lil_t lil, size_t argc, lil_value_t* arg
     return lil_alloc_double(light->rad);
 }
 
+static lil_value_t nat_fov(lil_t lil, size_t argc, lil_value_t* argv)
+{
+    if (argc) {
+        plfov = lil_to_double(argv[0]);
+        if (plfov < 15) plfov = 15;
+        if (plfov > 179) plfov = 179;
+    }
+    return lil_alloc_double(plfov);
+}
+
 static void reg_world_procs(void)
 {
     lil_register(lil, "save", nat_save);
@@ -1125,6 +1135,7 @@ static void reg_world_procs(void)
     lil_register(lil, "get-light-position", nat_get_light_position);
     lil_register(lil, "get-light-color", nat_get_light_color);
     lil_register(lil, "get-light-radius", nat_get_light_radius);
+    lil_register(lil, "fov", nat_fov);
 }
 
 /* Game procs */

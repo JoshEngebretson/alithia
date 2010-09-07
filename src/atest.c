@@ -81,7 +81,7 @@ float mouse_y = 0;
 int mouse_sx = 0;
 int mouse_sy = 0;
 int draw_wire = 0;
-float pla, pll;
+float pla, pll, plfov;
 texture_t* pointer_cursor;
 texture_t* skybox_left;
 texture_t* skybox_right;
@@ -983,7 +983,7 @@ static void render_world(void)
     /* prepare for rendering the perspective from camera */
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    gluPerspective(60.0f, wh_ratio, 1.0f, 65536.0f);
+    gluPerspective(plfov, wh_ratio, 1.0f, 65536.0f);
     glGetDoublev(GL_PROJECTION_MATRIX, pmtx);
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
@@ -1570,7 +1570,7 @@ static void gamescreen_update(float ms)
 {
     int goffup = 0, domove = 0;
     float mvx = 0, mvy = 0, mvz = 0;
-    if (key[SDLK_SPACE]) {
+    if (key[SDLK_SPACE]) {/*
         static float foo = 0;
         foo += ms;
         while (foo >= 100) {
@@ -1595,30 +1595,30 @@ static void gamescreen_update(float ms)
             mot->f.y = sinf(pll*PI/180.0f)*200.0f;
             mot->f.z = -cosf(pla*PI/180.0f)*200.0f;
             foo -= 100;
-        }
+        }*/
     }
     if (key[SDLK_w]) {
         domove = 1;
-        mvx = -sinf(pla*PI/180.0f)*50.0f;
-        mvz = -cosf(pla*PI/180.0f)*50.0f;
+        mvx = -sinf(pla*PI/180.0f)*35.0f;
+        mvz = -cosf(pla*PI/180.0f)*35.0f;
         goffv += ms/170.0f; goffup = 1;
     }
     if (key[SDLK_s]) {
         domove = 1;
-        mvx += sinf(pla*PI/180.0f)*50.0f;
-        mvz += cosf(pla*PI/180.0f)*50.0f;
+        mvx += sinf(pla*PI/180.0f)*35.0f;
+        mvz += cosf(pla*PI/180.0f)*35.0f;
         if (!key[SDLK_w] && !goffup) goffv -= ms/270.0f; goffup = 1;
     }
     if (key[SDLK_a]) {
         domove = 1;
-        mvx += sinf((pla-90.0f)*PI/180.0f)*50.0f;
-        mvz += cosf((pla-90.0f)*PI/180.0f)*50.0f;
+        mvx += sinf((pla-90.0f)*PI/180.0f)*35.0f;
+        mvz += cosf((pla-90.0f)*PI/180.0f)*35.0f;
         if (!goffup) goffv += ms/370.0f; goffup = 1;
     }
     if (key[SDLK_d]) {
         domove = 1;
-        mvx += sinf((pla+90.0f)*PI/180.0f)*50.0f;
-        mvz += cosf((pla+90.0f)*PI/180.0f)*50.0f;
+        mvx += sinf((pla+90.0f)*PI/180.0f)*35.0f;
+        mvz += cosf((pla+90.0f)*PI/180.0f)*35.0f;
         if (!goffup) goffv += ms/370.0f; goffup = 1;
     }
     if (goffup) {
@@ -1708,7 +1708,7 @@ static void gamescreen_sdl_event(SDL_Event ev)
         if (ev.button.button == 3) {
             motion_t* mot = player_ent->mot;
             if (mot->onground) {
-                mot_force(player_ent->mot, 0, 48, 0);
+                mot_force(player_ent->mot, 0, 64, 0);
                 mot->onground = 0;
             }
         }
@@ -1743,6 +1743,7 @@ static void gamescreen_render(void)
     glRotatef(pll/23, 1, 0, 0);
     glTranslatef(-13+goffx, -23+pll/20-3+goffy, 38);
 
+#if 0
     glActiveTexture(GL_TEXTURE1);
     glDisable(GL_TEXTURE_2D);
     glActiveTexture(GL_TEXTURE0);
@@ -1784,6 +1785,7 @@ static void gamescreen_render(void)
         }
     }
     glCallList(mdl_gun->dl);
+#endif
 }
 
 static int gamescreen_proc(screen_t* scr, int msg, void* data)
@@ -1820,13 +1822,14 @@ static void run(void)
     mdl_gun = modelcache_get("gun");
 
     map_init(256, 256);
-    light_new((map_width/2)*CELLSIZE, 0, (map_height/2)*CELLSIZE, 1, 1, 1, 150000);
-    lmap_update();
-    script_run_execats("map-load");
 
     calc_campoints(sqrt(256*256 + 256*256));
 
     gamescreen_init();
+
+    script_run_execats("game-init");
+
+    SDL_WM_SetCaption(arg_value("-window-caption", "Alithia Engine"), arg_value("-window-caption", "Alithia Engine"));
 
     mark = SDL_GetTicks();
     millis = mark;
@@ -1853,12 +1856,12 @@ int main(int _argc, char *_argv[])
 {
     argc = _argc;
     argv = _argv;
+    script_init();
     if (!vid_init()) return 1;
     font_init();
     texbank_init();
     gui_init();
     editor_init();
-    script_init();
     mot_init();
     ai_init();
 
@@ -1867,12 +1870,12 @@ int main(int _argc, char *_argv[])
     ai_shutdown();
     mot_shutdown();
     modelcache_clear();
-    script_shutdown();
     editor_shutdown();
     screen_free(gamescreen);
     gui_shutdown();
     texbank_shutdown();
     font_shutdown();
     vid_shutdown();
+    script_shutdown();
     return 0;
 }

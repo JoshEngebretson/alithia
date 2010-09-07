@@ -55,6 +55,7 @@ texture_t* tex_load(const char* filename)
     glBindTexture(GL_TEXTURE_2D, name);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, vid_anisotropy);
 
     gluBuild2DMipmaps(GL_TEXTURE_2D, colors, bmp->w, bmp->h, format,
         GL_UNSIGNED_BYTE, bmp->pixels);
@@ -76,6 +77,7 @@ static texture_t* tex_from_bgra(const uint8_t* bgra, size_t width, size_t height
     glBindTexture(GL_TEXTURE_2D, tex->name);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, vid_anisotropy);
     gluBuild2DMipmaps(GL_TEXTURE_2D, colors, width, height, format,
         GL_UNSIGNED_BYTE, bgra);
     tex->bucket = -1;
