@@ -66,13 +66,13 @@ if not os.path.isfile(lil_path + "/lil.h"):
 if profiling and cc == 'clang':
     cc = 'gcc'
 if debug:
-    common_cflags = '-Wall -g3 -I' + lil_path
+    common_cflags = '-m32 -Wall -g3 -I' + lil_path
     if (not optimize):
         common_cflags = common_cflags + ' -O0'
-    common_ldflags = '-g -L' + lil_path + ' -llil'
+    common_ldflags = '-m32 -g -L' + lil_path + ' -llil'
 else:
-    common_cflags = '-Wall -fomit-frame-pointer -I' + lil_path
-    common_ldflags = '-L' + lil_path + ' -llil'
+    common_cflags = '-m32 -Wall -fomit-frame-pointer -I' + lil_path
+    common_ldflags = '-m32 -L' + lil_path + ' -llil'
 if optimize or (not debug):
     if cc != 'clang':
         common_cflags = common_cflags + ' -O3 -ffast-math'

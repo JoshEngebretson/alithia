@@ -395,7 +395,7 @@ static void calc_lightmap_for_cell_at(float* or, float* og, float* ob, int mx, i
     } else { /* near open sky */
         if ((mx > 0 && !cell[my*map_width + mx - 1].toptex) ||
             (mx < map_width - 1 && !cell[my*map_width + mx + 1].toptex) ||
-            (my > 0 && !cell[(my + 1)*map_width + mx].toptex) ||
+            (my > 0 && !cell[(my - 1)*map_width + mx].toptex) ||
             (my < map_height - 1 && !cell[(my + 1)*map_width + mx].toptex)) {
             r += 0.25;
             g += 0.25;
