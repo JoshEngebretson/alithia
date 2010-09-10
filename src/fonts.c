@@ -27,7 +27,7 @@ font_t* font_normal;
 
 void font_init(void)
 {
-    font_normal = font_load("data/fonts/normal.bifo");
+    font_normal = font_load("fonts/normal.bifo");
 }
 
 void font_shutdown(void)
@@ -38,7 +38,7 @@ void font_shutdown(void)
 font_t* font_load(const char* filename)
 {
     font_t* font = new(font_t);
-    FILE* f = fopen(filename, "rb");
+    FILE* f = rio_open(filename, NULL);
     char id[4];
     int i, bmp_width, bmp_height;
     unsigned char byte, byte2;
@@ -109,7 +109,7 @@ fail:
 
 void font_free(font_t* font)
 {
-    if (font->tex) {
+    if (font && font->tex) {
         glBindTexture(GL_TEXTURE_2D, font->tex);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE8, 0, 0, 0, GL_LUMINANCE8, GL_UNSIGNED_BYTE, NULL);
         glDeleteTextures(1, &font->tex);
@@ -122,6 +122,7 @@ void font_render_ex(font_t* font, float x, float y, const char* str, int len, fl
 {
     float sx = x;
     float w = 0;
+    if (!font) return;
     glPushClientAttrib(GL_ALL_ATTRIB_BITS);
     glPushAttrib(GL_ALL_ATTRIB_BITS);
     glActiveTexture(GL_TEXTURE1);
@@ -176,6 +177,7 @@ void font_render(font_t* font, float x, float y, const char* str, int len, float
 float font_width(font_t* font, const char* str, int len, float size)
 {
     float w = 0;
+    if (!font) return 0.001;
     if (len == -1) len = strlen(str);
     while (len > 0) {
         fontcharinfo_t* ci;

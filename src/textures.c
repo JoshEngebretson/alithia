@@ -26,10 +26,43 @@
 texbankitem_t** texbank_item;
 size_t texbank_items;
 
+static SDL_Surface* load_surface_from_file(const char* filename)
+{
+    size_t size;
+    void* data = rio_read(filename, &size);
+    SDL_Surface* surf = NULL;
+
+    if (data) {
+        SDL_RWops* rw = SDL_RWFromConstMem(data, size);
+        surf = SDL_LoadBMP_RW(rw, 1);
+        free(data);
+    }
+
+    if (!surf) {
+        uint32_t* pixels;
+        surf = SDL_CreateRGBSurface(SDL_SWSURFACE, 8, 8, 32, 0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000);
+        pixels = surf->pixels;
+        int i;
+        const char* bmp = "        "
+                          "  XXX   "
+                          " X   X  "
+                          "    X   "
+                          "   X    "
+                          "        "
+                          "   X    "
+                          "        ";
+        for (i=0; i<64; i++)
+            pixels[i] = bmp[i] == ' ' ? 0xffe7cca4 : 0xff000000;
+
+    }
+
+    return surf;
+}
+
 texture_t* tex_load(const char* filename)
 {
     texture_t* tex = new(texture_t);
-    SDL_Surface* bmp = SDL_LoadBMP(filename);
+    SDL_Surface* bmp = load_surface_from_file(filename);
     GLuint name;
     GLenum format;
     GLint colors;
@@ -108,7 +141,7 @@ static texture_t* tex_from_surface_part(SDL_Surface* s, size_t left, size_t top,
 
 void tex_load_skybox(const char* filename, texture_t** left, texture_t** back, texture_t** right, texture_t** bottom, texture_t** top, texture_t** front)
 {
-    SDL_Surface* bmp = SDL_LoadBMP(filename);
+    SDL_Surface* bmp = load_surface_from_file(filename);
     GLint colors;
     GLenum format = 0;
     if (!bmp) {
@@ -150,30 +183,31 @@ void tex_free(texture_t* tex)
 
 void texbank_init(void)
 {
-    struct dirent* de;
-    DIR* dir;
+    list_t* files;
+    listitem_t* it;
 
     texbank_item = NULL;
     texbank_items = 0;
 
-    dir = opendir("data/textures");
-    while ((de = readdir(dir))) {
-        if (strstr(de->d_name, ".bmp")) {
-            char* tmp = strdup(de->d_name);
-            char* tmpfilename = malloc(strlen(de->d_name) + 16);
+    files = rio_files("textures");
+    for (it=files->first; it; it=it->next) {
+        const char* file = it->ptr;
+        if (strstr(file, ".bmp")) {
+            char* tmp = strdup(file);
+            char* tmpfilename = malloc(strlen(file) + 16);
             int i;
             for (i=strlen(tmp)-1; i>=0; i--)
                 if (tmp[i] == '.') {
                     tmp[i] = 0;
                     break;
                 }
-            sprintf(tmpfilename, "data/textures/%s", de->d_name);
+            sprintf(tmpfilename, "textures/%s", file);
             texbank_add(tmp, tmpfilename);
             free(tmpfilename);
             free(tmp);
         }
     }
-    closedir(dir);
+    list_free(files);
 }
 
 void texbank_shutdown(void)

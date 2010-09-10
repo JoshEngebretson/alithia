@@ -109,6 +109,7 @@ struct {
 } console_line[8];
 int console_curline;
 entity_t* camera_ent;
+int framedelay, framedelayoffs = 0;
 
 void console_clear(void)
 {
@@ -1521,6 +1522,11 @@ static void render(void)
         double diff = ((double) (ticks - mark)) / 10.0f;
         sprintf(status, "%0.2f FPS (%0.2f ms/frame) %i entities %i vclusters", (float) (1000.0f
             / diff), diff, (int)ents->count, vclusters);
+        if (framedelay > 10) {
+            framedelayoffs = (int)(diff - framedelay);
+            if (framedelayoffs < 0) framedelayoffs = 0;
+            if (framedelayoffs > framedelay) framedelayoffs = framedelay;
+        }
         statlen = strlen(status);
         mark = SDL_GetTicks();
         frames = 0;
@@ -1815,8 +1821,8 @@ static void gamescreen_init(void)
 
 static void run(void)
 {
-    pointer_cursor = tex_load("data/other/pointer_cursor.bmp");
-    tex_load_skybox("data/textures/skybox.bmp", &skybox_left, &skybox_back, &skybox_right, &skybox_bottom, &skybox_top, &skybox_front);
+    pointer_cursor = tex_load("other/pointer_cursor.bmp");
+    tex_load_skybox("textures/skybox.bmp", &skybox_left, &skybox_back, &skybox_right, &skybox_bottom, &skybox_top, &skybox_front);
     decal_texture = texbank_get("alithiaposter");
 
     mdl_gun = modelcache_get("gun");
@@ -1831,6 +1837,7 @@ static void run(void)
 
     SDL_WM_SetCaption(arg_value("-window-caption", "Alithia Engine"), arg_value("-window-caption", "Alithia Engine"));
 
+    framedelay = arg_intval("-framedelay", 0);
     mark = SDL_GetTicks();
     millis = mark;
     while (running) {
@@ -1848,6 +1855,7 @@ static void run(void)
         if (error != GL_NONE) printf("GL error: %s\n", gluErrorString(error));
         process_events();
         render();
+        SDL_Delay(framedelay - framedelayoffs);
     }
 }
 
@@ -1856,6 +1864,7 @@ int main(int _argc, char *_argv[])
 {
     argc = _argc;
     argv = _argv;
+    rio_init();
     script_init();
     if (!vid_init()) return 1;
     font_init();

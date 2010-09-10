@@ -21,7 +21,6 @@
  * Kostas Michalopoulos <badsector@runtimeterror.com>
  */
 
-#include <dirent.h>
 #include "atest.h"
 
 typedef struct _objref_t
@@ -389,7 +388,7 @@ static lil_value_t nat_save(lil_t lil, size_t argc, lil_value_t* argv)
         console_write("not enough arguments in save"); console_newline();
         return NULL;
     }
-    filename = lil_alloc_string("data/worlds/");
+    filename = lil_alloc_string("worlds/");
     lil_append_val(filename, argv[0]);
     lil_append_string(filename, ".alw");
     i = world_save(lil_to_string(filename));
@@ -410,7 +409,7 @@ static lil_value_t nat_load(lil_t lil, size_t argc, lil_value_t* argv)
         console_write("not enough arguments in load"); console_newline();
         return NULL;
     }
-    filename = lil_alloc_string("data/worlds/");
+    filename = lil_alloc_string("worlds/");
     lil_append_val(filename, argv[0]);
     lil_append_string(filename, ".alw");
     i = world_load(lil_to_string(filename));
@@ -1381,36 +1380,28 @@ static void script_exit_callback(lil_t lil, size_t pos, const char* msg)
 
 static void script_run_file(const char* filename)
 {
-    FILE* f = fopen(filename, "rb");
-    char* buff;
-    size_t size;
-    if (!f) return;
-    fseek(f, 0, SEEK_END);
-    size = ftell(f);
-    fseek(f, 0, SEEK_SET);
-    buff = malloc(size + 1);
-    fread(buff, 1, size, f);
-    fclose(f);
-    buff[size] = 0;
-    lil_free_value(lil_parse(lil, buff, size, 0));
+    char* buff = rio_read(filename, NULL);
+    if (!buff) return;
+    lil_free_value(lil_parse(lil, buff, 0, 0));
     free(buff);
 }
 
 static void script_run_scripts(void)
 {
-    struct dirent* de;
-    DIR* dir;
+    list_t* files;
+    listitem_t* it;
 
-    dir = opendir("data/scripts");
-    while ((de = readdir(dir))) {
-        if (strstr(de->d_name, ".lil")) {
-            char* tmpfilename = malloc(strlen(de->d_name) + 16);
-            sprintf(tmpfilename, "data/scripts/%s", de->d_name);
+    files = rio_files("scripts");
+    for (it=files->first; it; it=it->next) {
+        const char* file = it->ptr;
+        if (strstr(file, ".lil")) {
+            char* tmpfilename = malloc(strlen(file) + 16);
+            sprintf(tmpfilename, "scripts/%s", file);
             script_run_file(tmpfilename);
             free(tmpfilename);
         }
     }
-    closedir(dir);
+    list_free(files);
 }
 
 static void execat_entry_free(void* ptr)
@@ -1479,7 +1470,7 @@ void script_shutdown(void)
 void script_run(const char* name)
 {
     char* tmpfilename = malloc(strlen(name) + 20);
-    sprintf(tmpfilename, "data/scripts/%s.lil", name);
+    sprintf(tmpfilename, "scripts/%s.lil", name);
     script_run_file(tmpfilename);
     free(tmpfilename);
 }

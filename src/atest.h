@@ -30,7 +30,6 @@
 #include <string.h>
 #include <ctype.h>
 #include <math.h>
-#include <dirent.h>
 #ifdef __APPLE__
 #include <OpenGL/gl.h>
 #include <OpenGL/glu.h>
@@ -48,6 +47,7 @@
 #include "lil.h"
 #include "defines.h"
 #include "utils.h"
+#include "resio.h"
 #include "mathstuff.h"
 #include "argparse.h"
 #include "vidmode.h"

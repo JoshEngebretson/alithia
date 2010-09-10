@@ -27,7 +27,15 @@ const char* arg_value(const char* name, const char* defvalue)
 {
     const char* r;
     char* varname;
+    lil_value_t varval;
     int i;
+    if (lil) {
+        varname = malloc(strlen(name) + 16);
+        sprintf(varname, "engine:override%s", name);
+        varval = lil_get_var_or(lil, varname, NULL);
+        free(varname);
+        if (varval) return lil_to_string(varval);
+    }
     for (i=0; i<argc; i++) {
         if (!strcmp(argv[i], name)) {
             if (i < argc - 1)
@@ -35,10 +43,12 @@ const char* arg_value(const char* name, const char* defvalue)
             return "";
         }
     }
+    if (!lil) return defvalue;
     varname = malloc(strlen(name) + 15);
     sprintf(varname, "engine:default%s", name);
-    r = lil_to_string(lil_get_var(lil, varname));
+    varval = lil_get_var_or(lil, varname, NULL);
     free(varname);
+    r = varval ? lil_to_string(varval) : defvalue;
     return r;
 }
 

@@ -85,6 +85,33 @@ static BOOL   gCalledAppMainline = FALSE;
     }
 }
 
+const char* getApplicationDirectory(void)
+{
+    static char appdir[MAXPATHLEN];
+    CFURLRef url = CFBundleCopyBundleURL(CFBundleGetMainBundle());
+    if (CFURLGetFileSystemRepresentation(url, 1, (UInt8 *)appdir, MAXPATHLEN)) {
+        return appdir;
+        CFRelease(url);
+    }
+    CFRelease(url);
+    return NULL;
+}
+
+const char* getApplicationWriteDirectory(const char* appname)
+{
+    static char wdir[MAXPATHLEN];
+    NSArray* paths = NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory, NSUserDomainMask, YES);
+    if ([paths count] > 0) {
+        NSString* userLibraryPath = [paths objectAtIndex:0];
+        const char* cstr = [userLibraryPath UTF8String];
+        strcpy(wdir, cstr);
+        if (wdir[strlen(wdir) - 1] != '/') strcat(wdir, "/");
+        strcat(wdir, appname);
+        return wdir;
+    }
+    return NULL;
+}
+
 static void setApplicationMenu(void)
 {
     /* warning: this code is very odd */

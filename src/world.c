@@ -736,7 +736,7 @@ int world_save(const char* filename)
     uint32_t usv_count = 0;
     uint32_t i, player_entidx = 0;
     int x, y;
-    FILE* f = fopen(filename, "wb");
+    FILE* f = rio_create(filename);
     memset(reserved, 0, 256);
     if (!f) return 0;
     fwrite(id, 4, 1, f);
@@ -846,7 +846,7 @@ int world_save(const char* filename)
 
 int world_load(const char* filename)
 {
-    FILE* f = fopen(filename, "rb");
+    FILE* f = rio_open(filename, NULL);
     char id[4];
     uint8_t subversion = 0;
     uint16_t width, height;

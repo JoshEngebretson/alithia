@@ -34,7 +34,7 @@ static list_t* cache;
 model_t* mdl_load(const char* geofile, const char* texfile)
 {
     model_t* mdl = new(model_t);
-    FILE* f = fopen(geofile, "rb");
+    FILE* f = rio_open(geofile, NULL);
     char id[4];
     int flags;
     int frames;
@@ -112,8 +112,8 @@ model_t* modelcache_get(const char* name)
                 return e->model;
         }
     }
-    sprintf(mdlname, "data/models/%s.alm", name);
-    sprintf(texname, "data/models/%s.bmp", name);
+    sprintf(mdlname, "models/%s.alm", name);
+    sprintf(texname, "models/%s.bmp", name);
     mdl = mdl_load(mdlname, texname);
     if (!mdl) return NULL;
 
