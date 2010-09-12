@@ -84,6 +84,7 @@ extern float clip[16];
 extern vector_t centeraya, centerayb;
 extern int disable_occlusion;
 extern entity_t* camera_ent;
+extern float sensitivity;
 
 void console_clear(void);
 void console_write(const char* txt);

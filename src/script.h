@@ -30,6 +30,11 @@
 #define OT_MODEL 3
 #define OT_TEXTURE 4
 
+#define RVT_INT 0
+#define RVT_FLOAT 1
+#define RVT_DOUBLE 2
+#define RVT_LILVALUE 3
+
 extern lil_t lil;
 
 size_t or_new(int type, void* obj);
@@ -45,6 +50,7 @@ void script_run_execats(const char* event);
 void script_set_int(const char* name, int64_t value);
 void script_set_string(const char* name, const char* value);
 void script_set_float(const char* name, float value);
+void script_reg_var(const char* name, int type, void* ptr);
 
 entity_t* ent_new_by_class(const char* clsname);
 

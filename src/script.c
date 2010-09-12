@@ -36,9 +36,17 @@ typedef struct _execat_entry_t
     lil_value_t code;
 } execat_entry_t;
 
+typedef struct _regvar_t
+{
+    char* name;
+    int type;
+    void* ptr;
+} regvar_t;
+
 static objref_t* ref;
 static size_t refs;
 static list_t* execats;
+static list_t* regvars;
 
 lil_t lil;
 
@@ -1083,16 +1091,6 @@ static lil_value_t nat_get_light_radius(lil_t lil, size_t argc, lil_value_t* arg
     return lil_alloc_double(light->rad);
 }
 
-static lil_value_t nat_fov(lil_t lil, size_t argc, lil_value_t* argv)
-{
-    if (argc) {
-        plfov = lil_to_double(argv[0]);
-        if (plfov < 15) plfov = 15;
-        if (plfov > 179) plfov = 179;
-    }
-    return lil_alloc_double(plfov);
-}
-
 static void reg_world_procs(void)
 {
     lil_register(lil, "save", nat_save);
@@ -1134,7 +1132,6 @@ static void reg_world_procs(void)
     lil_register(lil, "get-light-position", nat_get_light_position);
     lil_register(lil, "get-light-color", nat_get_light_color);
     lil_register(lil, "get-light-radius", nat_get_light_radius);
-    lil_register(lil, "fov", nat_fov);
 }
 
 /* Game procs */
@@ -1378,6 +1375,67 @@ static void script_exit_callback(lil_t lil, size_t pos, const char* msg)
     running = 0;
 }
 
+static int script_getvar_callback(lil_t lil, const char* name, lil_value_t* value)
+{
+    listitem_t* it;
+    if (!regvars) return 0;
+    for (it=regvars->first; it; it=it->next) {
+        regvar_t* rv = it->ptr;
+        if (!strcmp(rv->name, name)) {
+            switch (rv->type) {
+            case RVT_INT:
+                *value = lil_alloc_integer(*((int*)rv->ptr));
+                return 1;
+            case RVT_FLOAT:
+                *value = lil_alloc_double(*((float*)rv->ptr));
+                return 1;
+            case RVT_DOUBLE:
+                *value = lil_alloc_double(*((double*)rv->ptr));
+                return 1;
+            case RVT_LILVALUE:
+                *value = lil_clone_value(*((lil_value_t*)rv->ptr));
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+
+static int script_setvar_callback(lil_t lil, const char* name, lil_value_t* value)
+{
+    listitem_t* it;
+    int* ival;
+    float* fval;
+    double* dval;
+    lil_value_t* lval;
+    if (!regvars) return 0;
+    for (it=regvars->first; it; it=it->next) {
+        regvar_t* rv = it->ptr;
+        if (!strcmp(rv->name, name)) {
+            switch (rv->type) {
+            case RVT_INT:
+                ival = rv->ptr;
+                *ival = lil_to_integer(*value);
+                return -1;
+            case RVT_FLOAT:
+                fval = rv->ptr;
+                *fval = lil_to_double(*value);
+                return -1;
+            case RVT_DOUBLE:
+                dval = rv->ptr;
+                *dval = lil_to_double(*value);
+                return -1;
+            case RVT_LILVALUE:
+                lval = rv->ptr;
+                lil_free_value(*lval);
+                *lval = lil_clone_value(*value);
+                return -1;
+            }
+        }
+    }
+    return 0;
+}
+
 static void script_run_file(const char* filename)
 {
     char* buff = rio_read(filename, NULL);
@@ -1444,12 +1502,34 @@ void script_set_float(const char* name, float value)
     lil_free_value(val);
 }
 
+static void regvar_free(void* ptr)
+{
+    regvar_t* rv = ptr;
+    free(rv->name);
+    free(rv);
+}
+
+void script_reg_var(const char* name, int type, void* ptr)
+{
+    regvar_t* rv = new(regvar_t);
+    rv->name = strdup(name);
+    rv->type = type;
+    rv->ptr = ptr;
+    if (!regvars) {
+        regvars = list_new();
+        regvars->item_free = regvar_free;
+    }
+    list_add(regvars, rv);
+}
+
 void script_init(void)
 {
     lil = lil_new();
     lil_callback(lil, LIL_CALLBACK_WRITE, (lil_callback_proc_t)script_write_callback);
     lil_callback(lil, LIL_CALLBACK_ERROR, (lil_callback_proc_t)script_error_callback);
     lil_callback(lil, LIL_CALLBACK_EXIT, (lil_callback_proc_t)script_exit_callback);
+    lil_callback(lil, LIL_CALLBACK_SETVAR, (lil_callback_proc_t)script_setvar_callback);
+    lil_callback(lil, LIL_CALLBACK_GETVAR, (lil_callback_proc_t)script_getvar_callback);
     reg_engine_procs();
     reg_editor_procs();
     reg_world_procs();
@@ -1462,6 +1542,7 @@ void script_init(void)
 
 void script_shutdown(void)
 {
+    list_free(regvars);
     list_free(execats);
     lil_free(lil);
     or_free();

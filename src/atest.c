@@ -80,8 +80,10 @@ float mouse_x = 0;
 float mouse_y = 0;
 int mouse_sx = 0;
 int mouse_sy = 0;
-int draw_wire = 0;
-float pla, pll, plfov;
+int wireframe = 0;
+float wireframe_alpha = 0.1;
+float overdraw = 0;
+float pla, pll, plfov = 66;
 texture_t* pointer_cursor;
 texture_t* skybox_left;
 texture_t* skybox_right;
@@ -109,7 +111,13 @@ struct {
 } console_line[8];
 int console_curline;
 entity_t* camera_ent;
-int framedelay, framedelayoffs = 0;
+int framedelay = 0, framedelayoffs = 0;
+int timestep = 15, timestep_minoffset = 0;
+float sensitivity = 4;
+float bobscale = 1.5;
+float walkspeed = 350.0f;
+float strafespeed = 350.0f;
+float jumpforce = 640;
 
 void console_clear(void)
 {
@@ -956,7 +964,7 @@ static void draw_aabb_outline(aabb_t* aabb)
 }
 */
 
-static void render_world(void)
+static void render_world(int wfmode)
 {
     int x, y, i;
     entity_t* e[MAX_VISIBLE_ENTITIES];
@@ -973,7 +981,7 @@ static void render_world(void)
     glClearColor(0.1f, 0.12f, 0.2f, 1.0f);
     glClearStencil(0);
     glClearDepth(1);
-    if (draw_wire || active_screen->do_clear)
+    if (!wfmode && active_screen->do_clear)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     else
         glClear(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
@@ -984,6 +992,8 @@ static void render_world(void)
     /* prepare for rendering the perspective from camera */
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
+    if (plfov < 15) plfov = 15;
+    if (plfov > 179) plfov = 179;
     gluPerspective(plfov, wh_ratio, 1.0f, 65536.0f);
     glGetDoublev(GL_PROJECTION_MATRIX, pmtx);
     glMatrixMode(GL_MODELVIEW);
@@ -997,9 +1007,9 @@ static void render_world(void)
     /* push current matrix (will be popped at skybox drawing below),
      * setup translation, vmtx and vport */
     glPushMatrix();
-    glTranslatef(-camera_ent->p.x, -camera_ent->p.y-goffy*1.5f, -camera_ent->p.z);
+    glTranslatef(-camera_ent->p.x, -camera_ent->p.y-goffy*bobscale, -camera_ent->p.z);
     glGetDoublev(GL_MODELVIEW_MATRIX, vmtx);
-    glColor3f(1, 1, 1);
+    if (!wfmode) glColor3f(1, 1, 1);
     glGetIntegerv(GL_VIEWPORT, vport);
 
     /* calculate frustum planes */
@@ -1016,15 +1026,27 @@ static void render_world(void)
     }
 
     /* enable texturing and depth tests */
-    glEnable(GL_CULL_FACE);
-    glEnable(GL_DEPTH_TEST);
-    glActiveTexture(GL_TEXTURE0);
-    glEnable(GL_TEXTURE_2D);
-    glActiveTexture(GL_TEXTURE1);
-    glEnable(GL_TEXTURE_2D);
-
-    if (draw_wire)
-        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    if (!wfmode) {
+        glEnable(GL_CULL_FACE);
+        glEnable(GL_DEPTH_TEST);
+        glActiveTexture(GL_TEXTURE0);
+        glEnable(GL_TEXTURE_2D);
+        glActiveTexture(GL_TEXTURE1);
+        glEnable(GL_TEXTURE_2D);
+    } else {
+        /* wireframe/overdraw mode setup */
+        if (wfmode == 1) {
+            glDisable(GL_CULL_FACE);
+        } else {
+            glEnable(GL_CULL_FACE);
+        }
+        glDisable(GL_DEPTH_TEST);
+        glActiveTexture(GL_TEXTURE0);
+        glDisable(GL_TEXTURE_2D);
+        glActiveTexture(GL_TEXTURE1);
+        glDisable(GL_TEXTURE_2D);
+        glActiveTexture(GL_TEXTURE0);
+    }
 
     /* fill the buckets with the world geometry */
     vclusters = 0;
@@ -1072,7 +1094,6 @@ static void render_world(void)
                                     glMultiTexCoord2f(GL_TEXTURE0, q->u[v], q->v[v]);
                                     glMultiTexCoord2f(GL_TEXTURE1, q->x[v]/(float)map_width/CELLSIZE, q->z[v]/(float)map_height/CELLSIZE);
                                     glVertex3f(q->x[v], q->y[v], q->z[v]);
-
                                 }
 
                                 cls->tri[cls->tris].v[0].x = q->x[0];
@@ -1150,22 +1171,28 @@ static void render_world(void)
                 glBegin(GL_TRIANGLES);
                 for (i = 0; i < ent->mdl->fc; i++) {
                     float* v = ent->mdl->v + ent->mdl->vc*8*f + (ent->mdl->f[i * 3] * 8);
-                    glMultiTexCoord2f(GL_TEXTURE0, v[6], v[7]);
-                    glMultiTexCoord2f(GL_TEXTURE1, v[0] / (float) map_width
-                        / CELLSIZE, v[2] / (float) map_height / CELLSIZE);
-                    glNormal3f(v[3], v[4], v[5]);
+                    if (!wfmode) {
+                        glMultiTexCoord2f(GL_TEXTURE0, v[6], v[7]);
+                        glMultiTexCoord2f(GL_TEXTURE1, v[0] / (float) map_width
+                            / CELLSIZE, v[2] / (float) map_height / CELLSIZE);
+                        glNormal3f(v[3], v[4], v[5]);
+                    }
                     glVertex3f(v[0], v[1], v[2]);
                     v = ent->mdl->v + ent->mdl->vc*8*f + (ent->mdl->f[i * 3 + 1] * 8);
-                    glMultiTexCoord2f(GL_TEXTURE0, v[6], v[7]);
-                    glMultiTexCoord2f(GL_TEXTURE1, v[0] / (float) map_width
-                        / CELLSIZE, v[2] / (float) map_height / CELLSIZE);
-                    glNormal3f(v[3], v[4], v[5]);
+                    if (!wfmode) {
+                        glMultiTexCoord2f(GL_TEXTURE0, v[6], v[7]);
+                        glMultiTexCoord2f(GL_TEXTURE1, v[0] / (float) map_width
+                            / CELLSIZE, v[2] / (float) map_height / CELLSIZE);
+                        glNormal3f(v[3], v[4], v[5]);
+                    }
                     glVertex3f(v[0], v[1], v[2]);
                     v = ent->mdl->v + ent->mdl->vc*8*f + (ent->mdl->f[i * 3 + 2] * 8);
-                    glMultiTexCoord2f(GL_TEXTURE0, v[6], v[7]);
-                    glMultiTexCoord2f(GL_TEXTURE1, v[0] / (float) map_width
-                        / CELLSIZE, v[2] / (float) map_height / CELLSIZE);
-                    glNormal3f(v[3], v[4], v[5]);
+                    if (!wfmode) {
+                        glMultiTexCoord2f(GL_TEXTURE0, v[6], v[7]);
+                        glMultiTexCoord2f(GL_TEXTURE1, v[0] / (float) map_width
+                            / CELLSIZE, v[2] / (float) map_height / CELLSIZE);
+                        glNormal3f(v[3], v[4], v[5]);
+                    }
                     glVertex3f(v[0], v[1], v[2]);
                 }
                 glEnd();
@@ -1189,7 +1216,7 @@ static void render_world(void)
     }
 
     /* render skybox bucket */
-    if (skybox_bucket > -1 && bucket[skybox_bucket].dlc) {
+    if (!wfmode && skybox_bucket > -1 && bucket[skybox_bucket].dlc) {
         glEnable(GL_STENCIL_TEST);
         glStencilFunc(GL_ALWAYS, 1, 1);
         glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
@@ -1204,23 +1231,26 @@ static void render_world(void)
         render_skybox();
         glDisable(GL_STENCIL_TEST);
     } else glPopMatrix();
-    glTranslatef(-camera_ent->p.x, -camera_ent->p.y-goffy*1.5f, -camera_ent->p.z);
+    glTranslatef(-camera_ent->p.x, -camera_ent->p.y-goffy*bobscale, -camera_ent->p.z);
 
     /* render buckets */
-    glActiveTexture(GL_TEXTURE1);
-    glEnable(GL_TEXTURE_2D);
-    glBindTexture(GL_TEXTURE_2D, lmaptex);
-    glActiveTexture(GL_TEXTURE0);
+    if (!wfmode) {
+        glActiveTexture(GL_TEXTURE1);
+        glEnable(GL_TEXTURE_2D);
+        glBindTexture(GL_TEXTURE_2D, lmaptex);
+        glActiveTexture(GL_TEXTURE0);
 
-    glEnable(GL_LIGHT0);
-    glLightfv(GL_LIGHT0, GL_POSITION, pos);
+        glEnable(GL_LIGHT0);
+        glLightfv(GL_LIGHT0, GL_POSITION, pos);
+    }
 
     for (i = 0; i < buckets; i++)
         if (bucket[i].dlc) {
             int j;
             if (i == skybox_bucket)
                 continue;
-            glBindTexture(GL_TEXTURE_2D, bucket[i].tex->name);
+            if (!wfmode)
+                glBindTexture(GL_TEXTURE_2D, bucket[i].tex->name);
             for (j = 0; j < bucket[i].dlc; j++) {
                 if (bucket[i].dlmtx[j]) {
                     int bx = bucket[i].dlmtx[j][12] / CELLSIZE;
@@ -1232,20 +1262,24 @@ static void render_world(void)
                     amb[0] = (float) tex->r / 255.0f;
                     amb[1] = (float) tex->g / 255.0f;
                     amb[2] = (float) tex->b / 255.0f;
-                    glActiveTexture(GL_TEXTURE1);
-                    glDisable(GL_TEXTURE_2D);
-                    glActiveTexture(GL_TEXTURE0);
-                    glEnable(GL_LIGHTING);
-                    glLightfv(GL_LIGHT0, GL_AMBIENT, amb);
-                    glLightfv(GL_LIGHT0, GL_DIFFUSE, col);
+                    if (!wfmode) {
+                        glActiveTexture(GL_TEXTURE1);
+                        glDisable(GL_TEXTURE_2D);
+                        glActiveTexture(GL_TEXTURE0);
+                        glEnable(GL_LIGHTING);
+                        glLightfv(GL_LIGHT0, GL_AMBIENT, amb);
+                        glLightfv(GL_LIGHT0, GL_DIFFUSE, col);
+                    }
                     glPushMatrix();
                     glMultMatrixf(bucket[i].dlmtx[j]);
                     glCallList(bucket[i].dl[j]);
                     glPopMatrix();
-                    glDisable(GL_LIGHTING);
-                    glActiveTexture(GL_TEXTURE1);
-                    glEnable(GL_TEXTURE_2D);
-                    glActiveTexture(GL_TEXTURE0);
+                    if (!wfmode) {
+                        glDisable(GL_LIGHTING);
+                        glActiveTexture(GL_TEXTURE1);
+                        glEnable(GL_TEXTURE_2D);
+                        glActiveTexture(GL_TEXTURE0);
+                    }
                 } else {
                     glCallList(bucket[i].dl[j]);
                 }
@@ -1256,38 +1290,49 @@ static void render_world(void)
     /* render decals */
     glEnable(GL_POLYGON_OFFSET_FILL);
     glPolygonOffset(-1.0f, -1.0f);
-    glDepthMask(0);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glColor4f(1, 1, 1, 1);
+    if (!wfmode) {
+        glDepthMask(0);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glColor4f(1, 1, 1, 1);
+    }
     for (i=0; i<vclusters; i++) {
         decal_t* decal = vcluster[i]->decal;
         size_t j, decals = vcluster[i]->decals;
         for (j=0; j<decals; j++) {
-            glBindTexture(GL_TEXTURE_2D, decal[j].tex->name);
+            if (!wfmode)
+                glBindTexture(GL_TEXTURE_2D, decal[j].tex->name);
             glBegin(GL_QUADS);
-            glMultiTexCoord2f(GL_TEXTURE0, 0, 0);
-            glMultiTexCoord2f(GL_TEXTURE1, decal[j].p[0].x/(float)map_width/CELLSIZE, decal[j].p[0].z/(float)map_height/CELLSIZE);
+            if (!wfmode) {
+                glMultiTexCoord2f(GL_TEXTURE0, 0, 0);
+                glMultiTexCoord2f(GL_TEXTURE1, decal[j].p[0].x/(float)map_width/CELLSIZE, decal[j].p[0].z/(float)map_height/CELLSIZE);
+            }
             glVertex3fv(&decal[j].p[0].x);
-            glMultiTexCoord2f(GL_TEXTURE0, 0, 1);
-            glMultiTexCoord2f(GL_TEXTURE1, decal[j].p[1].x/(float)map_width/CELLSIZE, decal[j].p[1].z/(float)map_height/CELLSIZE);
+            if (!wfmode) {
+                glMultiTexCoord2f(GL_TEXTURE0, 0, 1);
+                glMultiTexCoord2f(GL_TEXTURE1, decal[j].p[1].x/(float)map_width/CELLSIZE, decal[j].p[1].z/(float)map_height/CELLSIZE);
+            }
             glVertex3fv(&decal[j].p[1].x);
-            glMultiTexCoord2f(GL_TEXTURE0, 1, 1);
-            glMultiTexCoord2f(GL_TEXTURE1, decal[j].p[2].x/(float)map_width/CELLSIZE, decal[j].p[2].z/(float)map_height/CELLSIZE);
+            if (!wfmode) {
+                glMultiTexCoord2f(GL_TEXTURE0, 1, 1);
+                glMultiTexCoord2f(GL_TEXTURE1, decal[j].p[2].x/(float)map_width/CELLSIZE, decal[j].p[2].z/(float)map_height/CELLSIZE);
+            }
             glVertex3fv(&decal[j].p[2].x);
-            glMultiTexCoord2f(GL_TEXTURE0, 1, 0);
-            glMultiTexCoord2f(GL_TEXTURE1, decal[j].p[3].x/(float)map_width/CELLSIZE, decal[j].p[3].z/(float)map_height/CELLSIZE);
+            if (!wfmode) {
+                glMultiTexCoord2f(GL_TEXTURE0, 1, 0);
+                glMultiTexCoord2f(GL_TEXTURE1, decal[j].p[3].x/(float)map_width/CELLSIZE, decal[j].p[3].z/(float)map_height/CELLSIZE);
+            }
             glVertex3fv(&decal[j].p[3].x);
             glEnd();
         }
     }
-    glDisable(GL_BLEND);
-    glDepthMask(1);
+    if (!wfmode) {
+        glDisable(GL_BLEND);
+        glDepthMask(1);
+    }
     glDisable(GL_POLYGON_OFFSET_FILL);
 
-    glActiveTexture(GL_TEXTURE0);
-    if (draw_wire)
-        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    if (!wfmode) glActiveTexture(GL_TEXTURE0);
 
     /*
     {
@@ -1387,15 +1432,17 @@ static void render_world(void)
 #endif
 
     /* render shadows in the stencil buffer */
-    glDisable(GL_LIGHTING);
-    glDisable(GL_TEXTURE_2D);
-    glEnable(GL_POLYGON_OFFSET_FILL);
-    glPolygonOffset(-1.0f, -1.0f);
-    glColorMask(0, 0, 0, 0);
-    glDepthMask(0);
-    glEnable(GL_STENCIL_TEST);
-    glStencilFunc(GL_ALWAYS, 1, 1);
-    glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+    if (!wfmode) {
+        glDisable(GL_LIGHTING);
+        glDisable(GL_TEXTURE_2D);
+        glEnable(GL_POLYGON_OFFSET_FILL);
+        glPolygonOffset(-1.0f, -1.0f);
+        glColorMask(0, 0, 0, 0);
+        glDepthMask(0);
+        glEnable(GL_STENCIL_TEST);
+        glStencilFunc(GL_ALWAYS, 1, 1);
+        glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+    }
 
     for (i = 0; i < ec; i++) {
         entity_t* ent = e[i];
@@ -1408,38 +1455,40 @@ static void render_world(void)
     }
 
     /* draw fullscreen quad using the stencil buffer to affect only shadows */
-    glMatrixMode(GL_PROJECTION);
-    glPushMatrix();
-    glLoadIdentity();
-    glMatrixMode(GL_MODELVIEW);
-    glPushMatrix();
-    glLoadIdentity();
+    if (!wfmode) {
+        glMatrixMode(GL_PROJECTION);
+        glPushMatrix();
+        glLoadIdentity();
+        glMatrixMode(GL_MODELVIEW);
+        glPushMatrix();
+        glLoadIdentity();
 
-    glColorMask(1, 1, 1, 1);
+        glColorMask(1, 1, 1, 1);
 
-    glStencilFunc(GL_EQUAL, 1, 1);
-    glStencilOp(GL_ZERO, GL_ZERO, GL_ZERO);
+        glStencilFunc(GL_EQUAL, 1, 1);
+        glStencilOp(GL_ZERO, GL_ZERO, GL_ZERO);
 
-    glColor4f(0, 0, 0, 0.5f);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glColor4f(0, 0, 0, 0.5f);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    glBegin(GL_QUADS);
-    glVertex2d(-1, -1);
-    glVertex2d(1, -1);
-    glVertex2d(1, 1);
-    glVertex2d(-1, 1);
-    glEnd();
+        glBegin(GL_QUADS);
+        glVertex2d(-1, -1);
+        glVertex2d(1, -1);
+        glVertex2d(1, 1);
+        glVertex2d(-1, 1);
+        glEnd();
 
-    glDisable(GL_BLEND);
-    glDepthMask(1);
-    glDisable(GL_STENCIL_TEST);
-    glDisable(GL_POLYGON_OFFSET_FILL);
+        glDisable(GL_BLEND);
+        glDepthMask(1);
+        glDisable(GL_STENCIL_TEST);
+        glDisable(GL_POLYGON_OFFSET_FILL);
 
-    glMatrixMode(GL_PROJECTION);
-    glPopMatrix();
-    glMatrixMode(GL_MODELVIEW);
-    glPopMatrix();
+        glMatrixMode(GL_PROJECTION);
+        glPopMatrix();
+        glMatrixMode(GL_MODELVIEW);
+        glPopMatrix();
+    }
 }
 
 static void render_hud(void)
@@ -1508,8 +1557,27 @@ static void render_hud(void)
 
 static void render(void)
 {
-    if (active_screen->draw_world)
-        render_world();
+    if (active_screen->draw_world) {
+        if (overdraw) {
+            glClear(GL_COLOR_BUFFER_BIT);
+            glEnable(GL_BLEND);
+            glBlendFunc(GL_ONE, GL_ONE);
+            glColor4f(0.1, 0.05, 0.15, 0.5);
+            render_world(2);
+            glDisable(GL_BLEND);
+        } else {
+            render_world(0);
+        }
+        if (wireframe) {
+            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+            glEnable(GL_BLEND);
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            glColor4f(1, 1, 1, wireframe_alpha);
+            render_world(1);
+            glDisable(GL_BLEND);
+            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+        }
+    }
     screen_send(active_screen, SMS_RENDER, NULL);
     render_hud();
 
@@ -1605,26 +1673,26 @@ static void gamescreen_update(float ms)
     }
     if (key[SDLK_w]) {
         domove = 1;
-        mvx = -sinf(pla*PI/180.0f)*35.0f;
-        mvz = -cosf(pla*PI/180.0f)*35.0f;
+        mvx = -sinf(pla*PI/180.0f)*walkspeed;
+        mvz = -cosf(pla*PI/180.0f)*walkspeed;
         goffv += ms/170.0f; goffup = 1;
     }
     if (key[SDLK_s]) {
         domove = 1;
-        mvx += sinf(pla*PI/180.0f)*35.0f;
-        mvz += cosf(pla*PI/180.0f)*35.0f;
+        mvx += sinf(pla*PI/180.0f)*walkspeed;
+        mvz += cosf(pla*PI/180.0f)*walkspeed;
         if (!key[SDLK_w] && !goffup) goffv -= ms/270.0f; goffup = 1;
     }
     if (key[SDLK_a]) {
         domove = 1;
-        mvx += sinf((pla-90.0f)*PI/180.0f)*35.0f;
-        mvz += cosf((pla-90.0f)*PI/180.0f)*35.0f;
+        mvx += sinf((pla-90.0f)*PI/180.0f)*strafespeed;
+        mvz += cosf((pla-90.0f)*PI/180.0f)*strafespeed;
         if (!goffup) goffv += ms/370.0f; goffup = 1;
     }
     if (key[SDLK_d]) {
         domove = 1;
-        mvx += sinf((pla+90.0f)*PI/180.0f)*35.0f;
-        mvz += cosf((pla+90.0f)*PI/180.0f)*35.0f;
+        mvx += sinf((pla+90.0f)*PI/180.0f)*strafespeed;
+        mvz += cosf((pla+90.0f)*PI/180.0f)*strafespeed;
         if (!goffup) goffv += ms/370.0f; goffup = 1;
     }
     if (goffup) {
@@ -1714,19 +1782,18 @@ static void gamescreen_sdl_event(SDL_Event ev)
         if (ev.button.button == 3) {
             motion_t* mot = player_ent->mot;
             if (mot->onground) {
-                mot_force(player_ent->mot, 0, 64, 0);
+                mot_force(player_ent->mot, 0, jumpforce, 0);
                 mot->onground = 0;
             }
         }
         break;
     case SDL_MOUSEMOTION:
-        pla -= ev.motion.xrel/10.0f;
-        pll -= ev.motion.yrel/10.0f;
+        pla -= ev.motion.xrel/30.0f*sensitivity;
+        pll -= ev.motion.yrel/30.0f*sensitivity;
         if (pll > 60) pll = 60;
         if (pll < -60) pll = -60;
         break;
     case SDL_KEYDOWN:
-        if (ev.key.keysym.sym == SDLK_q) draw_wire = !draw_wire;
         if (ev.key.keysym.sym == SDLK_e) {
             screen_set(editorscreen);
             break;
@@ -1837,24 +1904,26 @@ static void run(void)
 
     SDL_WM_SetCaption(arg_value("-window-caption", "Alithia Engine"), arg_value("-window-caption", "Alithia Engine"));
 
-    framedelay = arg_intval("-framedelay", 0);
     mark = SDL_GetTicks();
     millis = mark;
     while (running) {
         int error = glGetError();
         int nowmillis = SDL_GetTicks();
-        if (nowmillis - millis > 15) {
-            while (nowmillis - millis > 15) {
-                update_game(15);
-                millis += 15;
+        if (timestep < 1) timestep = 1;
+        if (nowmillis - millis > timestep) {
+            while (nowmillis - millis > timestep) {
+                update_game(timestep);
+                millis += timestep;
             }
-            if (nowmillis - millis > 0)
+            if (timestep_minoffset > -1 && nowmillis - millis > timestep_minoffset) {
                 update_game(nowmillis - millis);
-            millis = nowmillis;
+                millis = nowmillis;
+            }
         }
         if (error != GL_NONE) printf("GL error: %s\n", gluErrorString(error));
         process_events();
         render();
+        if (framedelay - framedelayoffs < 0) framedelayoffs = 0;
         SDL_Delay(framedelay - framedelayoffs);
     }
 }
@@ -1864,6 +1933,22 @@ int main(int _argc, char *_argv[])
 {
     argc = _argc;
     argv = _argv;
+
+    script_reg_var("fov", RVT_FLOAT, &plfov);
+    script_reg_var("novis", RVT_INT, &disable_occlusion);
+    script_reg_var("wireframe", RVT_INT, &wireframe);
+    script_reg_var("wireframe_alpha", RVT_FLOAT, &wireframe_alpha);
+    script_reg_var("overdraw", RVT_INT, &overdraw);
+    script_reg_var("framedelay", RVT_INT, &framedelay);
+    script_reg_var("sensitivity", RVT_FLOAT, &sensitivity);
+    script_reg_var("bobscale", RVT_FLOAT, &bobscale);
+    script_reg_var("timestep", RVT_INT, &timestep);
+    script_reg_var("timestep_minoffset", RVT_INT, &timestep_minoffset);
+    script_reg_var("walkspeed", RVT_FLOAT, &walkspeed);
+    script_reg_var("strafespeed", RVT_FLOAT, &strafespeed);
+    script_reg_var("jumpforce", RVT_FLOAT, &jumpforce);
+    script_reg_var("gravityfactor", RVT_FLOAT, &gravityfactor);
+
     rio_init();
     script_init();
     if (!vid_init()) return 1;

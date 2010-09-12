@@ -390,8 +390,8 @@ static void editorscreen_sdl_event(SDL_Event ev)
         break;
     case SDL_MOUSEMOTION:
         if (camera_mode || button[2]) {
-            pla -= ev.motion.xrel/10.0;
-            pll -= ev.motion.yrel/10.0;
+            pla -= ev.motion.xrel/30.0*sensitivity;
+            pll -= ev.motion.yrel/30.0*sensitivity;
             if (pll > 90) pll = 90;
             if (pll < -90) pll = -90;
         }

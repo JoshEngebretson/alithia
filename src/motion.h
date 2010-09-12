@@ -44,6 +44,8 @@ typedef struct _motion_t
     int onground;
 } motion_t;
 
+extern float gravityfactor;
+
 void mot_init(void);
 void mot_shutdown(void);
 void mot_reset(void);

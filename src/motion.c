@@ -39,6 +39,8 @@ typedef struct _collcheck_t
     int bounce;
 } collcheck_t;
 
+float gravityfactor = 1.0;
+
 static list_t* motions;
 
 void mot_init(void)
@@ -65,7 +67,7 @@ motion_t* mot_new(entity_t* ent)
     mot->ent = ent;
     mot->airf = 0.98f;
     mot->bncf = 0.1f;
-    mot->g.y = -16;
+    mot->g.y = -3;
     mot->frf = 0.45f;
     mot->fdf = 0.45f;
     mot->wldf = 0.95f;
@@ -202,7 +204,7 @@ static int collision_check(collcheck_t* ct)
 static void update_motion(float ms, motion_t* mot)
 {
     collcheck_t ct;
-    float factor = 1.0f, s = ms/100.0f, frv, save;
+    float factor = 1.0f, s = ms/1000.0f, frv, save;
     entity_t* ent = mot->ent;
     entity_t* hit_entity = NULL;
     int i, j, db;
@@ -312,10 +314,11 @@ static void update_motion(float ms, motion_t* mot)
 
     ent_move(ent, ct.np.x, ct.np.y, ct.np.z);
 
-    frv = mot->airf + (1.0-mot->airf)*s;
-    mot->f.x = ct.nf.x*frv + mot->g.x*s;
-    mot->f.y = ct.nf.y*frv + (mot->sliding ? 0 : (mot->g.y*s));
-    mot->f.z = ct.nf.z*frv + mot->g.z*s;
+//    frv = mot->airf + (1.0-mot->airf)*s;
+    frv = 1.0 - mot->airf*ms/1000.0;
+    mot->f.x = ct.nf.x*frv + mot->g.x*gravityfactor*ms;
+    mot->f.y = ct.nf.y*frv + (mot->sliding ? 0 : (mot->g.y*gravityfactor*ms));
+    mot->f.z = ct.nf.z*frv + mot->g.z*gravityfactor*ms;
 
     if (vec_distsq(&ent->p, &op) < 0.1f) {
         if ((--mot->frozctr) <= 0)
