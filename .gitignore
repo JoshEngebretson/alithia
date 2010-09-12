@@ -5,6 +5,7 @@ game/
 *.o
 atest
 dist/
+doc/htmlhelp/
 *.exe
 *.dll
 *.pyc
