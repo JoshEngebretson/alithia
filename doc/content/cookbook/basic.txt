@@ -1,0 +1,39 @@
+Some basic stuff
+<!--@weight=1-->
+<p>This is some very basic stuff when using Alithia Engine:</p>
+
+<h1>Movement</h1>
+<p>To move around use the <b>WASD</b> keys. To jump use the <b>right mouse button</b>. There is no space or fire for the moment. At the future these will be bindable.</p>
+
+<h1>Command-line</h1>
+
+<p>To open the Alithia Engine command line press the <b>`</b> key. In command-line mode you can type LIL script code. Some common commands are</p>
+
+<p><table border='1'>
+<tr><td><b>Command</b></td><td><b>Action</b></td></tr>
+<tr><td>exit</td><td>Exit the engine immediatelly</td></tr>
+<tr><td>print foo</td><td>Print the <i>foo</i> message</td></tr>
+<tr><td>load blah</td><td>Load the world file <i>blah</i></td></tr>
+<tr><td>save blah</td><td>Save the world file <i>blah</i> (note: the save location can be different from the load location!)</td></tr>
+<tr><td>set foo bar</td><td>Set the value of the variable <i>foo</i> to <i>bar</i></td></tr>
+</table></p>
+
+<h1>Variables</h1>
+
+<p>Some common variables are</p>
+
+<p><table border='1'>
+<tr><td><b>Variable</b></td><td><b>Use</b></td><td><b>Default&nbsp;value</b></td></tr>
+<tr><td>fov</td><td>Vertical field of view in degrees (the horizontal field of view is calculated automatically based on the current aspect ratio)</td><td>66</td></tr>
+<tr><td>novis</td><td>If nonzero, no visibility calculations are done and thus no occlusion culling is performed.</td><td>0</td></tr>
+<tr><td>wireframe</td><td>If nonzero, enable wireframe overlay</td><td>0</td></tr>
+<tr><td>wireframe_alpha</td><td>Wireframe alpha blending factor</td><td>0.1</td></tr>
+<tr><td>overdraw</td><td>If nonzero, enable overdraw rendering</td><td>0</td></tr>
+<tr><td>framedelay</td><td>Approximate delay for each frame - if nonzero can be used to slow down rendering a bit to give time to other processes</td><td>0</td></tr>
+<tr><td>sensitivity</td><td>Mouse motion sensitivity - increase for faster motion, decrease for slower. Can accept fractions (ie. 3.25).</td><td>4</td></tr>
+<tr><td>bobscale</td><td>Head bobbing scale factor</td><td>1.5</td></tr>
+<tr><td>walkspeed</td><td>Walking speed in units per second</td><td>350</td></tr>
+<tr><td>strafespeed</td><td>Strafing speed in units per second</td><td>350</td></tr>
+<tr><td>jumpforce</td><td>Jumping force in units per jump</td><td>640</td></tr>
+<tr><td>gravityfactor</td><td>Gravity factor</td><td>1.0</td></tr>
+</table></p>
