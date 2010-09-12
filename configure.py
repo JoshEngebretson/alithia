@@ -30,6 +30,7 @@ oparser.add_option("--release", action="store_true", dest="release", default=Fal
 oparser.add_option("--optimize", action="store_true", dest="optimize", default=False, help="include optimization (like --release but does not remove debug info)")
 oparser.add_option("--profiling", action="store_true", dest="profiling", default=False, help="use build options for profiling")
 oparser.add_option("--target", action="store", type="string", dest="target", default=target, help="target platform [default: %default]")
+oparser.add_option("--bits", action="store", type="string", dest="bits", default="32", help="target platform bits (can be 32, 64 or native) [default: %default]")
 oparser.add_option("--c-compiler", action="store", type="string", dest="cc", default=cc, help="C compiler binary name (arguments must be GCC compatible) [default: %default]")
 if target == 'macosx':
     oparser.add_option("--objc-compiler", action="store", type="string", dest="objc", default=objc, help="Objective-C compiler binary name (arguments must be GCC compatible) [default: %default]")
@@ -50,6 +51,10 @@ debug = not options.release
 profiling = options.profiling
 optimize = options.optimize
 lil_path = options.lil_path
+if options.bits == 'native':
+    bits = ''
+else:
+    bits = '-m' + options.bits
 
 # check paths
 if not os.path.isdir(lil_path):
@@ -66,13 +71,13 @@ if not os.path.isfile(lil_path + "/lil.h"):
 if profiling and cc == 'clang':
     cc = 'gcc'
 if debug:
-    common_cflags = '-m32 -Wall -g3 -I' + lil_path
+    common_cflags = bits + ' -Wall -g3 -I' + lil_path
     if (not optimize):
         common_cflags = common_cflags + ' -O0'
-    common_ldflags = '-m32 -g -L' + lil_path + ' -llil'
+    common_ldflags = bits + ' -g3 -L' + lil_path + ' -llil'
 else:
-    common_cflags = '-m32 -Wall -fomit-frame-pointer -I' + lil_path
-    common_ldflags = '-m32 -L' + lil_path + ' -llil'
+    common_cflags = bits + ' -Wall -fomit-frame-pointer -I' + lil_path
+    common_ldflags = bits + ' -L' + lil_path + ' -llil'
 if optimize or (not debug):
     if cc != 'clang':
         common_cflags = common_cflags + ' -O3 -ffast-math'
