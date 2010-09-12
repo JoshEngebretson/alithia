@@ -1,0 +1,126 @@
+Files organization
+<!--@weight=300-->
+<p>The engine is organized in a few parts. These are the <em>front-end</em>, <em>renderer</em>, <em>gui</em>, <em>scripting</em> and <em>utilities</em>. These parts are mostly independent, although they talk to each other. However they can be replaced as long as a replacement has the same entries as the previous part. The engine source code files are not divided in these parts though. Some files, especially atest.c contain multiple parts. Below is a description of each file in the engine. The files are in alphabetical order.</p>
+
+<p><table border='1'>
+    <tr>
+        <td><b>File</b></td>
+        <td><b>Description</b></td>
+    </tr>
+    <tr>
+        <td><code>aifuncs.c</code>, <code>aifuncs.h</code></td>
+        <td>C-side of AI functions like movement, etc</td>
+    </tr>
+    <tr>
+        <td><code>argparse.c</code>, <code>argparse.h</code></td>
+        <td>launcher arguments parser and argument registry</td>
+    </tr>
+    <tr>
+        <td><code>atest.c</code>, <code>atest.h</code></td>
+        <td>the engine launcher, main loop, main rendering code, etc. Also the common header file included by all other c files.</td>
+    </tr>
+    <tr>
+        <td><code>defines.h</code></td>
+        <td>common defines and macros which can&#8217;t be put in other files</td>
+    </tr>
+    <tr>
+        <td><code>editor.c</code>, <code>editor.h</code></td>
+        <td>world editor screen code</td>
+    </tr>
+    <tr>
+        <td><code>fonts.c</code>, <code>fonts.h</code></td>
+        <td>bitmap font files (.bifo) loader and rendering code</td>
+    </tr>
+    <tr>
+        <td><code>gui.c</code>, <code>gui.h</code></td>
+        <td>all the generic <span class="caps"><span class="caps">GUI</span></span> code, including the controls (buttons, text fields, windows, etc), rendering and handling is included in these files. Note that <span class="caps"><span class="caps">GUI</span></span> usage (game menus, editor <span class="caps"><span class="caps">GUI</span></span>, etc) are not included in these files!</td>
+    </tr>
+    <tr>
+        <td><code>mathstuff.c</code>, <code>mathstuff.h</code></td>
+        <td>math functions (vectors, matrices, etc), intersection testing functions and other math-y stuff</td>
+    </tr>
+    <tr>
+        <td><code>models.c</code>, <code>models.h</code></td>
+        <td>alithia model files (.alm) loader and model cache code</td>
+    </tr>
+    <tr>
+        <td><code>motion.c</code>, <code>motion.h</code></td>
+        <td>entity motion controlling and physics code</td>
+    </tr>
+    <tr>
+        <td><code>screens.c</code>, <code>screens.h</code></td>
+        <td>engine screens management code</td>
+    </tr>
+    <tr>
+        <td><code>resio.c</code>, <code>resio.h</code></td>
+        <td>resource and files I/O (vfs code)</td>
+    </tr>
+    <tr>
+        <td><code>script.c</code>, <code>script.h</code></td>
+        <td>scripting interface for <span class="caps"><span class="caps">LIL</span></span> and all native definitions for functions the exposed to scripts</td>
+    </tr>
+    <tr>
+        <td><code>SDLMain.m</code>, <code>SDLMain.h</code></td>
+        <td><span class="caps"><span class="caps">SDL</span></span> bootstrapping code for Cocoa/Mac OS X</td>
+    </tr>
+    <tr>
+        <td><code>textures.c</code>, <code>textures.h</code></td>
+        <td>texture files (.bmp) loader and texture bank code</td>
+    </tr>
+    <tr>
+        <td><code>utils.c</code>, <code>utils.h</code></td>
+        <td>utility functions and data structures</td>
+    </tr>
+    <tr>
+        <td><code>vidmode.c</code>, <code>vidmode.h</code></td>
+        <td>video mode initialization. The header also contains some video mode related metrics, such as pixel width/height and ratios.</td>
+    </tr>
+    <tr>
+        <td><code>world.c</code>, <code>world.h</code></td>
+        <td>world data structures, segmentation, functions and definitions.</td>
+    </tr>
+</table></p>
+
+<p><b>Please note:</b> since the engine is under constant development and this page is not updated regularly, the above table might not contain all files in the engine's source tree</p>
+
+<h2>Other Files and Directories</h2>
+
+<p>Other files and directories in the engine&#8217;s source tree (from the tree&#8217;s root point of view) are the following:</p>
+
+<p><table border='1'>
+    <tr>
+        <td><b>Directory</b></td>
+        <td><b>Description</b></td>
+    </tr>
+    <tr>
+        <td><code>data</code></td>
+        <td>contains the engine data files. Note that these files are not included in the engine&#8217;s source code distribution and in the git repository and you have to obtain them elsewhere (look in the git repository&#8217;s description for possible information).</td>
+    </tr>
+    <tr>
+        <td><code>tools</code></td>
+        <td>engines-specific tools</td>
+    </tr>
+    <tr>
+        <td><code>tools/exporter</code></td>
+        <td><span class="caps"><span class="caps">ALM</span></span> exporter for the Blender 2.5 3D modelling program</td>
+    </tr>
+</table></p>
+
+<p><table border='1'>
+    <tr>
+        <td><b>File</b></td>
+        <td><b>Description</b></td>
+    </tr>
+    <tr>
+        <td><code>configure.py</code></td>
+        <td>Python configuration script which generates a <span class="caps"><span class="caps">GNU</span></span> Make Makefile for building the engine</td>
+    </tr>
+    <tr>
+        <td><code>license.txt</code></td>
+        <td>the license text</td>
+    </tr>
+    <tr>
+        <td><code>readme.txt</code></td>
+        <td>brief readme info</td>
+    </tr>
+</table></p>

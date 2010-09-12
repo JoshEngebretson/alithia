@@ -1,0 +1,45 @@
+Alithia Package (ALP) Files
+<p>This page describes the file format used by Alithia Engine for its Alithia Package (ALP) files.</p>
+
+<h1>Description of archive</h1>
+
+<p>Alithia Package files (ALP files) are simple uncompressed archives with a flat directory of archived files and raw data. The directory is made up of entries that contain the file name with its full path (relative to the archive), its absolute position in the package file and its size in bytes.</p>
+
+<h1>File layout</h1>
+
+<p>The package is made up of three parts: the header, the raw data and the directory. The directory always cames at the end of the file. There is no information about number of files in the directory - the whole directory until the end of the file must be read.</p>
+
+<p>All integer numbers are in little endian.</p>
+
+<h2>Header</h2>
+
+<p>The layout of the file header is</p>
+
+
+<p><table border='1'>
+<tr><td><b>Element Type</b></td><td><b>Use</b></td></tr>
+<tr><td>4 bytes</td><td>for the 'ALP1' string</td></tr>
+<tr><td>1 uint32</td><td>position of the directory in the file</td></tr>
+</table></p>
+ 
+<h2>Raw data</h2>
+
+<p>After the header the package file contains the raw data of all files included. After the raw data, the directory is found (the loader can seek to the directory using the <tt>uint32</tt> found at position 4 of the file - that is the number right after the <tt>ALP1</tt> magic string).</p>
+
+<h2>Directory</h2>
+
+<p>The directory is made up of one or more entries. Since there is no known number of the entries that can be found in the directory, the loader has to read until the end of the file.</p>
+
+<p>The layout for a single entry is</p>
+
+<p><table border='1'>
+<tr><td><b>Element Type</b></td><td><b>Use</b></td></tr>
+<tr><td>1 uint16</td><td>filename's length in bytes</td></tr>
+<tr><td><i>len</i>bytes</td><td>filename string</td></tr>
+<tr><td>1 uint32</td><td>file's absolute position in the file</td></tr>
+<tr><td>1 uint32</td><td>file's length in bytes</td></tr>
+</table></p>
+
+<h2>Source code</h2>
+
+<p>Check the <tt>tools/alpak/alpak.c</tt> source code file. The program is rather small at about 165 lines of code and very readable.</p>

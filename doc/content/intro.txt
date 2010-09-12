@@ -1,0 +1,5 @@
+Introduction
+<!--@weight=1 @default-->
+<p><strong>Alithia Engine</strong> is is a 3D game engine written by <strong>Runtime Terror</strong>, which basically means me, <em>Kostas Michalopoulos</em>. The engine is designed in a straightforward manner with implementation simplicity and fast content creation being the major goals. It includes both a game mode and an editing mode and editing can be done mostly from inside the engine &#8211; including creating maps, placing entities and editing scripts.</p>
+
+<p>Make sure you also check the other files contained in the engine's <tt>doc/</tt> directory.</p>

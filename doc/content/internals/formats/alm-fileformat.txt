@@ -1,0 +1,53 @@
+Alithia Model (ALM) Files
+<p>This page describes the file format used by the Alithia Engine for external model files.</p>
+
+<h1>Description of the models</h1>
+
+<p>An ALM file contains a single model. Animation currently is based on morphing, like in Quake 2 MD2 files, but with floating point numbers for greater precision. The model is saved as a set of arrays of vertices followed by a single array of faces. The number of vertex arrays is the number of animation frames. The faces are stored as indices in the vertex array and all vertex arrays must keep the same index.</p>
+
+<p>There is no playback order for animations and no texture information. The engine loader requires explicit mention of the texture name and the animation frame order must be specified manually in code. Therefore the model file must contain all animations flattened in a single sequence.</p>
+
+<h1>File layout</h1>
+
+<p>All integer values are in little endian order. All values are 32 bit. The file begins with a header, followed by one or more vertex arrays and ends with a face array.</p>
+
+<h2>Header</h2>
+
+<p>The layout for the header is</p>
+
+<p><table border='1'>
+<tr><td><b>Element Type</b></td><td><b>Use</b></td></tr>
+<tr><td>4 bytes</td><td>for the 'ALM1' string</td></tr>
+<tr><td>1 uint</td><td>for the flags (currently 0)</td></tr>
+<tr><td>1 uint</td><td>for the vertex count in each vertex array</td></tr>
+<tr><td>1 uint</td><td>for the face count in the faces array</td></tr>
+<tr><td>1 uint</td><td>for the frame count (vertex array count)</td></tr>
+</table></p>
+
+<h2>Vertex array (for each vertex * vertex count)</h2>
+
+<p>The layout for the each vertex in the vertex array is</p>
+
+<p><table border='1'>
+<tr><td><b>Element Type</b></td><td><b>Use</b></td></tr>
+<tr><td>3 floats</td><td>for the x,y,z vertex coordinates</td></tr>
+<tr><td>3 floats</td><td>for the x,y,z normal coordinates</td></tr>
+<tr><td>2 floats</td><td>for the u,v (or s,t) texture coordinates</td></tr>
+</table></p>
+
+<p><b>Note:</b> there are "<i>frame count</i>" arrays in the file</p>
+
+<h2>Face array (for each face * face count)</h2>
+
+<p>The layout for each face in the face array is</p>
+
+<p><table border='1'>
+<tr><td><b>Element Type</b></td><td><b>Use</b></td></tr>
+<tr><td>3 uint16</td><td>for the first, second and third vertex of the face</td></tr>
+</table></p>
+
+<p><b>Note:</b> faces are always triangular. The indices are stored as 16bit values, not 32bit.</p>
+
+<h1>Source code</h1>
+
+<p>Check the <tt>mdl_load</tt> function in <tt>model.c</tt>. At about 50 lines of C code is very easy to understand.

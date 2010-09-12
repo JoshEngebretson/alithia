@@ -1,0 +1,36 @@
+Build the source
+<p>This page describes how to build the Alithia Engine and the prerequisites it needs.</p>
+
+<h1>Prerequisites</h1>
+
+<p>Alithia Engine depends on very little software to be built:</p>
+
+<ul>
+<li><a target='_top' href='http://gcc.gnu.org/'>GNU C Compiler</a> (part of the GNU Compiler Collection) or <a target='_top' href='http://clang.llvm.org/'>Clang</a> (recommended where available) or a compatible C compiler</li>
+<li><a target='_top' href='http://www.gnu.org/software/make/'>GNU Make</a> or a compatible <tt>make</tt></li>
+<li><a target='_top' href='http://www.libsdl.org/'>Simple Directmedia Layer 1.2</a></li>
+<li>UNIX command-line tools (under windows use <a target='_top' href='http://www.mingw.org/'>MinGW and MSYS</a>)./li>
+<li><a target='_top' href='http://www.python.org/'>Python 2.x</a> (2.5 or newer, <i>not</i> 3.x!)</li>
+<li>The <a target='_top' href='http://github.com/badsector/lil'>Little Interpreted Language</a> (LIL) source code</li>
+</ul>
+
+<p>For SDL the installation must be done in such a way that the source can include SDL's header files as <tt>SDL/SDL.h</tt>. Under Linux most (if not all) package managers install SDL to <tt>/usr/include/SDL</tt> which fits the bill. Under Mac OS X the SDL framework is set up in a similar manner. Under Windows and MinGW you should merge the SDL include directory with the compiler's include directory. The engine does not use <tt>sdl-config</tt> to figure out where SDL is installed because under Windows sometimes sdl-config seems to not work.</p>
+
+<h2>Configure</h2>
+
+<p>Before building the engine you need to call the <tt>configure.py</tt> script which will create the <tt>Makefile</tt>. The configure script is written in Python and requires Python 2.x (2.5+, not 3.x) to run. It can accept some options for the configuration. Some options are</p>
+
+<p><table border='1'>
+<tr><td><b>Option</b></td><td><b>Use</b></td><td><b>Default value</td></tr>
+<tr><td><tt>--release</tt></td><td>Use compiler and linker options for release versions (enable optimizations, disable debug info, etc)</td><td>Not used</td></tr>
+<tr><td><tt>--optimize</tt></td><td>Like <tt>--release</tt> but include full debug info</td><td>Not used </td></tr>
+<tr><td><tt>--profiling</tt></td><td>Use build options for profiling</td><td>Not used</td></tr>
+<tr><td><tt>--c-compiler</tt></td><td>C compiler binary</td><td>gcc or clang (calculated at runtime)</td></tr>
+<tr><td><tt>--lil-path</tt></td><td>Path to the LIL source code</td><td>../../lil (calculated at runtime)</td></tr>
+</table></p>
+
+<p>There are more options, you should use the <tt>--help</tt> argument to see all of them.</p>
+
+<h2>Build</h2>
+
+<p>When everything is ok and the source is properly configured, you need to type <tt>make</tt> to build it. If the engine compiles normally, you will have a <tt>attest</tt> executable in the root directory of the source code.</p>

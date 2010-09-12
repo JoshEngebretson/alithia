@@ -1,0 +1,25 @@
+Where to find what
+<!--@weight=400-->
+<p>Here are some pointers on where to find some specific parts in the engine&#8217;s source code.</p>
+
+<p>First of all, the <strong>world and entity rendering</strong> is done in the <code>atest.c</code> file, in the <code>render_world</code> function. See below for details on how the rendering is done. In the same file you&#8217;ll find the <strong>entry point</strong> (the <code>main</code> function), <strong>main loop</strong> (the <code>run</code> function), <strong>input and event handling</strong> (the <code>process_events</code> function &#8211; note that event handling is also delegated to the active screen) and <strong>timing</strong> (lower parts of the <code>run</code> function).</p>
+
+<p><strong>Video mode setup and handling</strong> is done in <code>vidmode.c</code>, where also the <em>resolution-dependent metrics</em> (pixel width, pixel height, etc) can be found.</p>
+
+<p>The <strong><span class="caps">GUI</span> foundation</strong> (that is, the parts that make the <span class="caps">GUI</span> tick) can be found in the <code>gui.c</code>. This file contains the code for windows, buttons, text fields and other common controls.</p>
+
+<p><strong>Screens</strong> (as in <em>game screens</em> &#8211; separate parts of the game UI flow, like game screen, editor screen, options screen, credits screen, etc) management can be found <code>screens.c</code>. However most of the event delegation is done in <code>atest.c</code>.</p>
+
+<p>Model, texture, etc <strong>resource loading</strong> is done in the <code>fonts.c</code>, <code>models.c</code> and <code>textures.c</code> files. The kind of resource that is loaded from the code found in these files is obvious :-).</p>
+
+<p><strong>Math code</strong> is found in <code>mathstuff.c</code>.</p>
+
+<p><strong>Physics and collision detection/response</strong> can be found in <code>motion.c</code>.</p>
+
+<p><strong>Scripting</strong> is implemented mostly in <code>script.c</code> file which contains all exposed functions. Other files can call script code (mostly for events) though. <strong>AI</strong> helper code can be found in <code>aifuncs.c</code>.</p>
+
+<p><strong>Generic data structures</strong> and other helper stuff can be found in the <code>utils.c</code> file.</p>
+
+<p><strong>File I/O</strong> functions - code for loading resource data and saving files - can be found in the <code>resio.c</code> file.</p>
+
+<p>To find other stuff, just use common sense and your editor&#8217;s search functionality or a good <code>grep</code>. All c files include the <code>atest.h</code> header file which in turn includes the other header files of the project, so you can also use this file as a starting point.</p>

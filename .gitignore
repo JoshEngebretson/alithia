@@ -14,3 +14,9 @@ atest.dSYM/
 makexz.sh
 report.html
 *.xz
+*.zip
+*.user
+prealpha0/
+ps/
+.runtik/
+

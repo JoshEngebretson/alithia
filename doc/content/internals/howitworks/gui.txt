@@ -1,0 +1,5 @@
+The GUI system
+<!--@weight=600-->
+<p>This part describes how the <span class="caps">GUI</span> and some of its more advanced controls (like the text editor) work.</p>
+
+<p><i>Not written yet</i></p>
