@@ -52,7 +52,7 @@ static char* rio_system_datapath(void)
     char* path = NULL;
     char* binpath = unipath(getApplicationDirectory());
     path = malloc(strlen(binpath) + 256);
-    sprintf(path, "%s../Resources", binpath);
+    sprintf(path, "%s/Contents/Resources", binpath);
     free(binpath);
     return path;
 }
