@@ -777,6 +777,8 @@ int world_save(const char* filename)
             world_save_add_texture_offset(c->bottomtex);
             world_save_add_texture_offset(c->uppertex);
             world_save_add_texture_offset(c->lowetex);
+            world_save_add_texture_offset(c->uppertrim);
+            world_save_add_texture_offset(c->lowertrim);
         }
     }
 #undef world_save_add_texture_offset
@@ -903,6 +905,10 @@ int world_load(const char* filename)
             world_load_solve_texture_later(&c->uppertex, foffset);
             fread(&foffset, 4, 1, f);
             world_load_solve_texture_later(&c->lowetex, foffset);
+            fread(&foffset, 4, 1, f);
+            world_load_solve_texture_later(&c->uppertrim, foffset);
+            fread(&foffset, 4, 1, f);
+            world_load_solve_texture_later(&c->lowertrim, foffset);
         }
     }
 #undef world_load_solve_texture_later

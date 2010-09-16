@@ -87,6 +87,8 @@ typedef struct _cell_t
     texture_t* bottomtex;
     texture_t* uppertex;
     texture_t* lowetex;
+    texture_t* uppertrim;
+    texture_t* lowertrim;
     int32_t floorz;
     int32_t ceilz;
     int32_t flags;

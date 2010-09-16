@@ -162,6 +162,12 @@ static char* rio_write_path(void)
     char* dir;
     size_t i;
 
+    if (writepath) {
+        fdir = unipath(writepath);
+        free(awdir);
+        return fdir;
+    }
+
     if (writename) {
         fdir = strdup(writename);
     } else {
@@ -187,6 +193,8 @@ static char* rio_write_path(void)
 static int rio_force_dirs(const char* path)
 {
     char part[4096];
+    char cwd[4096];
+    getcwd(cwd, sizeof(cwd));
     size_t i, len = 0;
     if (path[0] == '/') chdir("/");
     for (i=0; path[i]; i++) {
@@ -196,8 +204,10 @@ static int rio_force_dirs(const char* path)
 #ifdef WIN32
                 if (len == 2 && part[1] == ':') {
                     strcat(part, "/");
-                    if (chdir(part) != 0)
+                    if (chdir(part) != 0) {
+                        chdir(cwd);
                         return 0;
+                    }
                     len = 0;
                     continue;
                 }
@@ -208,29 +218,29 @@ static int rio_force_dirs(const char* path)
 #else
                     mkdir(part, 0777);
 #endif
-                    if (chdir(part) != 0)
+                    if (chdir(part) != 0) {
+                        chdir(cwd);
                         return 0;
+                    }
                 }
             }
             len = 0;
         } else part[len++] = path[i];
     }
+    chdir(cwd);
     return 1;
 }
 
 FILE* rio_create(const char* name)
 {
-    char cwd[4096];
     char* wpath = rio_write_path();
     char* fpath = malloc(strlen(wpath) + strlen(name) + 1);
     FILE* f = NULL;
     sprintf(fpath, "%s%s", wpath, name);
     free(wpath);
-    getcwd(cwd, 4096);
     if (rio_force_dirs(fpath)) {
         f = fopen(fpath, "wb");
     }
-    chdir(cwd);
     free(fpath);
     return f;
 }

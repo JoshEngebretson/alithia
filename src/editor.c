@@ -113,6 +113,8 @@ void editor_setcelltexture_modifier(int cx, int cy, cell_t* cell, void* data)
     case 1: cell->uppertex = mdata->tex; break;
     case 2: cell->lowetex = mdata->tex; break;
     case 3: cell->bottomtex = mdata->tex; break;
+    case 4: cell->uppertrim = mdata->tex; break;
+    case 5: cell->lowertrim = mdata->tex; break;
     }
 }
 
@@ -283,6 +285,10 @@ static void editorscreen_sdl_event(SDL_Event ev)
                     plane_from_point_and_normal(&drag_plane, &drag_light->p, &n);
                     cur_x1 = pd.light->p.x/CELLSIZE;
                     cur_y1 = pd.light->p.z/CELLSIZE;
+                    if (cur_x1 < 1) cur_x1 = 1;
+                    else if (cur_x1 > map_width - 1) cur_x1 = map_width - 1;
+                    if (cur_y1 < 1) cur_y1 = 1;
+                    else if (cur_y1 > map_height - 1) cur_y1 = map_height - 1;
                 } else {
                     if (key[SDLK_r])
                         pd.light->r += 0.015625;
@@ -308,6 +314,10 @@ static void editorscreen_sdl_event(SDL_Event ev)
                     plane_from_point_and_normal(&drag_plane, &dp, &n);
                     cur_x1 = pd.entity->p.x/CELLSIZE;
                     cur_y1 = pd.entity->p.z/CELLSIZE;
+                    if (cur_x1 < 1) cur_x1 = 1;
+                    else if (cur_x1 > map_width - 1) cur_x1 = map_width - 1;
+                    if (cur_y1 < 1) cur_y1 = 1;
+                    else if (cur_y1 > map_height - 1) cur_y1 = map_height - 1;
                 }
             } else { /* pointing at world */
                 int offs = -1;
@@ -334,6 +344,10 @@ static void editorscreen_sdl_event(SDL_Event ev)
                     plane_from_point_and_normal(&drag_plane, &drag_light->p, &n);
                     cur_x1 = pd.light->p.x/CELLSIZE;
                     cur_y1 = pd.light->p.z/CELLSIZE;
+                    if (cur_x1 < 1) cur_x1 = 1;
+                    else if (cur_x1 > map_width - 1) cur_x1 = map_width - 1;
+                    if (cur_y1 < 1) cur_y1 = 1;
+                    else if (cur_y1 > map_height - 1) cur_y1 = map_height - 1;
                 } else {
                     if (key[SDLK_r])
                         pd.light->r -= 0.015625;
@@ -361,6 +375,10 @@ static void editorscreen_sdl_event(SDL_Event ev)
                     plane_from_point_and_normal(&drag_plane, &dp, &n);
                     cur_x1 = pd.entity->p.x/CELLSIZE;
                     cur_y1 = pd.entity->p.z/CELLSIZE;
+                    if (cur_x1 < 1) cur_x1 = 1;
+                    else if (cur_x1 > map_width - 1) cur_x1 = map_width - 1;
+                    if (cur_y1 < 1) cur_y1 = 1;
+                    else if (cur_y1 > map_height - 1) cur_y1 = map_height - 1;
                 }
             } else { /* pointing at world */
                 int offs = -1;
@@ -403,6 +421,10 @@ static void editorscreen_sdl_event(SDL_Event ev)
             drag_light->p = ip;
             cur_x1 = pd.light->p.x/CELLSIZE;
             cur_y1 = pd.light->p.z/CELLSIZE;
+            if (cur_x1 < 1) cur_x1 = 1;
+            else if (cur_x1 > map_width - 1) cur_x1 = map_width - 1;
+            if (cur_y1 < 1) cur_y1 = 1;
+            else if (cur_y1 > map_height - 1) cur_y1 = map_height - 1;
             break;
         }
 
@@ -413,6 +435,10 @@ static void editorscreen_sdl_event(SDL_Event ev)
             ent_move(drag_entity, ip.x + drag_diff.x, ip.y + drag_diff.y, ip.z + drag_diff.z);
             cur_x1 = pd.entity->p.x/CELLSIZE;
             cur_y1 = pd.entity->p.z/CELLSIZE;
+            if (cur_x1 < 1) cur_x1 = 1;
+            else if (cur_x1 > map_width - 1) cur_x1 = map_width - 1;
+            if (cur_y1 < 1) cur_y1 = 1;
+            else if (cur_y1 > map_height - 1) cur_y1 = map_height - 1;
             break;
         }
 
@@ -772,6 +798,18 @@ static int texture_browser_ctl_handle_event(uicontrol_t* ctl, SDL_Event* ev)
             y2 = ctl->y + ctl->h - 0.04*hw_ratio + texture_browser_scroll - (idx + 1)*(ctl->w + 0.06) + 0.02;
             if (my < y2) return 1;
             mdata.part = (int)(((my - y1)/(y2 - y1))/0.25f);
+            if (SDL_GetModState()&KMOD_SHIFT) {
+                switch (mdata.part) {
+                case 0:
+                    mdata.part = 4;
+                    break;
+                case 3:
+                    mdata.part = 5;
+                    break;
+                default:
+                    return 1;
+                }
+            }
             mdata.tex = (SDL_GetModState()&KMOD_CTRL)?NULL:texbank_item[idx]->tex;
             editor_apply_cell_modifier(editor_setcelltexture_modifier, &mdata);
             return 1;

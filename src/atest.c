@@ -465,30 +465,66 @@ static void draw_cell(cell_t* c, int cx, int cy)
     /* up cap */
     if (cy > 0 && cu->floorz < c->floorz) {
         cell_vertices(cu, cx, cy - 1, avx, avy, avz, 1);
-        do_quad(c->lowetex, vx[3], vy[3], vz[3], avx[2], avy[2], avz[2],
-            avx[1], avy[1], avz[1], vx[0], vy[0], vz[0], -1, 0, 0, 0, -1, 0,
-            cell_has_offsets(c) || cell_has_offsets(cu));
+        if (c->lowertrim) {
+            do_quad(c->lowetex, vx[3], vy[3], vz[3], avx[2], avy[2] + 8, avz[2],
+                avx[1], avy[1] + 8, avz[1], vx[0], vy[0], vz[0], -1, 0, 0, 0, -1, 0,
+                cell_has_offsets(c) || cell_has_offsets(cu));
+            do_quad(c->lowertrim, avx[2], avy[2] + 8, avz[2], avx[2], avy[2], avz[2],
+                avx[1], avy[1], avz[1], avx[1], avy[1] + 8, avz[1], -1, 0, 0, 0, -1, 0,
+                cell_has_offsets(c) || cell_has_offsets(cu));
+        } else {
+            do_quad(c->lowetex, vx[3], vy[3], vz[3], avx[2], avy[2], avz[2],
+                avx[1], avy[1], avz[1], vx[0], vy[0], vz[0], -1, 0, 0, 0, -1, 0,
+                cell_has_offsets(c) || cell_has_offsets(cu));
+        }
     }
     /* down cap */
     if (cy < map_height - 1 && cd->floorz < c->floorz) {
         cell_vertices(cd, cx, cy + 1, avx, avy, avz, 1);
-        do_quad(c->lowetex, vx[1], vy[1], vz[1], avx[0], avy[0], avz[0],
-            avx[3], avy[3], avz[3], vx[2], vy[2], vz[2], 1, 0, 0, 0, -1, 0,
-            cell_has_offsets(c) || cell_has_offsets(cd));
+        if (c->lowertrim) {
+            do_quad(c->lowetex, vx[1], vy[1], vz[1], avx[0], avy[0] + 8, avz[0],
+                avx[3], avy[3] + 8, avz[3], vx[2], vy[2], vz[2], 1, 0, 0, 0, -1, 0,
+                cell_has_offsets(c) || cell_has_offsets(cd));
+            do_quad(c->lowertrim, avx[0], avy[0] + 8, avz[0], avx[0], avy[0], avz[0],
+                avx[3], avy[3], avz[3], avx[3], avy[3] + 8, avz[3], 1, 0, 0, 0, -1, 0,
+                cell_has_offsets(c) || cell_has_offsets(cd));
+        } else {
+            do_quad(c->lowetex, vx[1], vy[1], vz[1], avx[0], avy[0], avz[0],
+                avx[3], avy[3], avz[3], vx[2], vy[2], vz[2], 1, 0, 0, 0, -1, 0,
+                cell_has_offsets(c) || cell_has_offsets(cd));
+        }
     }
     /* left cap */
     if (cx > 0 && cl->floorz < c->floorz) {
         cell_vertices(cl, cx - 1, cy, avx, avy, avz, 1);
-        do_quad(c->lowetex, vx[0], vy[0], vz[0], avx[3], avy[3], avz[3],
-            avx[2], avy[2], avz[2], vx[1], vy[1], vz[1], 0, 0, 1, 0, -1, 0,
-            cell_has_offsets(c) || cell_has_offsets(cl));
+        if (c->lowertrim) {
+            do_quad(c->lowetex, vx[0], vy[0], vz[0], avx[3], avy[3] + 8, avz[3],
+                avx[2], avy[2] + 8, avz[2], vx[1], vy[1], vz[1], 0, 0, 1, 0, -1, 0,
+                cell_has_offsets(c) || cell_has_offsets(cl));
+            do_quad(c->lowertrim, avx[3], avy[3] + 8, avz[3], avx[3], avy[3], avz[3],
+                avx[2], avy[2], avz[2], avx[2], avy[2] + 8, avz[2], 0, 0, 1, 0, -1, 0,
+                cell_has_offsets(c) || cell_has_offsets(cl));
+        } else {
+            do_quad(c->lowetex, vx[0], vy[0], vz[0], avx[3], avy[3], avz[3],
+                avx[2], avy[2], avz[2], vx[1], vy[1], vz[1], 0, 0, 1, 0, -1, 0,
+                cell_has_offsets(c) || cell_has_offsets(cl));
+        }
     }
     /* right cap */
     if (cx < map_width - 1 && cr->floorz < c->floorz) {
         cell_vertices(cr, cx + 1, cy, avx, avy, avz, 1);
-        do_quad(c->lowetex, vx[2], vy[2], vz[2], avx[1], avy[1], avz[1],
-            avx[0], avy[0], avz[0], vx[3], vy[3], vz[3], 0, 0, -1, 0, -1, 0,
-            cell_has_offsets(c) || cell_has_offsets(cr));
+        if (c->lowertrim) {
+            do_quad(c->lowetex, vx[2], vy[2], vz[2], avx[1], avy[1] + 8, avz[1],
+                avx[0], avy[0] + 8, avz[0], vx[3], vy[3], vz[3], 0, 0, -1, 0, -1, 0,
+                cell_has_offsets(c) || cell_has_offsets(cr));
+            do_quad(c->lowertrim, avx[1], avy[1] + 8, avz[1], avx[1], avy[1], avz[1],
+                avx[0], avy[0], avz[0], avx[0], avy[0] + 8, avz[0], 0, 0, -1, 0, -1, 0,
+                cell_has_offsets(c) || cell_has_offsets(cr));
+        } else {
+            do_quad(c->lowetex, vx[2], vy[2], vz[2], avx[1], avy[1], avz[1],
+                avx[0], avy[0], avz[0], vx[3], vy[3], vz[3], 0, 0, -1, 0, -1, 0,
+                cell_has_offsets(c) || cell_has_offsets(cr));
+        }
     }
 
     /**** CEILING ****/
@@ -502,31 +538,67 @@ static void draw_cell(cell_t* c, int cx, int cy)
     /* up cap */
     if (cy > 0 && cu->ceilz > c->ceilz) {
         cell_vertices(cu, cx, cy - 1, avx, avy, avz, 0);
-        do_quad(c->uppertex, avx[2], avy[2], avz[2], vx[3], vy[3], vz[3], vx[0],
-            vy[0], vz[0], avx[1], avy[1], avz[1], -1, 0, 0, 0, -1, 0,
-            cell_has_offsets(c) || cell_has_offsets(cu));
+        if (c->uppertrim) {
+            do_quad(c->uppertex, avx[2], avy[2] - 8, avz[2], vx[3], vy[3], vz[3], vx[0],
+                vy[0], vz[0], avx[1], avy[1] - 8, avz[1], -1, 0, 0, 0, -1, 0,
+                cell_has_offsets(c) || cell_has_offsets(cu));
+            do_quad(c->uppertrim, avx[2], avy[2], avz[2], avx[2], avy[2] - 8, avz[2],
+                avx[1], avy[1] - 8, avz[1], avx[1], avy[1], avz[1], -1, 0, 0, 0, -1, 0,
+                cell_has_offsets(c) || cell_has_offsets(cu));
+        } else {
+            do_quad(c->uppertex, avx[2], avy[2], avz[2], vx[3], vy[3], vz[3], vx[0],
+                vy[0], vz[0], avx[1], avy[1], avz[1], -1, 0, 0, 0, -1, 0,
+                cell_has_offsets(c) || cell_has_offsets(cu));
+        }
     }
     /* down cap */
     if (cy < map_height - 1 && cd->ceilz > c->ceilz) {
         cell_vertices(cd, cx, cy + 1, avx, avy, avz, 0);
-        do_quad(c->uppertex, avx[0], avy[0], avz[0], vx[1], vy[1], vz[1], vx[2],
-            vy[2], vz[2], avx[3], avy[3], avz[3], 1, 0, 0, 0, -1, 0,
-            cell_has_offsets(c) || cell_has_offsets(cd));
+        if (c->uppertrim) {
+            do_quad(c->uppertex, avx[0], avy[0] - 8, avz[0], vx[1], vy[1], vz[1], vx[2],
+                vy[2], vz[2], avx[3], avy[3] - 8, avz[3], 1, 0, 0, 0, -1, 0,
+                cell_has_offsets(c) || cell_has_offsets(cd));
+            do_quad(c->uppertrim, avx[0], avy[0], avz[0], avx[0], avy[0] - 8, avz[0],
+                avx[3], avy[3] - 8, avz[3], avx[3], avy[3], avz[3], 1, 0, 0, 0, -1, 0,
+                cell_has_offsets(c) || cell_has_offsets(cd));
+        } else {
+            do_quad(c->uppertex, avx[0], avy[0], avz[0], vx[1], vy[1], vz[1], vx[2],
+                vy[2], vz[2], avx[3], avy[3], avz[3], 1, 0, 0, 0, -1, 0,
+                cell_has_offsets(c) || cell_has_offsets(cd));
+        }
     }
     /* left cap */
     if (cx > 0 && cl->ceilz > c->ceilz) {
         cell_vertices(cl, cx - 1, cy, avx, avy, avz, 0);
-        do_quad(c->uppertex, avx[3], avy[3], avz[3], vx[0], vy[0], vz[0], vx[1],
-            vy[1], vz[1], avx[2], avy[2], avz[2], 0, 0, 1, 0, -1, 0,
-            cell_has_offsets(c) || cell_has_offsets(cl));
+        if (c->uppertrim) {
+            do_quad(c->uppertex, avx[3], avy[3] - 8, avz[3], vx[0], vy[0], vz[0], vx[1],
+                vy[1], vz[1], avx[2], avy[2] - 8, avz[2], 0, 0, 1, 0, -1, 0,
+                cell_has_offsets(c) || cell_has_offsets(cl));
+            do_quad(c->uppertrim, avx[3], avy[3], avz[3], avx[3], avy[3] - 8, avz[3],
+                avx[2], avy[2] - 8, avz[2], avx[2], avy[2], avz[2], 0, 0, 1, 0, -1, 0,
+                cell_has_offsets(c) || cell_has_offsets(cl));
+        } else {
+            do_quad(c->uppertex, avx[3], avy[3], avz[3], vx[0], vy[0], vz[0], vx[1],
+                vy[1], vz[1], avx[2], avy[2], avz[2], 0, 0, 1, 0, -1, 0,
+                cell_has_offsets(c) || cell_has_offsets(cl));
+        }
     }
 
     /* right cap */
     if (cx < map_width - 1 && cr->ceilz > c->ceilz) {
         cell_vertices(cr, cx + 1, cy, avx, avy, avz, 0);
-        do_quad(c->uppertex, avx[1], avy[1], avz[1], vx[2], vy[2], vz[2], vx[3],
-            vy[3], vz[3], avx[0], avy[0], avz[0], 0, 0, -1, 0, -1, 0,
-            cell_has_offsets(c) || cell_has_offsets(cr));
+        if (c->uppertrim) {
+            do_quad(c->uppertex, avx[1], avy[1] - 8, avz[1], vx[2], vy[2], vz[2], vx[3],
+                vy[3], vz[3], avx[0], avy[0] - 8, avz[0], 0, 0, -1, 0, -1, 0,
+                cell_has_offsets(c) || cell_has_offsets(cr));
+            do_quad(c->uppertrim, avx[1], avy[1], avz[1], avx[1], avy[1] - 8, avz[1],
+                avx[0], avy[0] - 8, avz[0], avx[0], avy[0], avz[0], 0, 0, -1, 0, -1, 0,
+                cell_has_offsets(c) || cell_has_offsets(cr));
+        } else {
+            do_quad(c->uppertex, avx[1], avy[1], avz[1], vx[2], vy[2], vz[2], vx[3],
+                vy[3], vz[3], avx[0], avy[0], avz[0], 0, 0, -1, 0, -1, 0,
+                cell_has_offsets(c) || cell_has_offsets(cr));
+        }
     }
 }
 
@@ -1903,6 +1975,22 @@ static void run(void)
     script_run_execats("game-init");
 
     SDL_WM_SetCaption(arg_value("-window-caption", "Alithia Engine"), arg_value("-window-caption", "Alithia Engine"));
+
+    {
+        int x, y;
+        texture_t* tex_panels = texbank_get("panels3");
+        texture_t* tex_generic = texbank_get("trim1");
+        for (y=0; y<map_height; y++) {
+            for (x=0; x<map_width; x++) {
+                cell_t* c = cell + y*map_width + x;
+                if (c->lowetex == tex_panels)
+                    c->lowertrim = c->uppertrim = tex_generic;
+            }
+        }
+        for (y=0; y<map_height; y++)
+            for (x=0; x<map_width; x++)
+                map_update_cell(x, y);
+    }
 
     mark = SDL_GetTicks();
     millis = mark;

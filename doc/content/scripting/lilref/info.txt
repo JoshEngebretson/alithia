@@ -1,0 +1,4 @@
+LIL Reference
+<!--@genchildlist,@import=../../lil/doc/content-->
+<p>This part contains the full LIL documentation as included with the LIL language itself. Note that this documentation does not contain features specific to the Alithia Engine. See the other parts of <i>Scripting</i> for these.</p>
+
