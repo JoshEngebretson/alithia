@@ -1,1 +1,7 @@
 How Alithia Engine works
+<!--@genchildlist-->
+<p>This part describes how the <strong>Alithia Engine</strong> is designed, implemented and generally <em>works</em>. It focuses mostly on the C, low-level side of things.</p>
+
+<h2>Please Note</h2>
+
+<p>Keep in mind that the engine is under heavy development and in early stages. This document will be also heavily modified, extended and have a great lag in updates. At this moment the best source for up-to-date information is actually the engine&#8217;s own source code.</p>

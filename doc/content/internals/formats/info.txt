@@ -1,0 +1,3 @@
+File formats
+<!--@genchildlist-->
+<p>These pages describe the file formats used by the Alithia Engine. Please note that the formats described here are specific to the version the Alithia Engine was at the moment these pages were written and the formats are not frozen, especially the <tt>ALW</tt> format used for world files and game state.</p>

@@ -1,0 +1,133 @@
+Alithia World (ALW) Files
+<p>This page describes the file format used by the Alithia Engine for world files.</p>
+
+<p><b>Please note:</b> the world file format is in the early stages of development and incompatible changes may be introduced without modifying the file format version!</p>
+
+<h1>Overview of the world format</h1>
+
+<p>An ALW file contains a single world. The world is made up of a 2D grid of world cells, a light array, an entity reference array and some world-specific configuration. Alithia Engine uses the ALW format both for storing game worlds and game state information for savegames. In fact a game world is just a game state file with some state information ignored.</p>
+
+<p>The world file does not include geometry or lightmap information. The world geometry is generated at runtime using the cell data and the lightmap is generated at load time using the light data.</p>
+
+<h1>File layout</h1>
+
+<p>All integer values are in little endian order. The file begins with a header which contains the world configuration, followed by the 2D grid of the cells, followed by zero or more lights, followed by one or more entities and finally followed by zero or more texture names (see below for these names).</p>
+
+<h2>Header</h2>
+
+<p>The layout for the header is</p>
+
+<p><table border='1'>
+<tr><td><b>Element Type</b></td><td><b>Use</b></td></tr>
+<tr><td>4 bytes</td><td>for the 'ALW' string followed by the byte 0</td></tr>
+<tr><td>1 uint16</td><td>the map's grid width</td></tr>
+<tr><td>1 uint16</td><td>the map's grid height</td></tr>
+<tr><td>1 uint32</td><td>entity count</td></tr>
+<tr><td>1 uint32</td><td>light count</td></tr>
+<tr><td>1 uint32</td><td>index of the player entity in the entities array</td></tr>
+<tr><td>1 float</td><td>initial camera horizontal angle</td></tr>
+<tr><td>1 float</td><td>initial camera vertical angle (might be overridden)</td></tr>
+<tr><td>256 bytes</td><td>reserved, must be zero</td></tr>
+</table></p>
+
+<h2>World cells</h2>
+
+<p>The layout for each cell in the world grid is</p>
+
+<p><table border='1'>
+<tr><td><b>Element Type</b></td><td><b>Use</b></td></tr>
+<tr><td>1 int32</td><td>floor height</td></tr>
+<tr><td>1 int32</td><td>ceiling height</td></tr>
+<tr><td>1 uint32</td><td>flags (see below)</td></tr>
+<tr><td>1 uint32</td><td>ceiling texture reference</td></tr>
+<tr><td>1 uint32</td><td>floor texture reference</td></tr>
+<tr><td>1 uint32</td><td>upper wall texture reference</td></tr>
+<tr><td>1 uint32</td><td>lower wall texture reference</td></tr>
+<tr><td>1 uint32</td><td>upper trim texture reference</td></tr>
+<tr><td>1 uint32</td><td>lower trim texture reference</td></tr>
+</table></p>
+
+<p><b>Note:</b> there are "<i>width * height</i>" cells in the grid</p>
+
+<h2>Light array</h2>
+
+<p>The layout for each light in the lights array is</p>
+
+<p><table border='1'>
+<tr><td><b>Element Type</b></td><td><b>Use</b></td></tr>
+<tr><td>1 float</td><td>for the light's x coordinate</td></tr>
+<tr><td>1 float</td><td>for the light's y coordinate</td></tr>
+<tr><td>1 float</td><td>for the light's z coordinate</td></tr>
+<tr><td>1 float</td><td>for the light's red component</td></tr>
+<tr><td>1 float</td><td>for the light's green component</td></tr>
+<tr><td>1 float</td><td>for the light's blue component</td></tr>
+<tr><td>1 float</td><td>for the light's radius</td></tr>
+</table></p>
+
+<p><b>Note:</b> the lightmapper currently ignores the y coordinate. Also the red, green and blue components can be below zero or above one. The accumulated color when calculating the lightmap will take these out-of-band values in account even if the color itself will be clamped to <tt>0...1</tt>.</p>
+
+<h3>Cell flags</h3>
+
+<p>The cells can have one or more of the flags set below. Note that some flags might be modified at load time or runtime</p>
+
+<p><table border='1'>
+<tr><td><b>Flag name</b></td><td><b>Value</b></td><td><b>Use</b></td></tr>
+<tr><td>CF_NOFLAGS</td><td>0</td><td>No flags set</td></tr>
+<tr><td>CF_OCCLUDER</td><td>0x00000001</td><td>The cell is an occluder. This flag is set at load time based on the ceil heights.</td></tr>
+<tr><td>CF_HEIGHTMAP</td><td>0x00000002</td><td>The cell is part of a smooth heightmap. This flag is not used currently.</td></tr>
+</table></p>
+
+<h2>Entity array</h2>
+
+<p>Each entity is made of a static set of fields as shown below and a table of attributes with an entry layout shown after the entity layout. The entity layout (static set of fields) is</p>
+
+<p><table border='1'>
+<tr><td><b>Element Type</b></td><td><b>Use</b></td></tr>
+<tr><td>1 float</td><td>the x coordinate for the entity's position</td></tr>
+<tr><td>1 float</td><td>the y coordinate for the entity's position</td></tr>
+<tr><td>1 float</td><td>the z coordinate for the entity's position</td></tr>
+<tr><td>1 float</td><td>the x coordinate for the entity's position offset</td></tr>
+<tr><td>1 float</td><td>the y coordinate for the entity's position offset</td></tr>
+<tr><td>1 float</td><td>the z coordinate for the entity's position offset</td></tr>
+<tr><td>16 floats</td><td>the entity's transformation matrix. For most entities this is calculated using the fields above</td></tr>
+<tr><td>1 float</td><td>the minimum x coordinate for the entity's axis aligned bounding box. Note that the bounding box can be overridden by the entity model (if any)</td></tr>
+<tr><td>1 float</td><td>the minimum y coordinate for the entity's axis aligned bounding box</td></tr>
+<tr><td>1 float</td><td>the minimum x coordinate for the entity's axis aligned bounding box</td></tr>
+<tr><td>1 float</td><td>the maximum y coordinate for the entity's axis aligned bounding box</td></tr>
+<tr><td>1 float</td><td>the maximum z coordinate for the entity's axis aligned bounding box</td></tr>
+<tr><td>1 float</td><td>the maximum z coordinate for the entity's axis aligned bounding box</td></tr>
+<tr><td>1 uint32</td><td>the entity's current/initial frame number (used for animated models)</td></tr>
+<tr><td>1 float</td><td>the animation's frame duration state (used for animated models)</td></tr>
+<tr><td>1 uint32</td><td>the entity's event mask (can be modified by the entity scripts)</td></tr>
+<tr><td>1 uint32</td><td>attribute count</td></tr>
+</table></p>
+
+<p>After the above fields the entity's attribute table follows. Note that the attributes stored might not be all the attributes an entity understands but only the attributes modified after the entity's creation. Also note that attributes which begin with a period ('<tt>.</tt>') are used internally by the engine while all other attributes are usually set by the entity's scripts.</p>
+
+<p>The layout for each one of the attribute entries is</p>
+
+<p><table border='1'>
+<tr><td><b>Element Type</b></td><td><b>Use</b></td></tr>
+<tr><td>1 uint32</td><td>length of the attribute's name in bytes (namelen)</td></tr>
+<tr><td><i>namelen</i> bytes</td><td>the attribute's name</td></tr>
+<tr><td>1 uint32</td><td>length of the attribute's value in bytes (valuelen)</td></tr>
+<tr><td><i>valuelen</i> bytes</td><td>the attribute's value</td></tr>
+</table></p>
+
+<h2>Texture references table</h2>
+
+<p>To avoid writing the texture names as strings each time a texture needs to be referenced, the world format uses a table of strings (names) and instead of storing the texture name where required, it stores a 32bit unsigned number as an offset inside the name table. The offset is set in bytes (<i>not</i> entries) from the beginning of the table. At the beginning of the table there is always an unused byte (set to zero) because offset 0 is used for NULL texture references (used for the skymap or to avoid trim textures in cells). The loader is assumed to jump to the beginning of the table plus the offset number of bytes to find the texture name.</p>
+
+<p>Each texture name has the following layout</p>
+
+<p><table border='1'>
+<tr><td><b>Element Type</b></td><td><b>Use</b></td></tr>
+<tr><td>1 byte</td><td>length of the texture name in bytes</td></tr>
+<tr><td><i>length</i> bytes</td><td>the texture name</td></tr>
+</table></p>
+
+<p>Note that the texture name contains only a relative name without texture extension (for example <tt>textures/bricks1</tt>). The size of the texture names table is calculated at runtime while texture references are found and is not stored in the file so the world writer puts it at the end of the file.</p>
+
+<h1>Source code</h1>
+
+<p>Check the <tt>world_save</tt> and <tt>world_load</tt> functions in <tt>world.c</tt>. While the use of macros for texture references might complicate things a bit, most of the code is very straightforward.</p>
