@@ -41,6 +41,7 @@ static int dragging_light;
 static light_t* drag_light;
 static int dragging_entity;
 static entity_t* drag_entity;
+static entity_t* last_clicked_entity;
 static plane_t drag_plane;
 static vector_t drag_diff;
 
@@ -200,6 +201,16 @@ static void key_down(SDL_Event ev)
             pd.result = PICK_NOTHING;
         }
         break;
+    case SDLK_g:
+        if (SDL_GetModState() & KMOD_CTRL) {
+            if (pd.result == PICK_ENTITY) {
+                int nx = fabs(((int)pd.entity->p.x)/4*4 - pd.entity->p.x) < fabs(((int)pd.entity->p.x + 2.1)/4*4 - pd.entity->p.x) ? ((int)pd.entity->p.x)/4*4 : ((int)pd.entity->p.x + 2.1)/4*4;
+                int ny = fabs(((int)pd.entity->p.y)/4*4 - pd.entity->p.y) < fabs(((int)pd.entity->p.y + 2.1)/4*4 - pd.entity->p.y) ? ((int)pd.entity->p.y)/4*4 : ((int)pd.entity->p.y + 2.1)/4*4;
+                int nz = fabs(((int)pd.entity->p.z)/4*4 - pd.entity->p.z) < fabs(((int)pd.entity->p.z + 2.1)/4*4 - pd.entity->p.z) ? ((int)pd.entity->p.z)/4*4 : ((int)pd.entity->p.z + 2.1)/4*4;
+                ent_move(pd.entity, nx, ny, nz);
+            }
+        }
+        break;
     case SDLK_o:
         if (SDL_GetModState() & KMOD_CTRL)
             disable_occlusion = !disable_occlusion;
@@ -251,6 +262,7 @@ static void editorscreen_sdl_event(SDL_Event ev)
             } else if (pd.result == PICK_ENTITY) { /* pointing at entity: start dragging/cloning it */
                 vector_t n;
                 vec_makedir(&n, &centerayb, &centeraya);
+                last_clicked_entity = pd.entity;
                 dragging_entity = 1;
                 if (SDL_GetModState() & KMOD_SHIFT) {
                     drag_entity = pd.entity = ent_clone(pd.entity);
@@ -798,6 +810,15 @@ static int texture_browser_ctl_handle_event(uicontrol_t* ctl, SDL_Event* ev)
             y2 = ctl->y + ctl->h - 0.04*hw_ratio + texture_browser_scroll - (idx + 1)*(ctl->w + 0.06) + 0.02;
             if (my < y2) return 1;
             mdata.part = (int)(((my - y1)/(y2 - y1))/0.25f);
+            if (key[SDLK_t]) {
+                if (last_clicked_entity) {
+                    if (last_clicked_entity->texture == texbank_item[idx]->tex)
+                        last_clicked_entity->texture = NULL;
+                    else
+                        last_clicked_entity->texture = texbank_item[idx]->tex;
+                }
+                return 1;
+            }
             if (SDL_GetModState()&KMOD_SHIFT) {
                 switch (mdata.part) {
                 case 0:
@@ -1033,6 +1054,12 @@ void editor_scriptmenu_add(const char* name, lil_value_t code)
     e->name = strdup(name);
     e->code = lil_clone_value(code);
     list_add(scriptmenu_entries, e);
+}
+
+void editor_entity_deleted(entity_t* ent)
+{
+    if (last_clicked_entity == ent)
+        ent = NULL;
 }
 
 static void scriptmenu_entry_free(void* ptr)

@@ -79,6 +79,8 @@ typedef struct _entity_t
     float durstate;
     float framedur;
     uint32_t event_mask;
+    int draw_shadow;
+    texture_t* texture;
 } entity_t;
 
 typedef struct _cell_t

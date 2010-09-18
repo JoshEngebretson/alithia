@@ -546,6 +546,7 @@ entity_t* ent_new(void)
 void ent_free(entity_t* ent)
 {
     or_deleted(ent);
+    editor_entity_deleted(ent);
     free(ent->class);
     if (ent->ai) ai_release(ent->ai);
     if (ent->mot) mot_free(ent->mot);
@@ -678,6 +679,8 @@ void ent_set_attr(entity_t* ent, lil_value_t name, lil_value_t value)
     else if (!strcmp(cname, "move-target-reached"))
         __EVMASK_UPDATE(EVMASK_MOVE_TARGET_REACHED);
 #undef __EVMASK_UPDATE
+    else if (!strcmp(cname, "draw-shadow"))
+        ent->draw_shadow = lil_to_boolean(value);
     attr = new(entity_attr_t);
     attr->name = lil_clone_value(name);
     attr->value = lil_clone_value(value);
@@ -730,7 +733,7 @@ int world_save(const char* filename)
     uint32_t entcount = (uint32_t)ents->count;
     uint32_t lightcount = (uint32_t)lights->count;
     uint8_t reserved[256];
-    uint32_t foffset = 0;
+    uint32_t foffset = 1;
     listitem_t* litem;
     texture_t** usv_texptr = NULL;
     uint32_t usv_count = 0;
@@ -833,6 +836,7 @@ int world_save(const char* filename)
         }
     }
 
+    fwrite(reserved, 1, 1, f);
     for (i=0; i<usv_count; i++) {
         uint8_t len = strlen(usv_texptr[i]->bankname);
         fwrite(&len, 1, 1, f);
@@ -945,6 +949,8 @@ int world_load(const char* filename)
             mot_for_char(mot);
             vec_set(&player_ent->laabb.min, -16, -48, -16);
             vec_set(&player_ent->laabb.max, 16, 16, 16);
+        } else {
+            ent->texture = texbank_get("sp_squares1");
         }
         fread(&ent->p.x, 4, 1, f);
         fread(&ent->p.y, 4, 1, f);

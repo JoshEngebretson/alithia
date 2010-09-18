@@ -388,6 +388,52 @@ void cell_vertices(cell_t* c, int x, int y, float* vx, float* vy, float* vz, int
     vz[3] = y * CELLSIZE;
 }
 
+static void box_project(texture_t* tex, float* u, float* v, float x, float y, float z, float nx, float ny, float nz)
+{
+    enum {X, Y, Z} major_axis = X;
+    float ax = fabs(nx);
+    float ay = fabs(ny);
+    float az = fabs(nz);
+    if (ax > ay) {
+        if (ax > az) major_axis = X; else major_axis = Z;
+    } else {
+        if (ay > az) major_axis = Y; else major_axis = Z;
+    }
+
+    switch (major_axis) {
+    case X:
+        if (nx > 0) {
+            *u = -z;
+            *v = -y;
+        } else {
+            *u = z;
+            *v = -y;
+        }
+        break;
+    case Y:
+        if (ny > 0) {
+            *u = x;
+            *v = z;
+        } else {
+            *u = x;
+            *v = -z;
+        }
+        break;
+    case Z:
+        if (nz > 0) {
+            *u = x;
+            *v = -y;
+        } else {
+            *u = -x;
+            *v = -y;
+        }
+        break;
+    }
+
+    *u /= (float)(tex?tex->w:1);
+    *v /= (float)(tex?tex->h:1);
+}
+
 static void do_quad(texture_t* tex, float x1, float y1, float z1, float x2,
     float y2, float z2, float x3, float y3, float z3, float x4, float y4,
     float z4, float ux, float uy, float uz, float vx, float vy, float vz,
@@ -1040,7 +1086,8 @@ static void render_world(int wfmode)
 {
     int x, y, i;
     entity_t* e[MAX_VISIBLE_ENTITIES];
-    int ec = 0;
+    entity_t* ect[MAX_VISIBLE_ENTITIES];
+    int ec = 0, ectc = 0;
     GLint vport[4];
     double pmtx[16];
     double vmtx[16];
@@ -1233,58 +1280,62 @@ static void render_world(int wfmode)
     /* fill the buckets with the entity geometry */
     for (i = 0; i < ec; i++) {
         entity_t* ent = e[i];
-        if (!ent->mdl->dl) {
-            int i, f;
-            ent->mdl->dl = glGenLists(ent->mdl->frames);
-            ent->mdl->dlshadow = glGenLists(ent->mdl->frames);
-            for (f = 0; f < ent->mdl->frames; f++) {
-                /* normal display list */
-                glNewList(ent->mdl->dl + f, GL_COMPILE);
-                glBegin(GL_TRIANGLES);
-                for (i = 0; i < ent->mdl->fc; i++) {
-                    float* v = ent->mdl->v + ent->mdl->vc*8*f + (ent->mdl->f[i * 3] * 8);
-                    if (!wfmode) {
-                        glMultiTexCoord2f(GL_TEXTURE0, v[6], v[7]);
-                        glMultiTexCoord2f(GL_TEXTURE1, v[0] / (float) map_width
-                            / CELLSIZE, v[2] / (float) map_height / CELLSIZE);
-                        glNormal3f(v[3], v[4], v[5]);
+        if (!ent->texture) { /* entities with entity-level textures cannot use display lists */
+            if (!ent->mdl->dl) {
+                int i, f;
+                ent->mdl->dl = glGenLists(ent->mdl->frames);
+                ent->mdl->dlshadow = glGenLists(ent->mdl->frames);
+                for (f = 0; f < ent->mdl->frames; f++) {
+                    /* normal display list */
+                    glNewList(ent->mdl->dl + f, GL_COMPILE);
+                    glBegin(GL_TRIANGLES);
+                    for (i = 0; i < ent->mdl->fc; i++) {
+                        float* v = ent->mdl->v + ent->mdl->vc*8*f + (ent->mdl->f[i * 3] * 8);
+                        if (!wfmode) {
+                            glMultiTexCoord2f(GL_TEXTURE0, v[6], v[7]);
+                            glMultiTexCoord2f(GL_TEXTURE1, v[0] / (float) map_width
+                                / CELLSIZE, v[2] / (float) map_height / CELLSIZE);
+                            glNormal3f(v[3], v[4], v[5]);
+                        }
+                        glVertex3f(v[0], v[1], v[2]);
+                        v = ent->mdl->v + ent->mdl->vc*8*f + (ent->mdl->f[i * 3 + 1] * 8);
+                        if (!wfmode) {
+                            glMultiTexCoord2f(GL_TEXTURE0, v[6], v[7]);
+                            glMultiTexCoord2f(GL_TEXTURE1, v[0] / (float) map_width
+                                / CELLSIZE, v[2] / (float) map_height / CELLSIZE);
+                            glNormal3f(v[3], v[4], v[5]);
+                        }
+                        glVertex3f(v[0], v[1], v[2]);
+                        v = ent->mdl->v + ent->mdl->vc*8*f + (ent->mdl->f[i * 3 + 2] * 8);
+                        if (!wfmode) {
+                            glMultiTexCoord2f(GL_TEXTURE0, v[6], v[7]);
+                            glMultiTexCoord2f(GL_TEXTURE1, v[0] / (float) map_width
+                                / CELLSIZE, v[2] / (float) map_height / CELLSIZE);
+                            glNormal3f(v[3], v[4], v[5]);
+                        }
+                        glVertex3f(v[0], v[1], v[2]);
                     }
-                    glVertex3f(v[0], v[1], v[2]);
-                    v = ent->mdl->v + ent->mdl->vc*8*f + (ent->mdl->f[i * 3 + 1] * 8);
-                    if (!wfmode) {
-                        glMultiTexCoord2f(GL_TEXTURE0, v[6], v[7]);
-                        glMultiTexCoord2f(GL_TEXTURE1, v[0] / (float) map_width
-                            / CELLSIZE, v[2] / (float) map_height / CELLSIZE);
-                        glNormal3f(v[3], v[4], v[5]);
+                    glEnd();
+                    glEndList();
+                    /* shadow display list */
+                    glNewList(ent->mdl->dlshadow + f, GL_COMPILE);
+                    glBegin(GL_TRIANGLES);
+                    for (i = 0; i < ent->mdl->fc; i++) {
+                        float* v = ent->mdl->v + ent->mdl->vc*8*f + (ent->mdl->f[i * 3] * 8);
+                        glVertex3f(v[0], 0, v[2]);
+                        v = ent->mdl->v + ent->mdl->vc*8*f + (ent->mdl->f[i * 3 + 1] * 8);
+                        glVertex3f(v[0], 0, v[2]);
+                        v = ent->mdl->v + ent->mdl->vc*8*f + (ent->mdl->f[i * 3 + 2] * 8);
+                        glVertex3f(v[0], 0, v[2]);
                     }
-                    glVertex3f(v[0], v[1], v[2]);
-                    v = ent->mdl->v + ent->mdl->vc*8*f + (ent->mdl->f[i * 3 + 2] * 8);
-                    if (!wfmode) {
-                        glMultiTexCoord2f(GL_TEXTURE0, v[6], v[7]);
-                        glMultiTexCoord2f(GL_TEXTURE1, v[0] / (float) map_width
-                            / CELLSIZE, v[2] / (float) map_height / CELLSIZE);
-                        glNormal3f(v[3], v[4], v[5]);
-                    }
-                    glVertex3f(v[0], v[1], v[2]);
+                    glEnd();
+                    glEndList();
                 }
-                glEnd();
-                glEndList();
-                /* shadow display list */
-                glNewList(ent->mdl->dlshadow + f, GL_COMPILE);
-                glBegin(GL_TRIANGLES);
-                for (i = 0; i < ent->mdl->fc; i++) {
-                    float* v = ent->mdl->v + ent->mdl->vc*8*f + (ent->mdl->f[i * 3] * 8);
-                    glVertex3f(v[0], 0, v[2]);
-                    v = ent->mdl->v + ent->mdl->vc*8*f + (ent->mdl->f[i * 3 + 1] * 8);
-                    glVertex3f(v[0], 0, v[2]);
-                    v = ent->mdl->v + ent->mdl->vc*8*f + (ent->mdl->f[i * 3 + 2] * 8);
-                    glVertex3f(v[0], 0, v[2]);
-                }
-                glEnd();
-                glEndList();
             }
+            add_list_to_bucket(ent->mdl->tex, ent->mdl->dl + ent->frame, ent->mtx);
+        } else {
+            ect[ectc++] = ent;
         }
-        add_list_to_bucket(ent->mdl->tex, ent->mdl->dl + ent->frame, ent->mtx);
     }
 
     /* render skybox bucket */
@@ -1358,6 +1409,52 @@ static void render_world(int wfmode)
             }
             bucket[i].dlc = 0;
         }
+
+    /* render entities with entity-level textures */
+    for (i = 0; i < ectc; i++) {
+        entity_t* ent = ect[i];
+        int f = ent->frame;
+        if (!wfmode)
+            glBindTexture(GL_TEXTURE_2D, ent->texture->name);
+        glBegin(GL_TRIANGLES);
+        for (i = 0; i < ent->mdl->fc; i++) {
+            float* v = ent->mdl->v + ent->mdl->vc*8*f + (ent->mdl->f[i * 3] * 8);
+            float tx, ty, tz, tu, tv;
+            tx = ent->mtx[0]*v[0] + ent->mtx[1]*v[1] + ent->mtx[2]*v[2] + ent->mtx[12];
+            ty = ent->mtx[4]*v[0] + ent->mtx[5]*v[1] + ent->mtx[6]*v[2] + ent->mtx[13];
+            tz = ent->mtx[8]*v[0] + ent->mtx[9]*v[1] + ent->mtx[10]*v[2] + ent->mtx[14];
+            if (!wfmode) {
+                box_project(ent->texture, &tu, &tv, tx, ty, tz, v[3], v[4], v[5]);
+                glMultiTexCoord2f(GL_TEXTURE0, tu, tv);
+                glMultiTexCoord2f(GL_TEXTURE1, tx/(float)map_width/CELLSIZE, tz/(float)map_height/CELLSIZE);
+                glNormal3f(v[3], v[4], v[5]);
+            }
+            glVertex3f(tx, ty, tz);
+            v = ent->mdl->v + ent->mdl->vc*8*f + (ent->mdl->f[i * 3 + 1] * 8);
+            tx = ent->mtx[0]*v[0] + ent->mtx[1]*v[1] + ent->mtx[2]*v[2] + ent->mtx[12];
+            ty = ent->mtx[4]*v[0] + ent->mtx[5]*v[1] + ent->mtx[6]*v[2] + ent->mtx[13];
+            tz = ent->mtx[8]*v[0] + ent->mtx[9]*v[1] + ent->mtx[10]*v[2] + ent->mtx[14];
+            if (!wfmode) {
+                box_project(ent->texture, &tu, &tv, tx, ty, tz, v[3], v[4], v[5]);
+                glMultiTexCoord2f(GL_TEXTURE0, tu, tv);
+                glMultiTexCoord2f(GL_TEXTURE1, tx/(float)map_width/CELLSIZE, tz/(float)map_height/CELLSIZE);
+                glNormal3f(v[3], v[4], v[5]);
+            }
+            glVertex3f(tx, ty, tz);
+            v = ent->mdl->v + ent->mdl->vc*8*f + (ent->mdl->f[i * 3 + 2] * 8);
+            tx = ent->mtx[0]*v[0] + ent->mtx[1]*v[1] + ent->mtx[2]*v[2] + ent->mtx[12];
+            ty = ent->mtx[4]*v[0] + ent->mtx[5]*v[1] + ent->mtx[6]*v[2] + ent->mtx[13];
+            tz = ent->mtx[8]*v[0] + ent->mtx[9]*v[1] + ent->mtx[10]*v[2] + ent->mtx[14];
+            if (!wfmode) {
+                box_project(ent->texture, &tu, &tv, tx, ty, tz, v[3], v[4], v[5]);
+                glMultiTexCoord2f(GL_TEXTURE0, tu, tv);
+                glMultiTexCoord2f(GL_TEXTURE1, tx/(float)map_width/CELLSIZE, tz/(float)map_height/CELLSIZE);
+                glNormal3f(v[3], v[4], v[5]);
+            }
+            glVertex3f(tx, ty, tz);
+        }
+        glEnd();
+    }
 
     /* render decals */
     glEnable(GL_POLYGON_OFFSET_FILL);
@@ -1518,12 +1615,14 @@ static void render_world(int wfmode)
 
     for (i = 0; i < ec; i++) {
         entity_t* ent = e[i];
-        int shadow_y = cell[((int)ent->p.z / CELLSIZE) * map_width + (((int)ent->p.x) / CELLSIZE)].floorz;
-        glPushMatrix();
-        glTranslatef(ent->p.x, shadow_y, ent->p.z);
-        glRotatef(-ent->yrot, 0, 1, 0);
-        glCallList(ent->mdl->dlshadow + ent->frame);
-        glPopMatrix();
+        if (ent->draw_shadow) {
+            int shadow_y = cell[((int)ent->p.z / CELLSIZE) * map_width + (((int)ent->p.x) / CELLSIZE)].floorz;
+            glPushMatrix();
+            glTranslatef(ent->p.x, shadow_y, ent->p.z);
+            glRotatef(-ent->yrot, 0, 1, 0);
+            glCallList(ent->mdl->dlshadow + ent->frame);
+            glPopMatrix();
+        }
     }
 
     /* draw fullscreen quad using the stencil buffer to affect only shadows */

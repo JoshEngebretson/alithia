@@ -45,4 +45,6 @@ pickdata_t* editor_get_pickdata(void);
 
 void editor_scriptmenu_add(const char* name, lil_value_t code);
 
+void editor_entity_deleted(entity_t* ent);
+
 #endif
