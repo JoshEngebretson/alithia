@@ -30,20 +30,24 @@
 #include <string.h>
 #include <ctype.h>
 #include <math.h>
+#include <SDL/SDL.h>
 #ifdef __APPLE__
 #include <OpenGL/gl.h>
 #include <OpenGL/glu.h>
 #include <OpenGL/glext.h>
 #else
+#ifdef __WATCOMC__
+#include <SDL/SDL_opengl.h>
+#define WIN32
+#else
 #include <GL/gl.h>
 #include <GL/glu.h>
 #include <GL/glext.h>
 #endif
-#include <SDL/SDL.h>
+#endif
 #ifdef WIN32
 #undef main
 #endif
-
 #include "lil.h"
 #include "defines.h"
 #include "utils.h"
@@ -94,5 +98,13 @@ void cell_vertices(cell_t* c, int x, int y, float* vx, float* vy, float* vz, int
 void map_update_cell(int x, int y);
 
 void move_towards(float ix, float iy, float iz);
+
+#ifdef __WATCOMC__
+#define sqrtf sqrt
+#define fabsf fabs
+#define atan2f atan2
+#define cosf cos
+#define sinf sin
+#endif
 
 #endif

@@ -20,4 +20,12 @@ report.html
 prealpha0/
 ps/
 .runtik/
+*.obj
+*.smp
+*.mk1
+*.mk
+*.map
+*.lk1
+*.err
+*.sym
 

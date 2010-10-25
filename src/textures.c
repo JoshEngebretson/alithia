@@ -40,8 +40,6 @@ static SDL_Surface* load_surface_from_file(const char* filename)
 
     if (!surf) {
         uint32_t* pixels;
-        surf = SDL_CreateRGBSurface(SDL_SWSURFACE, 8, 8, 32, 0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000);
-        pixels = surf->pixels;
         int i;
         const char* bmp = "        "
                           "  XXX   "
@@ -51,9 +49,10 @@ static SDL_Surface* load_surface_from_file(const char* filename)
                           "        "
                           "   X    "
                           "        ";
+        surf = SDL_CreateRGBSurface(SDL_SWSURFACE, 8, 8, 32, 0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000);
+        pixels = surf->pixels;
         for (i=0; i<64; i++)
             pixels[i] = bmp[i] == ' ' ? 0xffe7cca4 : 0xff000000;
-
     }
 
     return surf;

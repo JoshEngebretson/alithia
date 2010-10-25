@@ -22,8 +22,10 @@
  */
 
 #include <unistd.h>
+#ifdef __GNUC__
 #include <dirent.h>
 #include <sys/stat.h>
+#endif
 #include "atest.h"
 
 static list_t* dirs;
@@ -107,6 +109,7 @@ static void rio_files_add(list_t* files, const char* file)
 
 static void rio_files_scandir(list_t* files, const char* path)
 {
+    #ifdef __GNUC__
     DIR* dir;
     struct dirent* dp;
 
@@ -117,6 +120,26 @@ static void rio_files_scandir(list_t* files, const char* path)
             rio_files_add(files, dp->d_name);
 
     closedir(dir);
+    #endif
+
+    #ifdef __WATCOMC__
+    HANDLE find;
+    WIN32_FIND_DATA fd;
+    char* tmp = malloc(strlen(path) + 3);
+    int i;
+    sprintf(tmp, "%s\\*", path);
+    for (i=0; tmp[i]; i++)
+        if (tmp[i] == '/') tmp[i] = '\\';
+
+    if ((find = FindFirstFile(tmp, &fd)) != INVALID_HANDLE_VALUE) {
+        do {
+            rio_files_add(files, fd.cFileName);
+        } while (FindNextFile(find, &fd));
+        FindClose(find);
+    }
+
+    free(tmp);
+    #endif
 }
 
 list_t* rio_files(const char* path)
@@ -194,8 +217,12 @@ static int rio_force_dirs(const char* path)
 {
     char part[4096];
     char cwd[4096];
-    getcwd(cwd, sizeof(cwd));
     size_t i, len = 0;
+    #ifdef __WATCOMC__
+    GetCurrentDirectory(sizeof(cwd), cwd);
+    #else
+    getcwd(cwd, sizeof(cwd));
+    #endif
     if (path[0] == '/') chdir("/");
     for (i=0; path[i]; i++) {
         if (path[i] == '/') {

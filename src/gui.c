@@ -45,10 +45,10 @@ uicontrol_t* uiroot = NULL;
 /* Helper rendering functions */
 static void set_clip(float x1, float y1, float x2, float y2)
 {
-    x1 = round(vid_width*((x1 + 1.0f)/2.0f));
-    y1 = round(vid_height*((y1 + 1.0f)/2.0f));
-    x2 = round(vid_width*((x2 + 1.0f)/2.0f));
-    y2 = round(vid_height*((y2 + 1.0f)/2.0f));
+    x1 = floor(vid_width*((x1 + 1.0f)/2.0f));
+    y1 = floor(vid_height*((y1 + 1.0f)/2.0f));
+    x2 = floor(vid_width*((x2 + 1.0f)/2.0f));
+    y2 = floor(vid_height*((y2 + 1.0f)/2.0f));
     if (x2 <= x1 || y2 <= y1) {
         glScissor(0, 0, 0, 0);
     } else {
