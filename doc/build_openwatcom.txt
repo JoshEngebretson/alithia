@@ -1,0 +1,33 @@
+Build Alithia Engine with OpenWatcom
+------------------------------------
+
+To build the Alithia Engine with OpenWatcom you need a recent version of the
+OpenWatcom package (at http://openwatcom.org/ you can find the latest version)
+for Windows, my LIL library (for the LIL interpreter) and SDL.
+
+You need to build LIL before OpenWatcom so that the .tgt file can find it. LIL
+must be placed at the same parent directory as the Alithia Engine's sources in
+a directory named lil, like:
+
+  <somewhere>
+       |
+       +-- lil
+       |
+       `-- alithia
+
+Since OpenWatcom uses its own register-based calling convention you also need
+to compile SDL from sources. The latest SDL version should compile with no or
+minimal modifications (there are instructions included - for SDL 1.2.14 i had
+to add a || defined(__WATCOMC__) in the sdl_config_win32.h file to build it
+because the version of OpenWatcom that the Makefile was written for - 1.5 -
+did not had stdint.h available).
+
+Note that the resulting DLL will be incompatible with the publically available
+SDL.DLL file available from libsdl.org. I think you can generate a compatible
+SDL.DLL by changing the configuration for the compiler in the Makefile, but by
+doing so you will need to reconfigure both LIL and Alithia Engine to use stack
+based calls and will lose a bit of optimizations that OpenWatcom does.
+
+Once you have SDL built, just open the LIL and Alithia Engine project files
+(LIL first, Alithia Engine next) and build all their targets via the
+OpenWatcom IDE.
