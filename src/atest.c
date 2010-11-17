@@ -82,7 +82,7 @@ int mouse_sx = 0;
 int mouse_sy = 0;
 int wireframe = 0;
 float wireframe_alpha = 0.1;
-float overdraw = 0;
+int overdraw = 0;
 float pla, pll, plfov = 66;
 texture_t* pointer_cursor;
 texture_t* skybox_left;
@@ -1867,8 +1867,9 @@ static void gamescreen_update(float ms)
         if (!goffup) goffv += ms/370.0f; goffup = 1;
     }
     if (goffup) {
-        goffx = sinf(goffv)*4.0f;
-        goffy = cosf(goffv*2.5f);
+        //goffx = sinf(goffv)*4.0f;
+        goffx = sinf(goffv*1.65f/2.0f)*4.0f;
+        goffy = fabs(2.0f*cosf(goffv*1.35f));
     } else {
         goffx *= 0.9f;
        // goffy *= 0.995;
@@ -1985,7 +1986,7 @@ static void gamescreen_render(void)
     glLoadIdentity();
     glRotatef(180, 0, 1, 0);
     glRotatef(pll/23, 1, 0, 0);
-    glTranslatef(-13+goffx, -23+pll/20-3+goffy, 38);
+    glTranslatef(-13, -23+pll/20-3, 38);
 
 #if 0
     glActiveTexture(GL_TEXTURE1);

@@ -172,7 +172,7 @@ static char* rio_system_write_path(void)
 #else
 static char* rio_system_write_path(void)
 {
-    return strdup(".");
+    return strdup("./");
 }
 #endif
 
@@ -200,8 +200,6 @@ static char* rio_write_path(void)
             fdir = strdup("");
         }
     }
-    for (i=0; fdir[i]; i++) if (fdir[i] == '/' || fdir[i] == '.') fdir[i] = '_';
-    if (fdir[0] != '_' && fdir[strlen(fdir) - 1] == '_') fdir[strlen(fdir) - 1] = 0;
 
     dir = malloc(strlen(awdir) + strlen(fdir) + 256);
     sprintf(dir, "%s%s", awdir, fdir);
