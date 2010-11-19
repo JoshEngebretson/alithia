@@ -790,6 +790,50 @@ static lil_value_t nat_set_cell_ceiling_offset(lil_t lil, size_t argc, lil_value
     return NULL;
 }
 
+static lil_value_t nat_reset_cell_floor_offsets(lil_t lil, size_t argc, lil_value_t* argv)
+{
+    int i, cx, cy;
+    if (argc < 2) {
+        console_write("not enough arguments in reset-cell-floor-offsets"); console_newline();
+        return NULL;
+    }
+    cx = lil_to_integer(argv[0]);
+    cy = lil_to_integer(argv[1]);
+    if (cx < 0 || cx >= map_width) {
+        console_write("cell column (x coordinate) out of map range"); console_newline();
+        return NULL;
+    }
+    if (cy < 0 || cy >= map_height) {
+        console_write("cell row (y coordinate) out of map range"); console_newline();
+        return NULL;
+    }
+    for (i=0; i<4; i++)
+        cell[cy*map_width + cx].zfoffs[i] = 0;
+    return NULL;
+}
+
+static lil_value_t nat_reset_cell_ceiling_offsets(lil_t lil, size_t argc, lil_value_t* argv)
+{
+    int i, cx, cy;
+    if (argc < 2) {
+        console_write("not enough arguments in reset-cell-ceiling-offsets"); console_newline();
+        return NULL;
+    }
+    cx = lil_to_integer(argv[0]);
+    cy = lil_to_integer(argv[1]);
+    if (cx < 0 || cx >= map_width) {
+        console_write("cell column (x coordinate) out of map range"); console_newline();
+        return NULL;
+    }
+    if (cy < 0 || cy >= map_height) {
+        console_write("cell row (y coordinate) out of map range"); console_newline();
+        return NULL;
+    }
+    for (i=0; i<4; i++)
+        cell[cy*map_width + cx].zcoffs[i] = 0;
+    return NULL;
+}
+
 static lil_value_t nat_update_cell(lil_t lil, size_t argc, lil_value_t* argv)
 {
     int cx, cy;
@@ -1118,6 +1162,8 @@ static void reg_world_procs(void)
     lil_register(lil, "set-cell-ceiling-height", nat_set_cell_ceiling_height);
     lil_register(lil, "set-cell-floor-offset", nat_set_cell_floor_offset);
     lil_register(lil, "set-cell-ceiling-offset", nat_set_cell_ceiling_offset);
+    lil_register(lil, "reset-cell-floor-offsets", nat_reset_cell_floor_offsets);
+    lil_register(lil, "reset-cell-ceiling-offsets", nat_reset_cell_ceiling_offsets);
     lil_register(lil, "update-cell", nat_update_cell);
     lil_register(lil, "get-cell-texture", nat_get_cell_texture);
     lil_register(lil, "get-cell-floor-height", nat_get_cell_floor_height);

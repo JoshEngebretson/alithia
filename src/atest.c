@@ -1962,6 +1962,9 @@ static void gamescreen_sdl_event(SDL_Event ev)
     case SDL_MOUSEMOTION:
         pla -= ev.motion.xrel/30.0f*sensitivity;
         pll -= ev.motion.yrel/30.0f*sensitivity;
+        
+        pla = fmod(pla, 360);
+
         if (pll > 60) pll = 60;
         if (pll < -60) pll = -60;
         break;
@@ -2148,7 +2151,7 @@ int main(int _argc, char *_argv[])
     ai_init();
 
     run();
-
+    
     ai_shutdown();
     mot_shutdown();
     modelcache_clear();

@@ -186,9 +186,13 @@ pickdata_t* editor_get_pickdata(void)
 
 static void key_down(SDL_Event ev)
 {
+    int fullscreen;
     switch (ev.key.keysym.sym) {
     case SDLK_TAB:
         camera_mode = !camera_mode;
+        fullscreen = arg_intval("-fullscreen", 0);
+        if (!fullscreen)
+            SDL_WM_GrabInput(camera_mode ? SDL_GRAB_ON : SDL_GRAB_OFF);
         break;
     case SDLK_BACKSPACE:
         if (pd.result == PICK_LIGHT) {
