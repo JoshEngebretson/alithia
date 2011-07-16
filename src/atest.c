@@ -1195,7 +1195,7 @@ static void render_world(int wfmode)
                         free(cls->tri);
                         cls->tri = NULL;
                         cls->tris = 0;
-                        cls->part = malloc0(sizeof(clusterpart_t) * pbc);
+                        cls->part = calloc(pbc, sizeof(clusterpart_t));
                         cls->parts = pbc;
                         for (i = 0; i < pbc; i++) {
                             int j;

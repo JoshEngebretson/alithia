@@ -51,9 +51,9 @@ model_t* mdl_load(const char* geofile, const char* texfile)
     if (fread(&frames, 1, 4, f) != 4) goto fail;
 
     mdl->frames = frames;
-    mdl->v = malloc0(sizeof(float)*mdl->vc*8*frames);
-    mdl->f = malloc0(sizeof(int)*mdl->fc*3);
-    fidx = malloc0(2*mdl->fc*3);
+    mdl->v = calloc(mdl->vc*8*frames, sizeof(float));
+    mdl->f = calloc(mdl->fc*3, sizeof(int));
+    fidx = calloc(1, 2*mdl->fc*3);
 
     if (fread(mdl->v, sizeof(float)*8, mdl->vc*frames, f) != mdl->vc*frames) goto fail;
     if (fread(fidx, 6, mdl->fc, f) != mdl->fc) goto fail;

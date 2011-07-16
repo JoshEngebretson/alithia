@@ -50,6 +50,7 @@ void mot_init(void)
 
 void mot_shutdown(void)
 {
+    if (!motions) return;
     while (motions->first)
         mot_free(motions->first->ptr);
     list_free(motions);

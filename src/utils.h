@@ -24,7 +24,7 @@
 #ifndef __UTILS_H_INCLUDED__
 #define __UTILS_H_INCLUDED__
 
-#define new(o) (malloc0(sizeof(o)))
+#define new(o) (calloc(1, sizeof(o)))
 
 typedef struct _listitem_t
 {
@@ -42,8 +42,6 @@ typedef struct _list_t
     void (*item_free)(void* ptr);
     int deleting;
 } list_t;
-
-void* malloc0(size_t size);
 
 list_t* list_new(void);
 void list_free(list_t* list);

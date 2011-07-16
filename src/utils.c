@@ -23,17 +23,6 @@
 
 #include "atest.h"
 
-uint64_t total=0;
-
-void* malloc0(size_t size)
-{
-    void* ptr = malloc(size);
-    if (ptr) memset(ptr, 0, size);
-
-    total += size;
-    return ptr;
-}
-
 list_t* list_new(void)
 {
     list_t* list = new(list_t);

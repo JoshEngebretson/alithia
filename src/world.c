@@ -52,9 +52,9 @@ void map_init(int width, int height)
     cluster_width = width/CLUSTERSIZE;
     cluster_height = height/CLUSTERSIZE;
 
-    cell = malloc0(width*height*sizeof(cell_t));
-    ocmap = malloc0(width*height);
-    cluster = malloc0(cluster_width*cluster_height*sizeof(cluster_t));
+    cell = calloc(width*height, sizeof(cell_t));
+    ocmap = calloc(1, width*height);
+    cluster = calloc(cluster_width*cluster_height, sizeof(cluster_t));
 
     mot_reset();
 
@@ -98,14 +98,14 @@ void map_init(int width, int height)
         cell[i*width].floorz = cell[i*width + height - 1].floorz = 0;
     }
 
-    lightmap = malloc0(sizeof(lmap_texel_t)*map_width*map_height);
+    lightmap = calloc(map_width*map_height, sizeof(lmap_texel_t));
     glActiveTexture(GL_TEXTURE1);
     glEnable(GL_TEXTURE_2D);
     glGenTextures(1, &lmaptex);
     glBindTexture(GL_TEXTURE_2D, lmaptex);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, map_width, map_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, map_width, map_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, lightmap);
 
     player_ent = ent_new();
     camera_ent = player_ent;
